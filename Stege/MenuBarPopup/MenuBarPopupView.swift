@@ -136,7 +136,12 @@ struct MenuBarPopupView<Content: View>: View {
     }
 
     var computedOffset: CGFloat {
-        let screenWidth = NSScreen.main?.frame.width ?? 0
+        // The popup panel is sized to the screen it was opened on, so clamp
+        // against that screen rather than whichever one happens to be main.
+        let screenWidth =
+            MenuBarPopup.currentScreenFrame.width > 0
+            ? MenuBarPopup.currentScreenFrame.width
+            : (NSScreen.main?.frame.width ?? 0)
         let W = viewFrame.width
         let M = viewFrame.midX
         let newLeft = (M - W / 2) - 20
