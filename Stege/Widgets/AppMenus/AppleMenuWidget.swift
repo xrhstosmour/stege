@@ -8,13 +8,15 @@ import SwiftUI
 /// same whichever application is in front.
 struct AppleMenuWidget: View {
     @EnvironmentObject var configProvider: ConfigProvider
+    var config: ConfigData { configProvider.config }
+    var iconSize: Double { Double(config["icon-size"]?.intValue ?? 14) }
 
     @StateObject private var manager = AppMenusManager()
     @State private var rect: CGRect = .zero
 
     var body: some View {
         Image(systemName: "apple.logo")
-            .font(.system(size: 14))
+            .font(.system(size: iconSize))
             .padding(.horizontal, 6)
             .frame(maxHeight: .infinity)
             .contentShape(Rectangle())
