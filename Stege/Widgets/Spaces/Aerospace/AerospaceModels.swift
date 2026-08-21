@@ -7,12 +7,18 @@ struct AeroWindow: WindowModel {
     var isFocused: Bool = false
     var appIcon: NSImage?
     let workspace: String?
+    let bundleID: String?
+    /// Reported alongside every window, which is what removes the need for the
+    /// separate `list-workspaces --focused` call.
+    let workspaceIsFocused: Bool
 
     enum CodingKeys: String, CodingKey {
         case id = "window-id"
         case title = "window-title"
         case appName = "app-name"
+        case bundleID = "app-bundle-id"
         case workspace
+        case workspaceIsFocused = "workspace-is-focused"
     }
 
     init(from decoder: Decoder) throws {
@@ -22,10 +28,15 @@ struct AeroWindow: WindowModel {
         appName = try container.decodeIfPresent(String.self, forKey: .appName)
         workspace = try container.decodeIfPresent(
             String.self, forKey: .workspace)
+        workspaceIsFocused =
+            try container.decodeIfPresent(Bool.self, forKey: .workspaceIsFocused)
+            ?? false
         isFocused = false
-        if let name = appName {
-            appIcon = IconCache.shared.icon(for: name)
-        }
+        // Prefer the bundle identifier: looking an icon up by display name has
+        // to scan every running application and picks the wrong one when two
+        // share a name.
+        bundleID = try container.decodeIfPresent(String.self, forKey: .bundleID)
+        appIcon = IconCache.shared.icon(bundleID: bundleID, appName: appName)
     }
 }
 
