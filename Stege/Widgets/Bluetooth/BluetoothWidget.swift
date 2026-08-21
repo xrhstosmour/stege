@@ -25,8 +25,16 @@ struct BluetoothWidget: View {
 
     private var content: some View {
         HStack(spacing: 4) {
-            Image(systemName: manager.isPoweredOn ? "wave.3.right" : "wave.3.right.slash")
-                .font(.system(size: 12))
+            // A denied permission previously fell back to the same dimmed
+            // "off" glyph as a switched-off radio, which is nearly invisible on
+            // a dark bar and says nothing about why. A lock states the reason.
+            Image(
+                systemName: !manager.isAuthorized
+                    ? "lock.fill"
+                    : (manager.isPoweredOn
+                        ? "wave.3.right" : "wave.3.right.slash")
+            )
+            .font(.system(size: 12))
             if let lowest = manager.devices.compactMap(\.batteryLevel).min() {
                 Text("\(Int((lowest * 100).rounded()))%")
                     .font(.system(size: 11))
@@ -34,7 +42,7 @@ struct BluetoothWidget: View {
                     .opacity(0.8)
             }
         }
-        .opacity(manager.isPoweredOn ? 1 : 0.45)
+        .opacity(manager.isAuthorized && !manager.isPoweredOn ? 0.45 : 1)
         .frame(maxHeight: .infinity)
         .contentShape(Rectangle())
         .background(
@@ -46,7 +54,19 @@ struct BluetoothWidget: View {
                     }
             }
         )
+        .help(
+            manager.isAuthorized
+                ? "Bluetooth" : "Stege needs Bluetooth permission"
+        )
         .onTapGesture {
+            guard manager.isAuthorized else {
+                NSWorkspace.shared.open(
+                    URL(
+                        string:
+                            "x-apple.systempreferences:com.apple.preference.security?Privacy_Bluetooth"
+                    )!)
+                return
+            }
             MenuBarPopup.show(rect: rect, id: "bluetooth") {
                 BluetoothPopup(manager: manager)
             }
@@ -59,7 +79,11 @@ struct BluetoothPopup: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(manager.isPoweredOn ? "Bluetooth on" : "Bluetooth off")
+            Text(
+                !manager.isAuthorized
+                    ? "Bluetooth permission needed"
+                    : (manager.isPoweredOn ? "Bluetooth on" : "Bluetooth off")
+            )
                 .font(.system(size: 13, weight: .semibold))
 
             if manager.devices.isEmpty {

@@ -1,4 +1,5 @@
 import Combine
+import CoreBluetooth
 import Foundation
 import IOBluetooth
 
@@ -19,6 +20,14 @@ struct BluetoothDevice: Identifiable {
 final class BluetoothManager: ObservableObject {
     @Published private(set) var isPoweredOn = false
     @Published private(set) var devices: [BluetoothDevice] = []
+    /// Whether the app is allowed to read Bluetooth at all.
+    ///
+    /// Read through `CBManager.authorization`, which reports the current state
+    /// without instantiating a central manager and therefore without prompting.
+    /// `IOBluetooth` exposes no equivalent, and without this a denied
+    /// permission is indistinguishable from Bluetooth simply being switched
+    /// off, so the widget cannot tell the user which one it is.
+    @Published private(set) var isAuthorized = true
 
     private var timer: Timer?
     /// Serialises reads so a slow one cannot overlap the next tick.
@@ -47,8 +56,19 @@ final class BluetoothManager: ObservableObject {
         guard !isReading else { return }
         isReading = true
 
+        let authorized = CBManager.authorization == .allowedAlways
+
         queue.async { [weak self] in
             guard let self else { return }
+            guard authorized else {
+                DispatchQueue.main.async {
+                    self.isReading = false
+                    self.isAuthorized = false
+                    self.isPoweredOn = false
+                    self.devices = []
+                }
+                return
+            }
             let powered =
                 IOBluetoothHostController.default()?.powerState
                 == kBluetoothHCIPowerStateON
@@ -56,6 +76,7 @@ final class BluetoothManager: ObservableObject {
 
             DispatchQueue.main.async {
                 self.isReading = false
+                self.isAuthorized = true
                 guard powered != self.isPoweredOn
                     || connected.map(\.id) != self.devices.map(\.id)
                     || connected.map(\.batteryLevel)
