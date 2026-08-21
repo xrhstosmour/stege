@@ -21,6 +21,9 @@ final class BluetoothManager: ObservableObject {
     @Published private(set) var devices: [BluetoothDevice] = []
 
     private var timer: Timer?
+    /// Serialises reads so a slow one cannot overlap the next tick.
+    private let queue = DispatchQueue(label: "stege.bluetooth", qos: .utility)
+    private var isReading = false
 
     init(interval: TimeInterval = 5.0) {
         refresh()
@@ -34,14 +37,34 @@ final class BluetoothManager: ObservableObject {
         timer?.invalidate()
     }
 
+    /// Reads on a background queue, never on the main thread.
+    ///
+    /// `IOBluetooth` access is gated by TCC, and the very first call blocks
+    /// while the system decides whether to prompt. Doing that on the main
+    /// thread freezes the whole bar, not just this widget: every other widget
+    /// stops rendering until it returns.
     private func refresh() {
-        let powered = IOBluetoothHostController.default()?.powerState == kBluetoothHCIPowerStateON
-        let connected = Self.connectedDevices()
-        guard powered != isPoweredOn || connected.map(\.id) != devices.map(\.id)
-            || connected.map(\.batteryLevel) != devices.map(\.batteryLevel)
-        else { return }
-        isPoweredOn = powered
-        devices = connected
+        guard !isReading else { return }
+        isReading = true
+
+        queue.async { [weak self] in
+            guard let self else { return }
+            let powered =
+                IOBluetoothHostController.default()?.powerState
+                == kBluetoothHCIPowerStateON
+            let connected = Self.connectedDevices()
+
+            DispatchQueue.main.async {
+                self.isReading = false
+                guard powered != self.isPoweredOn
+                    || connected.map(\.id) != self.devices.map(\.id)
+                    || connected.map(\.batteryLevel)
+                        != self.devices.map(\.batteryLevel)
+                else { return }
+                self.isPoweredOn = powered
+                self.devices = connected
+            }
+        }
     }
 
     private static func connectedDevices() -> [BluetoothDevice] {
