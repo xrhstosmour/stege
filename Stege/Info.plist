@@ -8,7 +8,13 @@
 	<!-- Icons in an asset catalog are only found through this key. Without it
 	     the compiled AppIcon sits unused in Assets.car and macOS falls back to
 	     the generic application icon. -->
+	<!-- Both keys. `CFBundleIconName` points at the asset catalog, which is
+	     what modern macOS prefers, and `CFBundleIconFile` points at a real
+	     .icns. The catalog alone yielded the system placeholder icon here, so
+	     the .icns is what actually gets drawn. -->
 	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
+	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Stege shows which Bluetooth devices are connected and their battery levels in the menu bar.</string>
