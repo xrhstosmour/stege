@@ -40,6 +40,8 @@ window.title.always-display-app-name-for = ["Mail", "Chrome", "Arc"]
 
 [widgets.default.appmenus]
 max-menus = 6                  # Chrome exposes 11, which crowds a laptop bar
+# Draws the application's own name menu, the first one, in bold, as macOS
+# does. That menu is always shown either way, since it holds About and Quit.
 show-application-name = true
 
 # --- Right -----------------------------------------------------------------
