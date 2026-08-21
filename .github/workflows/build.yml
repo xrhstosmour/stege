@@ -1,0 +1,96 @@
+name: Build
+
+# Every branch builds, not just pull requests, so a branch pushed before its
+# pull request exists is still verified.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+# Least privilege: this workflow only ever reads the repository.
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      # Not guaranteed to be on the runner image, and the build step pipes
+      # through it, so install it rather than depend on the image.
+      - name: Install xcbeautify
+        run: brew list xcbeautify >/dev/null 2>&1 || brew install xcbeautify
+
+      # Resolved separately so a dependency failure is distinguishable from a
+      # compile failure.
+      - name: Resolve dependencies
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project Stege.xcodeproj \
+            -scheme Stege
+
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData/**/SourcePackages
+          key: swiftpm-${{ runner.os }}-${{ hashFiles('Stege.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: swiftpm-${{ runner.os }}-
+
+      # Signing is off here on purpose. This job answers "does it compile", and
+      # nothing it produces is distributed. The release workflow is the only
+      # place a signed artifact is built.
+      - name: Build
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project Stege.xcodeproj \
+            -scheme Stege \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath .build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            ENABLE_HARDENED_RUNTIME=NO \
+            | xcbeautify --renderer github-actions
+
+      - name: Confirm the app bundle was produced
+        run: |
+          app=".build/Build/Products/Release/Stege.app"
+          test -d "$app" || { echo "missing $app"; exit 1; }
+          test -x "$app/Contents/MacOS/Stege" || { echo "missing executable"; exit 1; }
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist"
+
+      # Archived with `ditto` before upload, not handed to the action directly.
+      # `upload-artifact` rebuilds the tree file by file, losing the executable
+      # bit and flattening the symlinks every `.app` depends on, so what came
+      # back down would not launch.
+      - name: Archive the app bundle
+        run: |
+          ditto -c -k --keepParent --sequesterRsrc \
+            .build/Build/Products/Release/Stege.app Stege.zip
+
+      # Lets the build be run on a machine with no Xcode installed. The bundle
+      # is unsigned, since this job disables signing, so it needs an ad-hoc
+      # signature locally before macOS will grant it Accessibility permission.
+      - name: Upload the app bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: Stege-app
+          path: Stege.zip
+          retention-days: 7
+          if-no-files-found: error
