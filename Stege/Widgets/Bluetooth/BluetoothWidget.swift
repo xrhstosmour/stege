@@ -25,16 +25,23 @@ struct BluetoothWidget: View {
 
     private var content: some View {
         HStack(spacing: 4) {
-            // A denied permission previously fell back to the same dimmed
-            // "off" glyph as a switched-off radio, which is nearly invisible on
-            // a dark bar and says nothing about why. A lock states the reason.
-            Image(
-                systemName: !manager.isAuthorized
-                    ? "lock.fill"
-                    : (manager.isPoweredOn
-                        ? "wave.3.right" : "wave.3.right.slash")
-            )
-            .font(.system(size: 12))
+            // A bare lock is unidentifiable: it says something is locked but
+            // not what. Keeping the Bluetooth glyph and badging it with a small
+            // lock says which permission is missing, which is the whole point.
+            // SF Symbols has no Bluetooth glyph, so the wave stands in for it.
+            ZStack(alignment: .bottomTrailing) {
+                Image(
+                    systemName: manager.isPoweredOn && manager.isAuthorized
+                        ? "wave.3.right" : "wave.3.right.slash"
+                )
+                .font(.system(size: 12))
+
+                if !manager.isAuthorized {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 7, weight: .bold))
+                        .offset(x: 3, y: 2)
+                }
+            }
             if let lowest = manager.devices.compactMap(\.batteryLevel).min() {
                 Text("\(Int((lowest * 100).rounded()))%")
                     .font(.system(size: 11))
