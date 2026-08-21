@@ -29,15 +29,18 @@ struct NetworkWidget: View {
         .frame(maxHeight: .infinity)
         .background(.black.opacity(0.001))
         .onTapGesture {
+            // The popup is where the network name is shown, so this is the
+            // first moment Location is actually needed.
+            viewModel.requestSSIDAccessIfNeeded()
             MenuBarPopup.show(rect: rect, id: "network") { NetworkPopup() }
         }
     }
 
     private var wifiIcon: some View {
-        if viewModel.ssid == "Not connected" {
-            return Image(systemName: "wifi.slash")
-                .foregroundColor(.red)
-        }
+        // Driven by `NWPathMonitor` alone. This used to short-circuit to a red
+        // slash whenever the SSID was unreadable, but the SSID is unreadable
+        // without Location permission even while fully connected, so a working
+        // connection was drawn as no connection at all.
         switch viewModel.wifiState {
         case .connected:
             return Image(systemName: "wifi")
