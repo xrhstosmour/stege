@@ -68,7 +68,17 @@ struct TimeWidget: View {
     // Format the current time.
     private func formattedTime(pattern: String, from time: Date) -> String {
         let formatter = DateFormatter()
-        formatter.setLocalizedDateFormatFromTemplate(pattern)
+        // `setLocalizedDateFormatFromTemplate` treats the pattern as a
+        // *template*: it reorders components to suit the locale and discards
+        // literal text, so "E d MMM  HH:mm" comes back as "Fri, Aug 21 at 22:40".
+        // That is the right behaviour only for patterns using template-only
+        // symbols such as `J`, the locale-decides-12-or-24 hour. Anything else
+        // is treated as a literal format, so a pattern is rendered as written.
+        if pattern.contains("J") {
+            formatter.setLocalizedDateFormatFromTemplate(pattern)
+        } else {
+            formatter.dateFormat = pattern
+        }
 
         if let timeZone = timeZone,
             let tz = TimeZone(identifier: timeZone)
