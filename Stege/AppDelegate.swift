@@ -23,6 +23,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         MenuBarPopup.setup()
+        // After the panels exist, so the window appears over a drawn bar
+        // rather than an empty screen. Shows nothing when everything needed is
+        // already granted.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            PermissionsWindowController.shared.showIfNeeded()
+        }
+
+
         setupPanels()
 
         NotificationCenter.default.addObserver(
