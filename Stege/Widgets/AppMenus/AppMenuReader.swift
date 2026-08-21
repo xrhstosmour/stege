@@ -187,7 +187,17 @@ enum AppMenuReader {
 
     /// Whether the process holds Accessibility permission. Without it the menu
     /// bar of other applications is invisible and every read returns nothing.
-    static var isTrusted: Bool { AXIsProcessTrusted() }
+    ///
+    /// Uses `AXIsProcessTrustedWithOptions` with the prompt explicitly off,
+    /// rather than the bare `AXIsProcessTrusted()`, because the latter is
+    /// documented to answer from a cached value and can keep reporting false
+    /// after the permission has been granted.
+    static var isTrusted: Bool {
+        let options =
+            [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): false]
+            as CFDictionary
+        return AXIsProcessTrustedWithOptions(options)
+    }
 
     /// Prompts for Accessibility permission, showing the system's own dialog.
     static func requestTrust() {
