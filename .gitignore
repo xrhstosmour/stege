@@ -215,3 +215,9 @@ xcuserdata/
 ####
 # UNKNOWN: recommended by others, but I can't discover what these files are
 #
+# Xcode per-user state, never shared.
+xcuserdata/
+*.xcuserstate
+
+# Throwaway probes used to verify behaviour before it lands in the app.
+.prototypes/
