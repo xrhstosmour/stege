@@ -27,6 +27,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             selector: #selector(screenParametersDidChange(_:)),
             name: NSApplication.didChangeScreenParametersNotification,
             object: nil)
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(barVisibilityDidChange(_:)),
+            name: .stegeBarVisibilityChanged,
+            object: nil)
+    }
+
+    /// Orders Stege's panels out so the system menu bar underneath is reachable,
+    /// and back in once `BarVisibility` decides the pointer has moved away.
+    @objc private func barVisibilityDidChange(_ notification: Notification) {
+        let hidden = BarVisibility.shared.isHidden
+        for panel in [backgroundPanel, menuBarPanel] {
+            guard let panel else { continue }
+            if hidden {
+                panel.orderOut(nil)
+            } else {
+                panel.orderFrontRegardless()
+            }
+        }
     }
 
     @objc private func screenParametersDidChange(_ notification: Notification) {
