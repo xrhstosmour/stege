@@ -51,6 +51,9 @@ struct MenuBarView: View {
             TimeWidget(calendarManager: CalendarManager(configProvider: config))
                 .environmentObject(config)
             
+        case "default.keyboardlayout":
+            KeyboardLayoutWidget().environmentObject(config)
+
         case "default.monitor":
             SystemMonitorWidget().environmentObject(config)
 
