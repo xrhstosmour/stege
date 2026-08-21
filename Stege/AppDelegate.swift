@@ -7,6 +7,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBarPanels: [NSPanel] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // A second copy would draw an overlapping bar on every display and
+        // double every timer and `aerospace` invocation behind it.
+        let sameApp = NSWorkspace.shared.runningApplications.filter {
+            $0.bundleIdentifier == Bundle.main.bundleIdentifier
+        }
+        if sameApp.count > 1 {
+            NSApp.terminate(nil)
+            return
+        }
+
         if let error = ConfigManager.shared.initError {
             showFatalConfigError(message: error)
             return
