@@ -49,6 +49,10 @@ final class AppMenusManager: ObservableObject {
     /// permission is missing and stops for good once granted.
     private func startTrustPollingIfNeeded() {
         guard !isTrusted else { return }
+        // `refresh()` also calls this on every application switch, so without
+        // clearing the previous one a new timer was added each time and they
+        // accumulated for the life of the process.
+        guard trustPollingTimer == nil else { return }
         trustPollingTimer = Timer.scheduledTimer(
             withTimeInterval: 2.0, repeats: true
         ) { [weak self] timer in
