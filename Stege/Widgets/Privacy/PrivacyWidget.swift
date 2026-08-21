@@ -9,18 +9,29 @@ struct PrivacyWidget: View {
     /// Dots match the system's own indicator. Icons are clearer about which
     /// device is active, which is why they are the default here.
     var useDots: Bool { config["style"]?.stringValue == "dot" }
+    /// Draw both indicators dimmed when idle rather than hiding them.
+    ///
+    /// macOS itself only shows its dot while a device is in use, which is the
+    /// default here too. That makes the widget invisible most of the time and
+    /// indistinguishable from one that is broken, so this offers the opposite.
+    var alwaysShow: Bool { config["always-show"]?.boolValue ?? false }
 
     @StateObject private var manager = PrivacyManager()
 
     var body: some View {
         HStack(spacing: 5) {
-            if manager.isMicrophoneActive {
+            if manager.isMicrophoneActive || alwaysShow {
                 indicator(symbol: "mic.fill", color: .orange)
-                    .help("Microphone in use")
+                    .opacity(manager.isMicrophoneActive ? 1 : 0.3)
+                    .help(
+                        manager.isMicrophoneActive
+                            ? "Microphone in use" : "Microphone idle")
             }
-            if manager.isCameraActive {
+            if manager.isCameraActive || alwaysShow {
                 indicator(symbol: "video.fill", color: .green)
-                    .help("Camera in use")
+                    .opacity(manager.isCameraActive ? 1 : 0.3)
+                    .help(
+                        manager.isCameraActive ? "Camera in use" : "Camera idle")
             }
         }
         .frame(maxHeight: .infinity)
