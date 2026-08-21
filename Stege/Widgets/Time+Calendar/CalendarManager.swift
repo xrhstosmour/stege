@@ -7,15 +7,18 @@ class CalendarManager: ObservableObject {
     var config: ConfigData? {
         configProvider.config["calendar"]?.dictionaryValue
     }
-    var allowList: [String] {
-        Array(
-            (config?["allow-list"]?.arrayValue?.map { $0.stringValue ?? "" }
-                .drop(while: { $0 == "" })) ?? [])
-    }
-    var denyList: [String] {
-        Array(
-            (config?["deny-list"]?.arrayValue?.map { $0.stringValue ?? "" }
-                .drop(while: { $0 == "" })) ?? [])
+    var allowList: [String] { calendarNames(for: "allow-list") }
+    var denyList: [String] { calendarNames(for: "deny-list") }
+
+    /// Every non-empty name under `key`.
+    ///
+    /// This used `drop(while:)`, which stops at the first entry that is not
+    /// empty, so a blank anywhere after the first real name survived and was
+    /// then matched against calendar titles.
+    private func calendarNames(for key: String) -> [String] {
+        config?[key]?.arrayValue?
+            .compactMap { $0.stringValue }
+            .filter { !$0.isEmpty } ?? []
     }
 
     @Published var nextEvent: EKEvent?
