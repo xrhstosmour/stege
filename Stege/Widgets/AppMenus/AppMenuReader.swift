@@ -3,7 +3,11 @@ import ApplicationServices
 
 /// One entry in an application menu, or a separator between entries.
 struct AppMenuEntry: Identifiable {
-    let id = UUID()
+    /// The title, not a generated value. A fresh identifier on every read makes
+    /// SwiftUI discard and rebuild each menu view on every refresh, and refreshes
+    /// happen on every application switch. Menu titles are unique within a menu
+    /// bar, which is the only place this identity is used.
+    var id: String { title }
     let title: String
     let shortcut: AppMenuShortcut?
     let isEnabled: Bool
@@ -24,17 +28,6 @@ struct AppMenuShortcut {
     let option: Bool
     let control: Bool
     let function: Bool
-
-    /// Rendered in the order macOS itself uses: control, option, shift, command.
-    var display: String {
-        var result = ""
-        if function { result += "fn" }
-        if control { result += "\u{2303}" }
-        if option { result += "\u{2325}" }
-        if shift { result += "\u{21E7}" }
-        if command { result += "\u{2318}" }
-        return result + key.uppercased()
-    }
 }
 
 enum AppMenuReader {

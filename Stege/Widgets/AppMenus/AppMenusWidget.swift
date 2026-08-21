@@ -19,7 +19,7 @@ struct AppMenusWidget: View {
     }
 
     @StateObject private var manager = AppMenusManager()
-    @State private var rects: [UUID: CGRect] = [:]
+    @State private var rects: [String: CGRect] = [:]
 
     var body: some View {
         HStack(spacing: 2) {
@@ -41,6 +41,11 @@ struct AppMenusWidget: View {
         .frame(maxHeight: .infinity)
         .background(.black.opacity(0.001))
         .animation(.smooth(duration: 0.15), value: manager.applicationName)
+        .onChange(of: manager.applicationName) { _, _ in
+            // The previous application's menu titles are gone, so their frames
+            // are too. Without this they accumulate for the life of the process.
+            rects.removeAll()
+        }
     }
 
     @ViewBuilder
