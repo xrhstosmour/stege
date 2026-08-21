@@ -5,6 +5,11 @@
 	<!-- Required by TCC. Reading paired devices through IOBluetooth counts as
 	     privacy-sensitive access on macOS 26, and without this key the process
 	     is terminated the moment the Bluetooth widget reads anything. -->
+	<!-- Icons in an asset catalog are only found through this key. Without it
+	     the compiled AppIcon sits unused in Assets.car and macOS falls back to
+	     the generic application icon. -->
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Stege shows which Bluetooth devices are connected and their battery levels in the menu bar.</string>
 </dict>
