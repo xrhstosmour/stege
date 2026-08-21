@@ -55,9 +55,22 @@ jobs:
           printf '%s' "$SIGNING_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
           security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" \
             -P "$SIGNING_PASSWORD" -T /usr/bin/codesign
+          # Exported separately so it can be marked trusted below.
+          openssl pkcs12 -in "$RUNNER_TEMP/certificate.p12" -clcerts -nokeys \
+            -passin pass:"$SIGNING_PASSWORD" -legacy \
+            -out "$RUNNER_TEMP/certificate.cer" 2>/dev/null || true
           security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain"
           security list-keychain -d user -s "$keychain" login.keychain
-          rm -f "$RUNNER_TEMP/certificate.p12"
+
+          # A self-signed certificate is not trusted by default, and `codesign`
+          # refuses an identity it cannot validate. Trusting it inside this
+          # keychain is safe: the runner is destroyed with the job, and nothing
+          # outside it ever consults this trust setting. A real Developer ID
+          # certificate chains to Apple and this is a no-op for it.
+          security add-trusted-cert -r trustRoot -p codeSign \
+            -k "$keychain" "$RUNNER_TEMP/certificate.cer" 2>/dev/null || true
+
+          rm -f "$RUNNER_TEMP/certificate.p12" "$RUNNER_TEMP/certificate.cer"
 
       - name: Build
         run: |
