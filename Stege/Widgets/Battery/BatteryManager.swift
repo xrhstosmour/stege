@@ -2,14 +2,20 @@ import Combine
 import Foundation
 import IOKit.ps
 
-/// This class monitors the battery status.
+/// Monitors the battery, driven by IOKit's power source notifications.
+///
+/// Upstream polled this once a second. IOKit posts a run loop callback whenever
+/// anything about a power source changes, which is the only moment these values
+/// can move, so no timer is needed. This is what upstream issue #82 proposed.
 class BatteryManager: ObservableObject {
     @Published var batteryLevel: Int = 0
     @Published var isCharging: Bool = false
     @Published var isPluggedIn: Bool = false
-    private var timer: Timer?
+
+    private var runLoopSource: CFRunLoopSource?
 
     init() {
+        updateBatteryStatus()
         startMonitoring()
     }
 
@@ -18,20 +24,29 @@ class BatteryManager: ObservableObject {
     }
 
     private func startMonitoring() {
-        // Update every 1 second.
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) {
-            [weak self] _ in
-            self?.updateBatteryStatus()
-        }
-        updateBatteryStatus()
+        // The callback is C, so it carries `self` across as an opaque pointer.
+        let context = Unmanaged.passUnretained(self).toOpaque()
+        guard
+            let source = IOPSNotificationCreateRunLoopSource(
+                { context in
+                    guard let context else { return }
+                    let manager = Unmanaged<BatteryManager>
+                        .fromOpaque(context).takeUnretainedValue()
+                    manager.updateBatteryStatus()
+                }, context)?.takeRetainedValue()
+        else { return }
+
+        runLoopSource = source
+        CFRunLoopAddSource(CFRunLoopGetMain(), source, .defaultMode)
     }
 
     private func stopMonitoring() {
-        timer?.invalidate()
-        timer = nil
+        guard let runLoopSource else { return }
+        CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .defaultMode)
+        self.runLoopSource = nil
     }
 
-    /// This method updates the battery level and charging state.
+    /// Reads the internal battery and publishes its state.
     func updateBatteryStatus() {
         guard let snapshot = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
             let sources = IOPSCopyPowerSourcesList(snapshot)?
@@ -41,8 +56,9 @@ class BatteryManager: ObservableObject {
         }
 
         for source in sources {
-            if let description = IOPSGetPowerSourceDescription(
-                snapshot, source)?.takeUnretainedValue() as? [String: Any],
+            guard
+                let description = IOPSGetPowerSourceDescription(
+                    snapshot, source)?.takeUnretainedValue() as? [String: Any],
                 let currentCapacity = description[
                     kIOPSCurrentCapacityKey as String] as? Int,
                 let maxCapacity = description[kIOPSMaxCapacityKey as String]
@@ -51,15 +67,24 @@ class BatteryManager: ObservableObject {
                     as? Bool,
                 let powerSourceState = description[
                     kIOPSPowerSourceStateKey as String] as? String
-            {
-                let isAC = (powerSourceState == kIOPSACPowerValue)
+            else { continue }
 
-                DispatchQueue.main.async {
-                    self.batteryLevel = (currentCapacity * 100) / maxCapacity
-                    self.isCharging = charging
-                    self.isPluggedIn = isAC
-                }
+            // IOKit reports a zero maximum transiently, around wake in
+            // particular. Integer division by zero traps in Swift, so this
+            // guard is the difference between a stale reading and a crash.
+            guard maxCapacity > 0 else { continue }
+
+            let isAC = (powerSourceState == kIOPSACPowerValue)
+            let level = min(100, max(0, (currentCapacity * 100) / maxCapacity))
+
+            DispatchQueue.main.async {
+                self.batteryLevel = level
+                self.isCharging = charging
+                self.isPluggedIn = isAC
             }
+            // Only the first usable source is the internal battery. Continuing
+            // would let an attached UPS overwrite it.
+            return
         }
     }
 }
