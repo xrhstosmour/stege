@@ -1,0 +1,170 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  # Required to attach build provenance to the release artifact, so anyone can
+  # verify the zip really came from this workflow and this commit.
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: macos-15
+
+    # Secrets are lifted into the job environment because the `secrets` context
+    # is not available to step-level `if` conditions, only `env` is.
+    env:
+      SIGNING_CERTIFICATE: ${{ secrets.DEVELOPER_ID_CERTIFICATE }}
+      SIGNING_PASSWORD: ${{ secrets.DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+      SIGNING_IDENTITY: ${{ secrets.DEVELOPER_ID_IDENTITY }}
+      SIGNING_TEAM: ${{ secrets.DEVELOPER_ID_TEAM }}
+      NOTARY_APPLE_ID: ${{ secrets.APPLE_ID }}
+      NOTARY_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Derive version from tag
+        id: version
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Install xcbeautify
+        run: brew list xcbeautify >/dev/null 2>&1 || brew install xcbeautify
+
+      # A Developer ID certificate is optional. With one, the build is signed and
+      # notarized so macOS opens it without complaint. Without one it falls back
+      # to an ad-hoc signature, which still enables the hardened runtime but makes
+      # Gatekeeper warn on first launch.
+      - name: Import signing certificate
+        if: env.SIGNING_CERTIFICATE != ''
+        run: |
+          keychain="$RUNNER_TEMP/build.keychain"
+          password="$(uuidgen)"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          printf '%s' "$SIGNING_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" \
+            -P "$SIGNING_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain"
+          security list-keychain -d user -s "$keychain" login.keychain
+          rm -f "$RUNNER_TEMP/certificate.p12"
+
+      - name: Build
+        run: |
+          set -o pipefail
+          if [ -n "$SIGNING_IDENTITY" ]; then
+            signing=(CODE_SIGN_IDENTITY="$SIGNING_IDENTITY"
+                     CODE_SIGN_STYLE=Manual
+                     DEVELOPMENT_TEAM="$SIGNING_TEAM")
+          else
+            signing=(CODE_SIGN_IDENTITY="-"
+                     CODE_SIGN_STYLE=Manual
+                     CODE_SIGNING_REQUIRED=NO)
+          fi
+          xcodebuild build \
+            -project Stege.xcodeproj \
+            -scheme Stege \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath .build \
+            MARKETING_VERSION="${{ steps.version.outputs.version }}" \
+            ENABLE_HARDENED_RUNTIME=YES \
+            "${signing[@]}" \
+            | xcbeautify --renderer github-actions
+
+      - name: Package
+        run: |
+          app=".build/Build/Products/Release/Stege.app"
+          test -d "$app" || { echo "missing $app"; exit 1; }
+          # `ditto` is the only archiver that preserves the bundle's signature
+          # and extended attributes, plain `zip` corrupts both.
+          ditto -c -k --keepParent --sequesterRsrc "$app" Stege.zip
+
+      - name: Notarize
+        if: env.NOTARY_APPLE_ID != ''
+        run: |
+          xcrun notarytool submit Stege.zip \
+            --apple-id "$NOTARY_APPLE_ID" \
+            --password "$NOTARY_PASSWORD" \
+            --team-id "$SIGNING_TEAM" \
+            --wait
+          # The ticket staples onto the app itself, so repackage afterwards.
+          ditto -x -k Stege.zip "$RUNNER_TEMP/stapled"
+          xcrun stapler staple "$RUNNER_TEMP/stapled/Stege.app"
+          rm Stege.zip
+          ditto -c -k --keepParent --sequesterRsrc \
+            "$RUNNER_TEMP/stapled/Stege.app" Stege.zip
+
+      # Computed after notarization because stapling rewrites the bundle, and a
+      # checksum taken before it would not match what users download.
+      - name: Checksum
+        id: checksum
+        run: |
+          checksum="$(shasum -a 256 Stege.zip | cut -d' ' -f1)"
+          echo "sha256=$checksum" >> "$GITHUB_OUTPUT"
+          echo "Stege.zip sha256: $checksum"
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: Stege.zip
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA256: ${{ steps.checksum.outputs.sha256 }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          cat > notes.md <<EOF
+          Install with Homebrew:
+
+          \`\`\`bash
+          brew install --cask xrhstosmour/stege/stege
+          \`\`\`
+
+          \`Stege.zip\` \`sha256\`: \`${SHA256}\`
+
+          Build provenance is attested. Verify the download really came from this
+          workflow and this commit:
+
+          \`\`\`bash
+          gh attestation verify Stege.zip --repo ${{ github.repository }}
+          \`\`\`
+          EOF
+          gh release create "$TAG" Stege.zip \
+            --repo "${{ github.repository }}" \
+            --title "$TAG" \
+            --notes-file notes.md
+
+      # Opens a pull request against the tap rather than pushing to it directly,
+      # so publishing a release can never silently change what `brew install`
+      # resolves to without a human approving it.
+      - name: Update the Homebrew tap
+        if: env.TAP_TOKEN != ''
+        env:
+          GH_TOKEN: ${{ secrets.TAP_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          SHA256: ${{ steps.checksum.outputs.sha256 }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${OWNER}/homebrew-stege.git" tap
+          cd tap
+          sed -i '' -E "s/version \"[^\"]+\"/version \"${VERSION}\"/" Casks/stege.rb
+          sed -i '' -E "s/sha256 \"[^\"]+\"/sha256 \"${SHA256}\"/" Casks/stege.rb
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          branch="release/${VERSION}"
+          git checkout -b "$branch"
+          git commit -am "Update \`stege\` to ${VERSION}"
+          git push origin "$branch"
+          gh pr create --fill --base main --head "$branch"
