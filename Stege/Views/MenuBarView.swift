@@ -51,6 +51,9 @@ struct MenuBarView: View {
             TimeWidget(calendarManager: CalendarManager(configProvider: config))
                 .environmentObject(config)
             
+        case "default.applemenu":
+            AppleMenuWidget().environmentObject(config)
+
         case "default.appmenus":
             AppMenusWidget().environmentObject(config)
 
