@@ -61,10 +61,17 @@ final class BarVisibility: ObservableObject {
     }
 
     private func checkPointer() {
-        guard let screen = NSScreen.main else { return }
+        let location = NSEvent.mouseLocation
+        // Measure against the display the pointer is actually on, otherwise the
+        // bar returns at the wrong moment on a second monitor whose top edge
+        // sits at a different height.
+        let screen =
+            NSScreen.screens.first { $0.frame.contains(location) }
+            ?? NSScreen.main
+        guard let screen else { return }
         // `mouseLocation` is bottom-left origin, so distance from the top edge
-        // is the screen height minus the pointer's y.
-        let distanceFromTop = screen.frame.maxY - NSEvent.mouseLocation.y
+        // is the screen's top minus the pointer's y.
+        let distanceFromTop = screen.frame.maxY - location.y
         if distanceFromTop > returnThreshold { show() }
     }
 }
