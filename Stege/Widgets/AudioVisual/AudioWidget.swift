@@ -1,42 +1,40 @@
+import CoreAudio
 import SwiftUI
 
-/// Output volume, with a slider popup, and an optional microphone mute toggle.
+/// Output volume and microphone state in one control, with a popup for the
+/// slider and for choosing input and output devices.
 struct AudioWidget: View {
     @EnvironmentObject var configProvider: ConfigProvider
     var config: ConfigData { configProvider.config }
 
-    var showMicrophone: Bool { config["show-microphone"]?.boolValue ?? true }
+    /// Off by default. The icon already conveys the level, and a percentage
+    /// that changes width makes the whole right side of the bar shift.
     var showPercentage: Bool { config["show-percentage"]?.boolValue ?? false }
 
     @StateObject private var manager = AudioManager()
     @State private var rect: CGRect = .zero
 
     var body: some View {
-        HStack(spacing: 8) {
-            volume
-            if showMicrophone, manager.hasInput, manager.isInputMuted {
-                // Only shown while muted. An always-visible microphone icon
-                // says nothing, and a muted one is the state worth noticing.
-                Image(systemName: "mic.slash.fill")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.red)
-                    .contentShape(Rectangle())
-                    .onTapGesture { manager.toggleInputMute() }
-                    .help("Microphone muted, click to unmute")
-            }
-        }
-        .frame(maxHeight: .infinity)
-    }
+        HStack(spacing: 4) {
+            Image(systemName: speakerSymbol).font(.system(size: 12))
 
-    private var volume: some View {
-        HStack(spacing: 3) {
-            Image(systemName: symbol).font(.system(size: 12))
+            // The microphone shares this control rather than sitting apart,
+            // because output and input are the one thing people come here for.
+            if manager.hasInput {
+                Image(
+                    systemName: manager.isInputMuted ? "mic.slash" : "mic"
+                )
+                .font(.system(size: 11))
+                .foregroundStyle(manager.isInputMuted ? .red : .primary)
+            }
+
             if showPercentage {
                 Text("\(Int((manager.volume * 100).rounded()))%")
                     .font(.system(size: 11))
                     .monospacedDigit()
             }
         }
+        .frame(maxHeight: .infinity)
         .contentShape(Rectangle())
         .background(
             GeometryReader { geometry in
@@ -54,7 +52,7 @@ struct AudioWidget: View {
         }
     }
 
-    private var symbol: String {
+    private var speakerSymbol: String {
         if manager.isOutputMuted || manager.volume == 0 {
             return "speaker.slash.fill"
         }
@@ -70,8 +68,8 @@ struct AudioPopup: View {
     @ObservedObject var manager: AudioManager
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Volume").font(.system(size: 13, weight: .semibold))
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Sound").font(.system(size: 13, weight: .semibold))
 
             HStack(spacing: 8) {
                 Image(systemName: "speaker.fill").font(.system(size: 10))
@@ -83,7 +81,17 @@ struct AudioPopup: View {
                 Image(systemName: "speaker.wave.3.fill").font(.system(size: 10))
             }
 
-            if manager.hasInput {
+            deviceSection(
+                title: "Output", symbol: "hifispeaker",
+                devices: manager.outputDevices,
+                selected: manager.currentOutputID, input: false)
+
+            if !manager.inputDevices.isEmpty {
+                deviceSection(
+                    title: "Input", symbol: "mic",
+                    devices: manager.inputDevices,
+                    selected: manager.currentInputID, input: true)
+
                 Divider()
                 HStack(spacing: 8) {
                     Image(
@@ -91,8 +99,11 @@ struct AudioPopup: View {
                             ? "mic.slash.fill" : "mic.fill"
                     )
                     .font(.system(size: 11))
-                    Text(manager.isInputMuted ? "Microphone muted" : "Microphone on")
-                        .font(.system(size: 12))
+                    Text(
+                        manager.isInputMuted
+                            ? "Microphone muted" : "Microphone on"
+                    )
+                    .font(.system(size: 12))
                     Spacer(minLength: 12)
                 }
                 .contentShape(Rectangle())
@@ -100,9 +111,33 @@ struct AudioPopup: View {
             }
         }
         .padding(14)
-        // A fixed width, not a minimum. `Slider` expands to fill whatever it is
-        // given, and the popup panel spans the whole screen, so a minimum width
-        // let the slider stretch the popup across the display.
-        .frame(width: 260, alignment: .leading)
+        // Fixed, not a minimum: `Slider` expands to fill whatever it is offered
+        // and the popup panel spans the whole screen.
+        .frame(width: 280, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func deviceSection(
+        title: String, symbol: String, devices: [AudioDevice],
+        selected: AudioObjectID, input: Bool
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Image(systemName: symbol).font(.system(size: 10)).opacity(0.7)
+                Text(title).font(.system(size: 11, weight: .medium)).opacity(0.7)
+            }
+            ForEach(devices) { device in
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 9, weight: .bold))
+                        .opacity(device.id == selected ? 1 : 0)
+                        .frame(width: 10)
+                    Text(device.name).font(.system(size: 12)).lineLimit(1)
+                    Spacer(minLength: 8)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture { manager.selectDevice(device, input: input) }
+            }
+        }
     }
 }

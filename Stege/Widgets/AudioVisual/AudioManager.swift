@@ -2,6 +2,12 @@ import Combine
 import CoreAudio
 import Foundation
 
+/// A selectable audio device.
+struct AudioDevice: Identifiable, Equatable {
+    let id: AudioObjectID
+    let name: String
+}
+
 /// Output volume and microphone mute state, via public `CoreAudio`.
 ///
 /// Both are driven by property listeners rather than a timer: `CoreAudio` posts
@@ -12,6 +18,10 @@ final class AudioManager: ObservableObject {
     @Published private(set) var isOutputMuted = false
     @Published private(set) var isInputMuted = false
     @Published private(set) var hasInput = false
+    @Published private(set) var outputDevices: [AudioDevice] = []
+    @Published private(set) var inputDevices: [AudioDevice] = []
+    @Published private(set) var currentOutputID: AudioObjectID = 0
+    @Published private(set) var currentInputID: AudioObjectID = 0
 
     /// The registered block is kept alongside the address because
     /// `AudioObjectRemovePropertyListenerBlock` only removes the exact block it
@@ -36,6 +46,11 @@ final class AudioManager: ObservableObject {
     // MARK: - Reading
 
     private func refresh() {
+        outputDevices = Self.devices(input: false)
+        inputDevices = Self.devices(input: true)
+        currentOutputID = Self.defaultDevice(input: false) ?? 0
+        currentInputID = Self.defaultDevice(input: true) ?? 0
+
         if let output = Self.defaultDevice(input: false) {
             volume = Self.volume(of: output) ?? 0
             isOutputMuted = Self.isMuted(output, input: false) ?? false
@@ -112,6 +127,89 @@ final class AudioManager: ObservableObject {
                 == noErr
         else { return nil }
         return muted != 0
+    }
+
+    // MARK: - Devices
+
+    /// Every device that can play or record, depending on `input`.
+    ///
+    /// A device is only usable in a direction if it exposes streams in that
+    /// direction. Without that check the list includes every device twice, so
+    /// microphones appear as speakers and vice versa.
+    static func devices(input: Bool) -> [AudioDevice] {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain)
+        var size: UInt32 = 0
+        guard
+            AudioObjectGetPropertyDataSize(
+                AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size)
+                == noErr, size > 0
+        else { return [] }
+
+        var ids = [AudioObjectID](
+            repeating: 0, count: Int(size) / MemoryLayout<AudioObjectID>.size)
+        guard
+            AudioObjectGetPropertyData(
+                AudioObjectID(kAudioObjectSystemObject), &address, 0, nil,
+                &size, &ids) == noErr
+        else { return [] }
+
+        return ids.compactMap { id in
+            guard hasStreams(id, input: input), let name = name(of: id) else {
+                return nil
+            }
+            return AudioDevice(id: id, name: name)
+        }
+    }
+
+    private static func hasStreams(_ device: AudioObjectID, input: Bool) -> Bool {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyStreams,
+            mScope: input
+                ? kAudioDevicePropertyScopeInput : kAudioDevicePropertyScopeOutput,
+            mElement: kAudioObjectPropertyElementMain)
+        var size: UInt32 = 0
+        guard
+            AudioObjectGetPropertyDataSize(device, &address, 0, nil, &size) == noErr
+        else { return false }
+        return size > 0
+    }
+
+    private static func name(of device: AudioObjectID) -> String? {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioObjectPropertyName,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain)
+        var name: CFString = "" as CFString
+        var size = UInt32(MemoryLayout<CFString>.size)
+        guard
+            AudioObjectGetPropertyData(device, &address, 0, nil, &size, &name)
+                == noErr
+        else { return nil }
+        return name as String
+    }
+
+    /// Switches the system default device, which is what the menu bar picker
+    /// is expected to do: it changes where audio goes for everything, not just
+    /// for this app.
+    func selectDevice(_ device: AudioDevice, input: Bool) {
+        var address = AudioObjectPropertyAddress(
+            mSelector: input
+                ? kAudioHardwarePropertyDefaultInputDevice
+                : kAudioHardwarePropertyDefaultOutputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain)
+        var id = device.id
+        guard
+            AudioObjectSetPropertyData(
+                AudioObjectID(kAudioObjectSystemObject), &address, 0, nil,
+                UInt32(MemoryLayout<AudioObjectID>.size), &id) == noErr
+        else { return }
+        refresh()
+        removeDeviceListeners()
+        observeCurrentDevices()
     }
 
     // MARK: - Writing
