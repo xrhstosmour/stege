@@ -18,8 +18,8 @@ final class ConfigManager: ObservableObject {
 
     private func loadOrCreateConfigIfNeeded() {
         let homePath = FileManager.default.homeDirectoryForCurrentUser.path
-        let path1 = "\(homePath)/.barik-config.toml"
-        let path2 = "\(homePath)/.config/barik/config.toml"
+        let path1 = "\(homePath)/.abaxion-config.toml"
+        let path2 = "\(homePath)/.config/abaxion/config.toml"
         var chosenPath: String?
 
         if FileManager.default.fileExists(atPath: path1) {

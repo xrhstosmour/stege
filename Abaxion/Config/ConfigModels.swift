@@ -273,7 +273,7 @@ struct ForegroundConfig: Decodable {
     let spacing: CGFloat
     
     init() {
-        self.height = .barikDefault
+        self.height = .abaxionDefault
         self.horizontalPadding = Constants.menuBarHorizontalPadding
         self.widgetsBackground = WidgetBackgroundConfig()
         self.spacing = 15
@@ -281,7 +281,7 @@ struct ForegroundConfig: Decodable {
     
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        height = try container.decodeIfPresent(BackgroundForegroundHeight.self, forKey: .height) ?? .barikDefault
+        height = try container.decodeIfPresent(BackgroundForegroundHeight.self, forKey: .height) ?? .abaxionDefault
         horizontalPadding = try container.decodeIfPresent(CGFloat.self, forKey: .horizontalPadding) ?? Constants.menuBarHorizontalPadding
         widgetsBackground = try container.decodeIfPresent(WidgetBackgroundConfig.self, forKey: .widgetsBackground) ?? WidgetBackgroundConfig()
         spacing = try container.decodeIfPresent(CGFloat.self, forKey: .spacing) ?? 15
@@ -296,7 +296,7 @@ struct ForegroundConfig: Decodable {
     
     func resolveHeight() -> CGFloat {
         switch height {
-        case .barikDefault:
+        case .abaxionDefault:
             return CGFloat(Constants.menuBarHeight)
         case .menuBar:
             return NSApplication.shared.mainMenu.map({ CGFloat($0.menuBarHeight) }) ?? 0
@@ -343,7 +343,7 @@ struct BackgroundConfig: Decodable {
 
     init() {
         self.displayed = true
-        self.height = .barikDefault
+        self.height = .abaxionDefault
         self.blur = .regular
         self.black = false
     }
@@ -351,7 +351,7 @@ struct BackgroundConfig: Decodable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         displayed = try container.decodeIfPresent(Bool.self, forKey: .displayed) ?? true
-        height = try container.decodeIfPresent(BackgroundForegroundHeight.self, forKey: .height) ?? .barikDefault
+        height = try container.decodeIfPresent(BackgroundForegroundHeight.self, forKey: .height) ?? .abaxionDefault
         
         var materialIndex = try container.decodeIfPresent(Int.self, forKey: .blur) ?? 1
         if materialIndex < 1 {
@@ -370,7 +370,7 @@ struct BackgroundConfig: Decodable {
 
     func resolveHeight() -> CGFloat? {
         switch height {
-        case .barikDefault:
+        case .abaxionDefault:
             return nil
         case .menuBar:
             return NSApplication.shared.mainMenu.map({ CGFloat($0.menuBarHeight) }) ?? 0
@@ -405,7 +405,7 @@ enum ForegroundPadding: Decodable {
 }
 
 enum BackgroundForegroundHeight: Decodable {
-    case barikDefault
+    case abaxionDefault
     case menuBar
     case float(Float)
     
@@ -422,7 +422,7 @@ enum BackgroundForegroundHeight: Decodable {
         
         if let stringValue = try? decoder.singleValueContainer().decode(String.self) {
             if stringValue == "default" {
-                self = .barikDefault
+                self = .abaxionDefault
                 return
             }
             

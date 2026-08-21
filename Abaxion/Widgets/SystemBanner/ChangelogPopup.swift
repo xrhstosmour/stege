@@ -21,7 +21,7 @@ struct ChangelogPopup: View {
                     .padding(.horizontal, 5)
                     .padding(.vertical, 20)
                     .padding(.trailing, 15)
-                    .markdownTheme(.barik)
+                    .markdownTheme(.abaxion)
                     .foregroundStyle(.white)
             }.offset(x: 15)
                 .markdownImageProvider(WebImageProvider())

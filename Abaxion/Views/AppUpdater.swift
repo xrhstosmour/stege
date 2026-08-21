@@ -32,7 +32,7 @@ final class AppUpdater: ObservableObject {
         let versionWithoutPrefix =
             version.hasPrefix("v") ? String(version.dropFirst()) : version
         let urlString =
-            "https://github.com/mocki-toki/barik/releases/download/\(version)/barik-v\(versionWithoutPrefix).zip"
+            "https://github.com/mocki-toki/barik/releases/download/\(version)/abaxion-v\(versionWithoutPrefix).zip"
         return URL(string: urlString)
     }
 
@@ -154,13 +154,13 @@ final class AppUpdater: ObservableObject {
                 try unzipProcess.run()
                 unzipProcess.waitUntilExit()
 
-                let newAppURL = tempDir.appendingPathComponent("Barik.app")
+                let newAppURL = tempDir.appendingPathComponent("Abaxion.app")
                 if fileManager.fileExists(atPath: newAppURL.path) {
                     DispatchQueue.main.async {
                         completion(tempDir)
                     }
                 } else {
-                    print("Unzipping failed: Barik.app not found in archive")
+                    print("Unzipping failed: Abaxion.app not found in archive")
                     DispatchQueue.main.async {
                         completion(nil)
                     }
@@ -203,8 +203,8 @@ final class AppUpdater: ObservableObject {
             return
         }
         let newAppURL = URL(fileURLWithPath: downloadedPath)
-            .appendingPathComponent("Barik.app")
-        let destinationURL = URL(fileURLWithPath: "/Applications/Barik.app")
+            .appendingPathComponent("Abaxion.app")
+        let destinationURL = URL(fileURLWithPath: "/Applications/Abaxion.app")
         let script = """
             #!/bin/bash
             sleep 2
