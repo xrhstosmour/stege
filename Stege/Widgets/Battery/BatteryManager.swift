@@ -71,13 +71,28 @@ class BatteryManager: ObservableObject {
         return dictionary
     }
 
+    /// Health as a fraction of the battery's original capacity.
+    ///
+    /// The two keys are not the same kind of number, which is the trap here.
+    /// `AppleRawMaxCapacity` is a charge in mAh and divides by `DesignCapacity`.
+    /// `MaxCapacity` on Apple Silicon is *already a percentage*, reporting 100
+    /// on a machine whose design capacity is 4629, so dividing it the same way
+    /// yields 2% on a healthy battery. Each is therefore read on its own terms.
     private static func healthFraction() -> Double? {
-        guard let properties = batteryProperties(),
-            let maximum = properties["AppleRawMaxCapacity"] as? Int
-                ?? properties["MaxCapacity"] as? Int,
-            let design = properties["DesignCapacity"] as? Int, design > 0
-        else { return nil }
-        return min(1, Double(maximum) / Double(design))
+        guard let properties = batteryProperties() else { return nil }
+
+        if let raw = properties["AppleRawMaxCapacity"] as? Int,
+            let design = properties["DesignCapacity"] as? Int, design > 0,
+            raw > 100
+        {
+            return min(1, Double(raw) / Double(design))
+        }
+        if let percentage = properties["MaxCapacity"] as? Int, percentage > 0,
+            percentage <= 100
+        {
+            return Double(percentage) / 100
+        }
+        return nil
     }
 
     private static func cycleCount() -> Int? {
