@@ -53,7 +53,10 @@ final class ConfigManager: ObservableObject {
                 self.config = Config(rootToml: rootToml)
             }
         } catch {
-            initError = "Error parsing TOML file: \(error.localizedDescription)"
+            // `initError` is `@Published`, and this runs on the file watch
+            // queue, so it has to hop to the main thread like `config` does.
+            let message = "Error parsing TOML file: \(error.localizedDescription)"
+            DispatchQueue.main.async { self.initError = message }
             print("Error when parsing TOML file:", error)
         }
     }
@@ -97,33 +100,63 @@ final class ConfigManager: ObservableObject {
             # calendar.allow-list = ["Home", "Personal"] # show only these calendars
             # calendar.deny-list = ["Work", "Boss"] # show all calendars except these
 
-            [popup.default.time]
+            [widgets.default.time.popup]
             view-variant = "box"
-            
-            [background]
-            enabled = true
+
+            [experimental.background]
+            displayed = true
             """
         try defaultTOML.write(toFile: path, atomically: true, encoding: .utf8)
     }
 
+    /// Watches the configuration file for changes.
+    ///
+    /// `.rename` and `.delete` matter as much as `.write`. Most editors save
+    /// atomically, writing a temporary file and renaming it over the original,
+    /// which replaces the inode. A descriptor opened on the old inode then
+    /// never reports anything again, so watching only `.write` means live
+    /// reload silently stops working after the first edit made in a real
+    /// editor. On those events the watch is torn down and re-established
+    /// against the new file.
     private func startWatchingFile(at path: String) {
+        stopWatchingFile()
+
         fileDescriptor = open(path, O_EVTONLY)
         if fileDescriptor == -1 { return }
-        fileWatchSource = DispatchSource.makeFileSystemObjectSource(
-            fileDescriptor: fileDescriptor, eventMask: .write,
+
+        let source = DispatchSource.makeFileSystemObjectSource(
+            fileDescriptor: fileDescriptor,
+            eventMask: [.write, .rename, .delete, .extend],
             queue: DispatchQueue.global())
-        fileWatchSource?.setEventHandler { [weak self] in
-            guard let self = self, let path = self.configFilePath else {
-                return
-            }
+
+        source.setEventHandler { [weak self] in
+            guard let self, let path = self.configFilePath else { return }
+            let events = source.data
+
             self.parseConfigFile(at: path)
-        }
-        fileWatchSource?.setCancelHandler { [weak self] in
-            if let fd = self?.fileDescriptor, fd != -1 {
-                close(fd)
+
+            if events.contains(.rename) || events.contains(.delete) {
+                // Re-open against whatever now lives at the path. A small delay
+                // lets the replacing file land before the descriptor is taken.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    self.startWatchingFile(at: path)
+                }
             }
         }
-        fileWatchSource?.resume()
+
+        source.setCancelHandler { [fileDescriptor] in
+            if fileDescriptor != -1 { close(fileDescriptor) }
+        }
+
+        fileWatchSource = source
+        source.resume()
+    }
+
+    private func stopWatchingFile() {
+        fileWatchSource?.cancel()
+        fileWatchSource = nil
+        // The cancel handler owns closing the descriptor.
+        fileDescriptor = -1
     }
 
     func updateConfigValue(key: String, newValue: String) {
