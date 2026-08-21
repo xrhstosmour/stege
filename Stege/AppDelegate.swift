@@ -9,16 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             showFatalConfigError(message: error)
             return
         }
-        
-        // Show "What's New" banner if the app version is outdated
-        if !VersionChecker.isLatestVersion() {
-            VersionChecker.updateVersionFile()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                NotificationCenter.default.post(
-                    name: Notification.Name("ShowWhatsNewBanner"), object: nil)
-            }
-        }
-        
+
         MenuBarPopup.setup()
         setupPanels()
 

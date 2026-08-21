@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		F66C98C52D60E35600C3C53C /* TOMLDecoder in Frameworks */ = {isa = PBXBuildFile; productRef = F66C98C42D60E35600C3C53C /* TOMLDecoder */; };
-		F6B514042D6C5F3400DFEB43 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = F6B514032D6C5F3400DFEB43 /* MarkdownUI */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -42,7 +41,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				F66C98C52D60E35600C3C53C /* TOMLDecoder in Frameworks */,
-				F6B514042D6C5F3400DFEB43 /* MarkdownUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -86,7 +84,6 @@
 			name = Stege;
 			packageProductDependencies = (
 				F66C98C42D60E35600C3C53C /* TOMLDecoder */,
-				F6B514032D6C5F3400DFEB43 /* MarkdownUI */,
 			);
 			productName = Stege;
 			productReference = C10E2F8A2D41235900AC957C /* Stege.app */;
@@ -136,7 +133,6 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				F66C98C32D60E35600C3C53C /* XCRemoteSwiftPackageReference "TOMLDecoder" */,
-				F6B514022D6C5F3400DFEB43 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C10E2F8B2D41235900AC957C /* Products */;
@@ -389,14 +385,6 @@
 				minimumVersion = 0.3.1;
 			};
 		};
-		F6B514022D6C5F3400DFEB43 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/gonzalezreal/swift-markdown-ui";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.4.1;
-			};
-		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -404,11 +392,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = F66C98C32D60E35600C3C53C /* XCRemoteSwiftPackageReference "TOMLDecoder" */;
 			productName = TOMLDecoder;
-		};
-		F6B514032D6C5F3400DFEB43 /* MarkdownUI */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = F6B514022D6C5F3400DFEB43 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */;
-			productName = MarkdownUI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
