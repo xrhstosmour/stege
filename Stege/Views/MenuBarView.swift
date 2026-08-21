@@ -63,6 +63,9 @@ struct MenuBarView: View {
         case "default.monitor":
             SystemMonitorWidget().environmentObject(config)
 
+        case "default.stayawake":
+            StayAwakeWidget().environmentObject(config)
+
         case "default.privacy":
             PrivacyWidget().environmentObject(config)
 
