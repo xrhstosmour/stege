@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import IOKit
 import IOKit.ps
 
 /// Monitors the battery, driven by IOKit's power source notifications.
@@ -11,6 +12,13 @@ class BatteryManager: ObservableObject {
     @Published var batteryLevel: Int = 0
     @Published var isCharging: Bool = false
     @Published var isPluggedIn: Bool = false
+    /// Minutes until empty, or until full while charging. Nil while macOS is
+    /// still calculating, which it reports as -1 rather than as an error.
+    @Published var minutesRemaining: Int?
+    /// Health as a fraction of the battery's original capacity.
+    @Published var healthFraction: Double?
+    @Published var cycleCount: Int?
+    @Published var isLowPowerMode: Bool = false
 
     private var runLoopSource: CFRunLoopSource?
 
@@ -46,6 +54,36 @@ class BatteryManager: ObservableObject {
         self.runLoopSource = nil
     }
 
+    /// Design and current capacity live on the IOKit service rather than in the
+    /// power-source description, so health needs a separate lookup.
+    private static func batteryProperties() -> [String: Any]? {
+        let matching = IOServiceMatching("AppleSmartBattery")
+        let service = IOServiceGetMatchingService(kIOMainPortDefault, matching)
+        guard service != 0 else { return nil }
+        defer { IOObjectRelease(service) }
+
+        var properties: Unmanaged<CFMutableDictionary>?
+        guard
+            IORegistryEntryCreateCFProperties(
+                service, &properties, kCFAllocatorDefault, 0) == KERN_SUCCESS,
+            let dictionary = properties?.takeRetainedValue() as? [String: Any]
+        else { return nil }
+        return dictionary
+    }
+
+    private static func healthFraction() -> Double? {
+        guard let properties = batteryProperties(),
+            let maximum = properties["AppleRawMaxCapacity"] as? Int
+                ?? properties["MaxCapacity"] as? Int,
+            let design = properties["DesignCapacity"] as? Int, design > 0
+        else { return nil }
+        return min(1, Double(maximum) / Double(design))
+    }
+
+    private static func cycleCount() -> Int? {
+        batteryProperties()?["CycleCount"] as? Int
+    }
+
     /// Reads the internal battery and publishes its state.
     func updateBatteryStatus() {
         guard let snapshot = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
@@ -75,12 +113,29 @@ class BatteryManager: ObservableObject {
             guard maxCapacity > 0 else { continue }
 
             let isAC = (powerSourceState == kIOPSACPowerValue)
+
+            // `IOPS` reports -1 both while calculating and when the value is
+            // unavailable, so anything negative is treated as unknown rather
+            // than shown as a negative duration.
+            let rawMinutes =
+                (charging
+                    ? description[kIOPSTimeToFullChargeKey as String] as? Int
+                    : description[kIOPSTimeToEmptyKey as String] as? Int) ?? -1
+            let minutes = rawMinutes >= 0 ? rawMinutes : nil
             let level = min(100, max(0, (currentCapacity * 100) / maxCapacity))
+
+            let health = Self.healthFraction()
+            let cycles = Self.cycleCount()
+            let lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
 
             DispatchQueue.main.async {
                 self.batteryLevel = level
                 self.isCharging = charging
                 self.isPluggedIn = isAC
+                self.minutesRemaining = minutes
+                self.healthFraction = health
+                self.cycleCount = cycles
+                self.isLowPowerMode = lowPower
             }
             // Only the first usable source is the internal battery. Continuing
             // would let an attached UPS overwrite it.
