@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-<dict/>
+<dict>
+	<!-- Required by TCC. Reading paired devices through IOBluetooth counts as
+	     privacy-sensitive access on macOS 26, and without this key the process
+	     is terminated the moment the Bluetooth widget reads anything. -->
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Stege shows which Bluetooth devices are connected and their battery levels in the menu bar.</string>
+</dict>
 </plist>
