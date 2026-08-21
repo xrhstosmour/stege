@@ -100,6 +100,9 @@ struct AudioPopup: View {
             }
         }
         .padding(14)
-        .frame(minWidth: 240, alignment: .leading)
+        // A fixed width, not a minimum. `Slider` expands to fill whatever it is
+        // given, and the popup panel spans the whole screen, so a minimum width
+        // let the slider stretch the popup across the display.
+        .frame(width: 260, alignment: .leading)
     }
 }
