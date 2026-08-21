@@ -77,6 +77,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let screens = NSScreen.screens
         guard !screens.isEmpty else { return }
 
+        // `setupPanels` runs on display changes and on wake, both of which can
+        // happen while the bar is deliberately hidden by the reveal chevron.
+        // Ordering panels in regardless would undo that, so the hidden state is
+        // carried through to every panel this pass touches or creates.
+        let shouldShow = !BarVisibility.shared.isHidden
+
         // Displays were removed, so drop the panels that no longer have one.
         while backgroundPanels.count > screens.count {
             backgroundPanels.removeLast().close()
@@ -90,21 +96,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if index < backgroundPanels.count {
                 reposition(
                     backgroundPanels[index], to: frame,
-                    level: Int(CGWindowLevelForKey(.desktopWindow)))
+                    level: Int(CGWindowLevelForKey(.desktopWindow)),
+                    show: shouldShow)
                 reposition(
                     menuBarPanels[index], to: frame,
-                    level: Int(CGWindowLevelForKey(.backstopMenu)))
+                    level: Int(CGWindowLevelForKey(.backstopMenu)),
+                    show: shouldShow)
             } else {
                 backgroundPanels.append(
                     makePanel(
                         frame: frame,
                         level: Int(CGWindowLevelForKey(.desktopWindow)),
-                        hostingRootView: AnyView(BackgroundView())))
+                        hostingRootView: AnyView(BackgroundView()),
+                        show: shouldShow))
                 menuBarPanels.append(
                     makePanel(
                         frame: frame,
                         level: Int(CGWindowLevelForKey(.backstopMenu)),
-                        hostingRootView: AnyView(MenuBarView())))
+                        hostingRootView: AnyView(MenuBarView()),
+                        show: shouldShow))
             }
         }
     }
@@ -112,15 +122,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// The level is re-applied as well as the frame, because a sleep or wake
     /// cycle can leave a panel behind other windows even though its frame is
     /// still correct.
-    private func reposition(_ panel: NSPanel, to frame: CGRect, level: Int) {
+    private func reposition(
+        _ panel: NSPanel, to frame: CGRect, level: Int, show: Bool
+    ) {
         panel.setFrame(frame, display: true)
         panel.level = NSWindow.Level(rawValue: level)
-        panel.orderFrontRegardless()
+        if show { panel.orderFrontRegardless() } else { panel.orderOut(nil) }
     }
 
-    private func makePanel(frame: CGRect, level: Int, hostingRootView: AnyView)
-        -> NSPanel
-    {
+    private func makePanel(
+        frame: CGRect, level: Int, hostingRootView: AnyView, show: Bool = true
+    ) -> NSPanel {
         let panel = NSPanel(
             contentRect: frame,
             styleMask: [.nonactivatingPanel],
@@ -140,7 +152,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hostingView.wantsLayer = true
         hostingView.layer?.isOpaque = false
         panel.contentView = hostingView
-        panel.orderFront(nil)
+        if show { panel.orderFront(nil) }
         return panel
     }
 
