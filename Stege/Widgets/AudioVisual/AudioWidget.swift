@@ -10,6 +10,8 @@ struct AudioWidget: View {
     /// Off by default. The icon already conveys the level, and a percentage
     /// that changes width makes the whole right side of the bar shift.
     var showPercentage: Bool { config["show-percentage"]?.boolValue ?? false }
+    /// Draw the microphone beside the speaker.
+    var showMicrophone: Bool { config["show-microphone"]?.boolValue ?? true }
 
     @StateObject private var manager = AudioManager()
     @State private var rect: CGRect = .zero
@@ -20,7 +22,7 @@ struct AudioWidget: View {
 
             // The microphone shares this control rather than sitting apart,
             // because output and input are the one thing people come here for.
-            if manager.hasInput {
+            if showMicrophone, manager.hasInput {
                 Image(
                     systemName: manager.isInputMuted ? "mic.slash" : "mic"
                 )

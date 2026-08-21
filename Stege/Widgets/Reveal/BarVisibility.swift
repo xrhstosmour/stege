@@ -13,17 +13,21 @@ final class BarVisibility: ObservableObject {
     @Published private(set) var isHidden = false
 
     /// How far down the pointer must travel before the bar comes back. Slightly
-    /// more than the menu bar's own height, so the bar does not reappear while
-    /// the pointer is still inside a menu the user just opened.
-    private let returnThreshold: CGFloat = 80
+    /// more than the menu bar's own height by default, so the bar does not
+    /// reappear while the pointer is still inside a menu the user just opened.
+    /// Supplied by the widget so it can be configured.
+    private var returnThreshold: CGFloat = 80
+    private var timeout: TimeInterval = 10
 
     private var pointerMonitor: Any?
     private var fallbackTimer: Timer?
 
     private init() {}
 
-    func hide() {
+    func hide(returnThreshold: Double = 80, timeout: Double = 10) {
         guard !isHidden else { return }
+        self.returnThreshold = CGFloat(returnThreshold)
+        self.timeout = timeout
         isHidden = true
         NotificationCenter.default.post(name: .stegeBarVisibilityChanged, object: nil)
         startWatchingPointer()
@@ -47,7 +51,7 @@ final class BarVisibility: ObservableObject {
         // Safety net for the case where the pointer never moves again, for
         // instance when focus goes to another space entirely.
         fallbackTimer = Timer.scheduledTimer(
-            withTimeInterval: 10, repeats: false
+            withTimeInterval: timeout, repeats: false
         ) { [weak self] _ in
             self?.show()
         }

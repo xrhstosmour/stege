@@ -2,16 +2,35 @@ import SwiftUI
 
 /// Widget for the menu, displaying Wi‑Fi and Ethernet icons.
 struct NetworkWidget: View {
+    @EnvironmentObject var configProvider: ConfigProvider
+    var config: ConfigData { configProvider.config }
+
+    /// Show the network name beside the icon. Off by default, because reading
+    /// it requires Location permission and that is not worth prompting for
+    /// unless the name is actually wanted.
+    var showName: Bool { config["show-name"]?.boolValue ?? false }
+    /// Hide the widget entirely while nothing is connected.
+    var hideWhenDisconnected: Bool {
+        config["hide-when-disconnected"]?.boolValue ?? false
+    }
+
     @StateObject private var viewModel = NetworkStatusViewModel()
     @State private var rect: CGRect = .zero
 
     var body: some View {
         HStack(spacing: 15) {
-            if viewModel.wifiState != .notSupported {
+            if hideWhenDisconnected, viewModel.wifiState != .connected,
+                viewModel.ethernetState != .connected
+            {
+                EmptyView()
+            } else if viewModel.wifiState != .notSupported {
                 wifiIcon
             }
             if viewModel.ethernetState != .notSupported {
                 ethernetIcon
+            }
+            if showName, viewModel.wifiState == .connected {
+                Text(viewModel.ssid).font(.system(size: 11)).lineLimit(1)
             }
         }
         .background(

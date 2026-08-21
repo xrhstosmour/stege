@@ -49,8 +49,34 @@ sandboxed apps.
 
 ## Configuration
 
-Stege reads `~/.config/stege/config.toml`, falling back to `~/.stege-config.toml`. See
-[`example/`](example) for a starting point.
+Stege reads `~/.config/stege/config.toml`, falling back to `~/.stege-config.toml`. The file
+is watched, so saving it applies immediately with no restart.
+
+[`example/config.toml`](example/config.toml) documents every option: which widgets are shown
+and in what order, the theme, per-widget settings, and the bar's own height, padding and
+background.
+
+Widgets are shown by listing them in `widgets.displayed` and hidden by removing them:
+
+```toml
+theme = "system"          # system, light, dark
+
+[widgets]
+displayed = [
+    "default.applemenu",
+    "default.spaces",
+    "default.appmenus",
+    "spacer",             # pushes everything after it to the right
+    "default.audio",
+    "default.battery",
+    "divider",
+    "default.time",
+]
+```
+
+Available widgets: `applemenu`, `spaces`, `appmenus`, `reveal`, `monitor`, `privacy`,
+`audio`, `keyboardlayout`, `bluetooth`, `network`, `battery`, `nowplaying`, `time`, plus the
+`spacer` and `divider` separators.
 
 ## Status
 

@@ -4,6 +4,16 @@ import SwiftUI
 /// status item on it, becomes reachable. The bar returns as soon as the pointer
 /// leaves the menu bar strip.
 struct RevealWidget: View {
+    @EnvironmentObject var configProvider: ConfigProvider
+    var config: ConfigData { configProvider.config }
+
+    /// How far the pointer must move down before the bar returns.
+    var returnThreshold: Double {
+        Double(config["return-threshold"]?.intValue ?? 80)
+    }
+    /// Seconds after which the bar returns even if the pointer never moves.
+    var timeout: Double { Double(config["timeout"]?.intValue ?? 10) }
+
     // Not observed: the widget draws the same chevron either way, and while
     // the bar is hidden there is nothing on screen to update.
     private let visibility = BarVisibility.shared
@@ -15,7 +25,10 @@ struct RevealWidget: View {
             .frame(maxHeight: .infinity)
             .contentShape(Rectangle())
             .background(.black.opacity(0.001))
-            .onTapGesture { visibility.hide() }
+            .onTapGesture {
+                visibility.hide(
+                    returnThreshold: returnThreshold, timeout: timeout)
+            }
             .help("Reveal the system menu bar")
     }
 }
