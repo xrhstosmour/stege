@@ -28,6 +28,13 @@ struct AppleMenuWidget: View {
                 }
             )
             .onTapGesture {
+                // Without Accessibility there is no menu to show, and silently
+                // doing nothing on click looks like a broken widget rather than
+                // a missing permission. Prompt instead.
+                guard manager.isTrusted else {
+                    AppMenuReader.requestTrust()
+                    return
+                }
                 guard let appleMenu = manager.appleMenu else { return }
                 AppMenuPresenter.present(
                     menu: appleMenu, manager: manager, below: rect)
@@ -35,6 +42,7 @@ struct AppleMenuWidget: View {
             .opacity(manager.isTrusted ? 1 : 0.4)
             .help(
                 manager.isTrusted
-                    ? "Apple menu" : "Needs Accessibility permission")
+                    ? "Apple menu"
+                    : "Click to grant Accessibility, needed to open the Apple menu")
     }
 }

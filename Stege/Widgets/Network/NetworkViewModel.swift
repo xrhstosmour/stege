@@ -58,7 +58,6 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
     override init() {
         super.init()
         locationManager.delegate = self
-        locationManager.requestWhenInUseAuthorization()
         startNetworkMonitoring()
         startWiFiMonitoring()
     }
@@ -137,10 +136,25 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
         timer = nil
     }
 
+    /// Requests Location only when the network name is actually wanted.
+    ///
+    /// macOS withholds the SSID from any app without Location authorization.
+    /// Upstream asked for it unconditionally at launch, so the app prompted for
+    /// Location before the user had any idea why. Nothing but the name needs it.
+    func requestSSIDAccessIfNeeded() {
+        guard CLLocationManager.authorizationStatus() == .notDetermined else {
+            return
+        }
+        locationManager.requestWhenInUseAuthorization()
+    }
+
     private func updateWiFiInfo() {
         let client = CWWiFiClient.shared()
         if let interface = client.interface() {
-            self.ssid = interface.ssid() ?? "Not connected"
+            // A nil SSID means "not readable", which is not the same as "not
+            // connected". The connection state comes from `NWPathMonitor`.
+            self.ssid = interface.ssid()
+                ?? (wifiState == .connected ? "Wi-Fi" : "Not connected")
             self.rssi = interface.rssiValue()
             self.noise = interface.noiseMeasurement()
             if let wlanChannel = interface.wlanChannel() {
