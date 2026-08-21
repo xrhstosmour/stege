@@ -100,7 +100,12 @@ struct BluetoothPopup: View {
             } else {
                 ForEach(manager.devices) { device in
                     HStack(spacing: 10) {
-                        Text(device.name).font(.system(size: 12))
+                        // Names are user-set and can be long, and the
+                        // popup is a fixed width.
+                        Text(device.name)
+                            .font(.system(size: 12))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
                         Spacer(minLength: 16)
                         if let level = device.batteryLevel {
                             Text("\(Int((level * 100).rounded()))%")
@@ -126,6 +131,10 @@ struct BluetoothPopup: View {
                 }
         }
         .padding(14)
-        .frame(minWidth: 220, alignment: .leading)
+        // A fixed width, not a minimum. `Divider` reports an ideal width of
+        // infinity, so under `minWidth` it stretched the popup to the full
+        // width of the screen-sized panel behind it, which then pushed the
+        // left-aligned text off the edge of the display.
+        .frame(width: 240, alignment: .leading)
     }
 }
