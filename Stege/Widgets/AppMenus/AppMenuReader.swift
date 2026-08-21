@@ -70,12 +70,31 @@ enum AppMenuReader {
         return attribute(element, kAXMenuBarAttribute, as: AXUIElement.self)
     }
 
+    /// The Apple menu, which is always the first item in any application's
+    /// menu bar and is provided by the system rather than the application, so
+    /// reading it from whichever app is frontmost gives the same menu.
+    static func appleMenu(of application: NSRunningApplication) -> AppMenuEntry? {
+        guard let bar = menuBar(of: application),
+            let first = attribute(bar, kAXChildrenAttribute, as: [AXUIElement].self)?
+                .first
+        else { return nil }
+        return AppMenuEntry(
+            title: "Apple",
+            shortcut: nil,
+            isEnabled: true,
+            isChecked: false,
+            hasSubmenu: true,
+            isSeparator: false,
+            element: first)
+    }
+
     /// The top-level menu titles, `File`, `Edit` and so on.
     ///
     /// Deliberately shallow. Reading only the titles costs well under a
     /// millisecond, so it can run on every application switch, while the
     /// entries behind each title are read on demand in `entries(under:)`.
-    /// The Apple menu is dropped because Stege draws its own.
+    /// The Apple menu is excluded, `appleMenu(of:)` serves it separately so it
+    /// can be placed independently in the bar.
     static func topLevelMenus(of application: NSRunningApplication)
         -> [AppMenuEntry]
     {

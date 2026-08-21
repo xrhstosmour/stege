@@ -9,6 +9,7 @@ import Combine
 final class AppMenusManager: ObservableObject {
     @Published private(set) var applicationName: String = ""
     @Published private(set) var menus: [AppMenuEntry] = []
+    @Published private(set) var appleMenu: AppMenuEntry?
     @Published private(set) var isTrusted: Bool = AppMenuReader.isTrusted
 
     private var observers: [NSObjectProtocol] = []
@@ -64,6 +65,7 @@ final class AppMenusManager: ObservableObject {
         guard AppMenuReader.isTrusted else {
             isTrusted = false
             menus = []
+            appleMenu = nil
             startTrustPollingIfNeeded()
             return
         }
@@ -72,10 +74,12 @@ final class AppMenusManager: ObservableObject {
         guard let application = NSWorkspace.shared.frontmostApplication else {
             applicationName = ""
             menus = []
+            appleMenu = nil
             return
         }
         applicationName = application.localizedName ?? ""
         menus = AppMenuReader.topLevelMenus(of: application)
+        appleMenu = AppMenuReader.appleMenu(of: application)
     }
 
     /// Read on demand rather than cached, because enabled state and check marks
