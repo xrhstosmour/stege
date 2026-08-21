@@ -4,10 +4,9 @@ import SwiftUI
 /// status item on it, becomes reachable. The bar returns as soon as the pointer
 /// leaves the menu bar strip.
 struct RevealWidget: View {
-    @EnvironmentObject var configProvider: ConfigProvider
-    var config: ConfigData { configProvider.config }
-
-    @ObservedObject private var visibility = BarVisibility.shared
+    // Not observed: the widget draws the same chevron either way, and while
+    // the bar is hidden there is nothing on screen to update.
+    private let visibility = BarVisibility.shared
 
     var body: some View {
         Image(systemName: "chevron.right")
