@@ -36,10 +36,29 @@ class HidingPanel: NSPanel, NSWindowDelegate {
 class MenuBarPopup {
     static var lastContentIdentifier: String? = nil
 
+    /// The screen the popup is currently being shown on. Read by
+    /// `MenuBarPopupView` to keep the popup inside that display's edges rather
+    /// than the main display's.
+    static var currentScreenFrame: CGRect = .zero
+
+    /// Moves the shared popup panel onto whichever screen the widget that was
+    /// clicked lives on, so a popup opened from the bar on a second display
+    /// does not appear on the first.
+    private static func moveToScreen(containing rect: CGRect) -> CGRect {
+        let screen =
+            NSScreen.screens.first { $0.frame.intersects(rect) }
+            ?? NSScreen.main
+        guard let frame = screen?.frame else { return .zero }
+        currentScreenFrame = frame
+        panel?.setFrame(frame, display: false)
+        return frame
+    }
+
     static func show<Content: View>(
         rect: CGRect, id: String, @ViewBuilder content: @escaping () -> Content
     ) {
         guard let panel = panel else { return }
+        let screenFrame = moveToScreen(containing: rect)
 
         if panel.isKeyWindow, lastContentIdentifier == id {
             NotificationCenter.default.post(name: .willHideWindow, object: nil)
@@ -77,7 +96,7 @@ class MenuBarPopup {
                             MenuBarPopupView {
                                 content()
                             }
-                            .position(x: rect.midX)
+                            .position(x: rect.midX - screenFrame.minX)
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .id(UUID())
@@ -95,7 +114,7 @@ class MenuBarPopup {
                         MenuBarPopupView {
                             content()
                         }
-                        .position(x: rect.midX)
+                        .position(x: rect.midX - screenFrame.minX)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             )
@@ -108,13 +127,13 @@ class MenuBarPopup {
     }
 
     static func setup() {
-        guard let screen = NSScreen.main?.visibleFrame else { return }
-        let panelFrame = NSRect(
-            x: 0,
-            y: 0,
-            width: screen.size.width,
-            height: screen.size.height
-        )
+        // Placeholder geometry only. `show(rect:id:)` moves the panel onto
+        // whichever screen the widget was clicked on before it is ever
+        // displayed, so this must not fail when there is no main screen, and
+        // must not bake in that screen's size either.
+        let panelFrame =
+            NSScreen.main?.frame ?? NSScreen.screens.first?.frame
+            ?? NSRect(x: 0, y: 0, width: 1, height: 1)
 
         let newPanel = HidingPanel(
             contentRect: panelFrame,
