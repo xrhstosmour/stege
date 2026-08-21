@@ -1,0 +1,68 @@
+name: Build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      # Not guaranteed to be on the runner image, and the build step pipes
+      # through it, so install it rather than depend on the image.
+      - name: Install xcbeautify
+        run: brew list xcbeautify >/dev/null 2>&1 || brew install xcbeautify
+
+      # Resolved separately so a dependency failure is distinguishable from a
+      # compile failure, and so the cache below has something to key on.
+      - name: Resolve dependencies
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project Abaxion.xcodeproj \
+            -scheme Abaxion
+
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData/**/SourcePackages
+          key: swiftpm-${{ runner.os }}-${{ hashFiles('Abaxion.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: swiftpm-${{ runner.os }}-
+
+      # Signing is off here on purpose. This job answers "does it compile", and
+      # nothing it produces is ever distributed. The release workflow is the
+      # only place a signed artifact is built.
+      - name: Build
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project Abaxion.xcodeproj \
+            -scheme Abaxion \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath .build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            ENABLE_HARDENED_RUNTIME=NO \
+            | xcbeautify --renderer github-actions
+
+      - name: Confirm the app bundle was produced
+        run: |
+          app=".build/Build/Products/Release/Abaxion.app"
+          test -d "$app" || { echo "missing $app"; exit 1; }
+          test -x "$app/Contents/MacOS/Abaxion" || { echo "missing executable"; exit 1; }
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist"
