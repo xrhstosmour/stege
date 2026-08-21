@@ -4,40 +4,40 @@ class AerospaceSpacesProvider: SpacesProvider, SwitchableSpacesProvider {
     typealias SpaceType = AeroSpace
     let executablePath = ConfigManager.shared.config.aerospace.path
 
+    /// Every workspace that holds windows, with the focused one marked.
+    ///
+    /// One `aerospace` invocation, not four. `%{workspace-is-focused}` is
+    /// reported per window, which replaces the separate focused-workspace
+    /// query, and upstream additionally called that query again inside the
+    /// window loop, once per window with no workspace. A second invocation is
+    /// still needed for the focused *window*, since `aerospace` exposes no
+    /// `window-is-focused` placeholder.
     func getSpacesWithWindows() -> [AeroSpace]? {
-        guard var spaces = fetchSpaces(), let windows = fetchWindows() else {
-            return nil
-        }
-        if let focusedSpace = fetchFocusedSpace() {
-            for i in 0..<spaces.count {
-                spaces[i].isFocused = (spaces[i].id == focusedSpace.id)
-            }
-        }
-        let focusedWindow = fetchFocusedWindow()
-        var spaceDict = Dictionary(
-            uniqueKeysWithValues: spaces.map { ($0.id, $0) })
+        guard let windows = fetchWindows() else { return nil }
+
+        let focusedWindowID = fetchFocusedWindowID()
+
+        var spacesByID: [String: AeroSpace] = [:]
         for window in windows {
+            guard let workspace = window.workspace, !workspace.isEmpty else {
+                continue
+            }
             var mutableWindow = window
-            if let focused = focusedWindow, window.id == focused.id {
-                mutableWindow.isFocused = true
-            }
-            if let ws = mutableWindow.workspace, !ws.isEmpty {
-                if var space = spaceDict[ws] {
-                    space.windows.append(mutableWindow)
-                    spaceDict[ws] = space
-                }
-            } else if let focusedSpace = fetchFocusedSpace() {
-                if var space = spaceDict[focusedSpace.id] {
-                    space.windows.append(mutableWindow)
-                    spaceDict[focusedSpace.id] = space
-                }
-            }
+            mutableWindow.isFocused = (window.id == focusedWindowID)
+
+            var space =
+                spacesByID[workspace]
+                ?? AeroSpace(workspace: workspace, isFocused: window.workspaceIsFocused)
+            space.isFocused = space.isFocused || window.workspaceIsFocused
+            space.windows.append(mutableWindow)
+            spacesByID[workspace] = space
         }
-        var resultSpaces = Array(spaceDict.values)
-        for i in 0..<resultSpaces.count {
-            resultSpaces[i].windows.sort { $0.id < $1.id }
+
+        return spacesByID.values.map { space in
+            var sorted = space
+            sorted.windows.sort { $0.id < $1.id }
+            return sorted
         }
-        return resultSpaces.filter { !$0.windows.isEmpty }
     }
 
     func focusSpace(spaceId: String, needWindowFocus: Bool) {
@@ -65,72 +65,29 @@ class AerospaceSpacesProvider: SpacesProvider, SwitchableSpacesProvider {
         return data
     }
 
-    private func fetchSpaces() -> [AeroSpace]? {
-        guard
-            let data = runAerospaceCommand(arguments: [
-                "list-workspaces", "--all", "--json",
-            ])
-        else {
-            return nil
-        }
-        let decoder = JSONDecoder()
-        do {
-            return try decoder.decode([AeroSpace].self, from: data)
-        } catch {
-            print("Decode spaces error: \(error)")
-            return nil
-        }
-    }
-
     private func fetchWindows() -> [AeroWindow]? {
         guard
             let data = runAerospaceCommand(arguments: [
                 "list-windows", "--all", "--json", "--format",
-                "%{window-id} %{app-name} %{window-title} %{workspace}",
+                "%{window-id} %{app-name} %{app-bundle-id} %{window-title} "
+                    + "%{workspace} %{workspace-is-focused}",
             ])
-        else {
-            return nil
-        }
-        let decoder = JSONDecoder()
+        else { return nil }
         do {
-            return try decoder.decode([AeroWindow].self, from: data)
+            return try JSONDecoder().decode([AeroWindow].self, from: data)
         } catch {
             print("Decode windows error: \(error)")
             return nil
         }
     }
 
-    private func fetchFocusedSpace() -> AeroSpace? {
+    private func fetchFocusedWindowID() -> Int? {
         guard
             let data = runAerospaceCommand(arguments: [
-                "list-workspaces", "--focused", "--json",
+                "list-windows", "--focused", "--json", "--format",
+                "%{window-id} %{window-title} %{app-name} %{workspace}",
             ])
-        else {
-            return nil
-        }
-        let decoder = JSONDecoder()
-        do {
-            return try decoder.decode([AeroSpace].self, from: data).first
-        } catch {
-            print("Decode focused space error: \(error)")
-            return nil
-        }
-    }
-
-    private func fetchFocusedWindow() -> AeroWindow? {
-        guard
-            let data = runAerospaceCommand(arguments: [
-                "list-windows", "--focused", "--json",
-            ])
-        else {
-            return nil
-        }
-        let decoder = JSONDecoder()
-        do {
-            return try decoder.decode([AeroWindow].self, from: data).first
-        } catch {
-            print("Decode focused window error: \(error)")
-            return nil
-        }
+        else { return nil }
+        return try? JSONDecoder().decode([AeroWindow].self, from: data).first?.id
     }
 }

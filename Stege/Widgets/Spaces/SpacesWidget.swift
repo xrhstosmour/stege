@@ -145,9 +145,7 @@ private struct WindowView: View {
         .frame(height: 30)
         .contentShape(Rectangle())
         .onTapGesture {
-            viewModel.switchToSpace(space)
-            usleep(100_000)
-            viewModel.switchToWindow(window)
+            viewModel.switchToSpaceAndWindow(space, window: window)
         }
         .onHover { value in
             isHovered = value
