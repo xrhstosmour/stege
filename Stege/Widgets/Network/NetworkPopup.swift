@@ -6,7 +6,7 @@ import SwiftUI
 /// 25 point padding and black background, which made it visibly wider and
 /// looser than the ones either side of it.
 struct NetworkPopup: View {
-    @StateObject private var viewModel = NetworkStatusViewModel()
+    @ObservedObject var viewModel: NetworkStatusViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

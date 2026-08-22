@@ -35,7 +35,7 @@ struct WifiNetwork: Identifiable, Equatable {
 
 /// Unified view model for monitoring network and Wi‑Fi status.
 final class NetworkStatusViewModel: NSObject, ObservableObject,
-    CLLocationManagerDelegate
+    CLLocationManagerDelegate, CWEventDelegate
 {
 
     // States for Wi‑Fi and Ethernet obtained via NWPathMonitor.
@@ -144,8 +144,21 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
 
     // MARK: — Updating Wi‑Fi information via CoreWLAN.
 
+    /// Follows CoreWLAN's own events, with a slow tick for the numbers.
+    ///
+    /// Joining, leaving and switching network are all announced, so none of
+    /// them needs polling. The timer is kept, at 30 seconds rather than 5, for
+    /// what the events do not cover: RSSI and noise drift continuously while
+    /// connected to the same access point, and `linkQualityDidChange` fires far
+    /// too often to drive a view from.
     private func startWiFiMonitoring() {
-        timer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) {
+        let client = CWWiFiClient.shared()
+        client.delegate = self
+        for event in [CWEventType.ssidDidChange, .linkDidChange, .powerDidChange] {
+            try? client.startMonitoringEvent(with: event)
+        }
+
+        timer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) {
             [weak self] _ in
             self?.updateWiFiInfo()
         }
@@ -155,6 +168,24 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
     private func stopWiFiMonitoring() {
         timer?.invalidate()
         timer = nil
+        try? CWWiFiClient.shared().stopMonitoringAllEvents()
+    }
+
+    // MARK: — CWEventDelegate.
+    //
+    // All three arrive on a CoreWLAN queue, and everything they lead to assigns
+    // to published properties, so each hops to the main queue first.
+
+    func ssidDidChangeForWiFiInterface(withName interfaceName: String) {
+        DispatchQueue.main.async { [weak self] in self?.updateWiFiInfo() }
+    }
+
+    func linkDidChangeForWiFiInterface(withName interfaceName: String) {
+        DispatchQueue.main.async { [weak self] in self?.updateWiFiInfo() }
+    }
+
+    func powerStateDidChangeForWiFiInterface(withName interfaceName: String) {
+        DispatchQueue.main.async { [weak self] in self?.updateWiFiInfo() }
     }
 
     /// Requests Location only when the network name is actually wanted.
