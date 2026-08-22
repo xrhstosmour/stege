@@ -279,7 +279,9 @@ struct CalendarMonthView: View {
     }
 
     /// Start and end, or "All day". Uses a `j` template so the locale decides
-    /// 12 or 24 hour, and drops a `:00` so a whole hour reads as "9" not "9:00".
+    /// 12 or 24 hour. Minutes are always shown, because stripping them off a
+    /// whole hour leaves a range like "20 to 23:55", where the two sides no
+    /// longer read as the same kind of thing.
     private func timeLabel(for event: EKEvent) -> String {
         guard !event.isAllDay else {
             return NSLocalizedString("ALL_DAY", comment: "")
@@ -287,9 +289,7 @@ struct CalendarMonthView: View {
         let formatter = DateFormatter()
         formatter.setLocalizedDateFormatFromTemplate("j:mm")
         let start = formatter.string(from: event.startDate)
-            .replacingOccurrences(of: ":00", with: "")
         let end = formatter.string(from: event.endDate)
-            .replacingOccurrences(of: ":00", with: "")
         return "\(start) — \(end)"
     }
 
