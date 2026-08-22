@@ -127,7 +127,10 @@ struct NetworkPopup: View {
 
     private func networkRow(_ network: WifiNetwork) -> some View {
         HStack(spacing: 8) {
-            Image(systemName: signalSymbol(for: network.rssi))
+            // Variable value, not a per-strength symbol name: `wifi.low` and
+            // `wifi.medium` do not exist, so every row below the strongest
+            // rendered as blank space where its icon should have been.
+            Image(systemName: "wifi", variableValue: signalFraction(for: network.rssi))
                 .font(.system(size: 11))
                 .frame(width: 16)
             Text(network.ssid)
@@ -176,11 +179,10 @@ struct NetworkPopup: View {
         }
     }
 
-    private func signalSymbol(for rssi: Int) -> String {
-        switch rssi {
-        case (-60)...: return "wifi"
-        case (-75)..<(-60): return "wifi.medium"
-        default: return "wifi.low"
-        }
+    /// Maps RSSI onto the 0 to 1 range the `wifi` symbol fills its arcs from.
+    /// Anything at or above -50 dBm is full, anything at or below -90 is empty.
+    private func signalFraction(for rssi: Int) -> Double {
+        let clamped = Double(min(-50, max(-90, rssi)))
+        return (clamped + 90) / 40
     }
 }
