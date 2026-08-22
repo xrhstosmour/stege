@@ -10,7 +10,9 @@ struct AudioWidget: View {
     /// Off by default. The icon already conveys the level, and a percentage
     /// that changes width makes the whole right side of the bar shift.
     var showPercentage: Bool { config["show-percentage"]?.boolValue ?? false }
-    /// Draw the microphone beside the speaker.
+    /// Badge the speaker when the microphone is muted. The microphone is not
+    /// drawn as a second icon: two glyphs side by side read as two separate
+    /// widgets, and output is what the control is mostly used for.
     var showMicrophone: Bool { config["show-microphone"]?.boolValue ?? true }
 
     @StateObject private var manager = AudioManager()
@@ -18,16 +20,18 @@ struct AudioWidget: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: speakerSymbol).font(.system(size: 12))
+            // One icon, not two. A muted microphone is worth surfacing, so it
+            // rides as a small badge on the speaker rather than claiming its
+            // own slot in the bar.
+            ZStack(alignment: .bottomTrailing) {
+                Image(systemName: speakerSymbol).font(.system(size: 12))
 
-            // The microphone shares this control rather than sitting apart,
-            // because output and input are the one thing people come here for.
-            if showMicrophone, manager.hasInput {
-                Image(
-                    systemName: manager.isInputMuted ? "mic.slash" : "mic"
-                )
-                .font(.system(size: 11))
-                .foregroundStyle(manager.isInputMuted ? .red : .primary)
+                if showMicrophone, manager.hasInput, manager.isInputMuted {
+                    Image(systemName: "mic.slash.fill")
+                        .font(.system(size: 7, weight: .bold))
+                        .foregroundStyle(.red)
+                        .offset(x: 4, y: 3)
+                }
             }
 
             if showPercentage {
@@ -95,27 +99,57 @@ struct AudioPopup: View {
                     selected: manager.currentInputID, input: true)
 
                 Divider()
-                HStack(spacing: 8) {
-                    Image(
-                        systemName: manager.isInputMuted
-                            ? "mic.slash.fill" : "mic.fill"
-                    )
-                    .font(.system(size: 11))
-                    Text(
-                        manager.isInputMuted
-                            ? "Microphone muted" : "Microphone on"
-                    )
-                    .font(.system(size: 12))
-                    Spacer(minLength: 12)
-                }
-                .contentShape(Rectangle())
-                .onTapGesture { manager.toggleInputMute() }
+                microphoneLevel
             }
         }
         .padding(14)
         // Fixed, not a minimum: `Slider` expands to fill whatever it is offered
         // and the popup panel spans the whole screen.
         .frame(width: 280, alignment: .leading)
+    }
+
+    /// A level slider rather than an on/off row, so the microphone reads the
+    /// same way as output. Devices that expose no settable gain, most USB and
+    /// Bluetooth microphones, fall back to the mute toggle, since a slider that
+    /// cannot move is worse than no slider.
+    @ViewBuilder
+    private var microphoneLevel: some View {
+        if let level = manager.inputVolume {
+            HStack(spacing: 8) {
+                Image(
+                    systemName: manager.isInputMuted
+                        ? "mic.slash.fill" : "mic.fill"
+                )
+                .font(.system(size: 10))
+                .foregroundStyle(manager.isInputMuted ? .red : .primary)
+                .frame(width: 14)
+                .contentShape(Rectangle())
+                .onTapGesture { manager.toggleInputMute() }
+
+                Slider(
+                    value: Binding(
+                        get: { level },
+                        set: { manager.setInputVolume($0) }
+                    ), in: 0...1
+                )
+                .disabled(manager.isInputMuted)
+                .opacity(manager.isInputMuted ? 0.4 : 1)
+            }
+        } else {
+            HStack(spacing: 8) {
+                Image(
+                    systemName: manager.isInputMuted
+                        ? "mic.slash.fill" : "mic.fill"
+                )
+                .font(.system(size: 11))
+                .foregroundStyle(manager.isInputMuted ? .red : .primary)
+                Text(manager.isInputMuted ? "Microphone muted" : "Microphone on")
+                    .font(.system(size: 12))
+                Spacer(minLength: 12)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { manager.toggleInputMute() }
+        }
     }
 
     @ViewBuilder
