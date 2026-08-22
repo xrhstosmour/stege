@@ -118,7 +118,7 @@ Every widget, and what it shows:
 | `default.stayawake` | A cup, while something is keeping the display awake |
 | `default.notifications` | A bell opening macOS's own Notification Center |
 | `default.audio` | Output volume, with a microphone badge when muted |
-| `default.keyboardlayout` | The current input source |
+| `default.keyboardlayout` | The current input source, with a popup for switching between the enabled ones |
 | `default.bluetooth` | Bluetooth state and connected device battery |
 | `default.network` | Wi-Fi and Ethernet state |
 | `default.battery` | Charge, with health and cycles in the popup |

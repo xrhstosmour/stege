@@ -105,7 +105,7 @@ show-percentage = false        # the icon already conveys the level
 show-microphone = true
 
 [widgets.default.keyboardlayout]
-show-full-name = false         # "Greek" rather than "EL"
+show-full-name = false         # "Greek" rather than "GR"
 
 [widgets.default.bluetooth]
 hide-when-off = false
