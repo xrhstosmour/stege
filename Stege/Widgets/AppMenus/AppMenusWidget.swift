@@ -46,17 +46,14 @@ struct AppMenusWidget: View {
 
     @StateObject private var manager = AppMenusManager()
     @StateObject private var modifiers = ModifierKeyMonitor.shared
-    @StateObject private var pointer = PointerMonitor.shared
-    /// The widget's own frame, so hover can be decided from the pointer's
-    /// screen position rather than from `onHover`, which never fires here.
-    @State private var widgetRect: CGRect = .zero
+    @State private var isHovered = false
     @State private var rects: [String: CGRect] = [:]
 
     /// Whether everything past the application's own name menu is drawn.
     private var menusRevealed: Bool {
         switch visibility {
         case .always: return true
-        case .hover: return pointer.isInside(widgetRect)
+        case .hover: return isHovered
         case .modifier: return modifiers.isHolding(modifierKey)
         }
     }
@@ -91,12 +88,12 @@ struct AppMenusWidget: View {
         .frame(maxHeight: .infinity)
         .background(.black.opacity(0.001))
         .background(
-            GeometryReader { geometry in
-                Color.clear
-                    .onAppear { widgetRect = geometry.frame(in: .global) }
-                    .onChange(of: geometry.frame(in: .global)) { _, new in
-                        widgetRect = new
-                    }
+            // Only installed for the mode that needs it, so `always` and
+            // `modifier` carry no tracking area at all.
+            Group {
+                if visibility == .hover {
+                    HoverTracker { isHovered = $0 }
+                }
             }
         )
         .animation(.smooth(duration: 0.15), value: menusRevealed)
@@ -116,20 +113,15 @@ struct AppMenusWidget: View {
         }
     }
 
+    /// Hover needs no monitor: its tracking area lives in the view hierarchy
+    /// and is torn down with it.
     private func retainMonitors(for visibility: Visibility) {
-        switch visibility {
-        case .always: break
-        case .hover: pointer.retain()
-        case .modifier: modifiers.retain()
-        }
+        if visibility == .modifier { modifiers.retain() }
     }
 
     private func releaseMonitors(for visibility: Visibility) {
-        switch visibility {
-        case .always: break
-        case .hover: pointer.release()
-        case .modifier: modifiers.release()
-        }
+        if visibility == .modifier { modifiers.release() }
+        if visibility == .hover { isHovered = false }
     }
 
     @ViewBuilder
