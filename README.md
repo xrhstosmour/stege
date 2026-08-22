@@ -89,6 +89,7 @@ hide it, reorder the list to move things around.
 
 ```toml
 theme = "system"          # system, light, dark
+hidden = false            # true takes the bar away entirely, see below
 
 [widgets]
 displayed = [
@@ -114,6 +115,7 @@ Every widget, and what it shows:
 | `default.monitor` | CPU, memory, and optionally network throughput |
 | `default.privacy` | Microphone and camera in-use indicators |
 | `default.stayawake` | A cup, while something is keeping the display awake |
+| `default.notifications` | A bell opening macOS's own Notification Center |
 | `default.audio` | Output volume, with a microphone badge when muted |
 | `default.keyboardlayout` | The current input source |
 | `default.bluetooth` | Bluetooth state and connected device battery |
@@ -154,11 +156,26 @@ show-percentage = true
 warning-level = 30
 critical-level = 10
 
+[widgets.default.notifications]
+show-control-centre = false         # a second control for Control Center
+
 [widgets.default.time]
 format = "E d MMM  HH:mm"
 calendar.show-events = true
 # calendar.allow-list = ["Home", "Personal"]
+
+[widgets.default.time.popup]
+# vertical is the month with the day's events under it, horizontal puts them
+# beside it, box is the month on its own.
+view-variant = "vertical"
 ```
+
+### Hiding the bar
+
+`hidden = true` takes the bar away entirely, leaving the real macOS menu bar and
+every third-party status item on it reachable. The file is watched, so it takes effect as soon
+as you save, with no restart. The `default.reveal` chevron does the same thing temporarily,
+bringing the bar back as soon as the pointer moves away.
 
 ### Appearance
 
@@ -207,6 +224,14 @@ joining an unknown network needs a password, and Stege has no business handling 
 
 ![The Wi-Fi popup](.github/assets/wifi.png)
 
+### Notifications
+
+A bell that opens macOS's own Notification Center, with its list, its per-notification dismiss
+and its Clear All. Stege does not redraw any of it: there is no public API for the notification
+list, and the private database behind it would mean holding Full Disk Access, which also grants
+read access to Mail, Messages and browser data. `show-control-centre` adds a second control for
+Control Center.
+
 ### Bluetooth
 
 ![The Bluetooth popup](.github/assets/bluetooth.png)
@@ -216,6 +241,11 @@ joining an unknown network needs a password, and Stege has no business handling 
 ![The battery popup](.github/assets/battery.png)
 
 ### Calendar
+
+Page between months, pick a day to see its events from every account the system knows about,
+and click one to open it. A meeting link goes to the browser, anything else opens Calendar
+showing that event. The plus adds an event to whichever calendar you choose, labelled by
+account.
 
 ![The calendar popup](.github/assets/calendar.png)
 

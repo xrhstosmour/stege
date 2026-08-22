@@ -5,7 +5,10 @@ struct CalendarPopup: View {
     let calendarManager: CalendarManager
 
     @ObservedObject var configProvider: ConfigProvider
-    @State private var selectedVariant: MenuBarPopupVariant = .box
+    // `vertical` rather than `box`: box is the month on its own, so it hides
+    // the day's events and the button that adds one, which is most of what
+    // this popup now does.
+    @State private var selectedVariant: MenuBarPopupVariant = .vertical
 
     var body: some View {
         MenuBarPopupVariantView(
@@ -28,7 +31,7 @@ struct CalendarPopup: View {
             {
                 selectedVariant = variant
             } else {
-                selectedVariant = .box
+                selectedVariant = .vertical
             }
         }
         .onReceive(configProvider.$config) { newConfig in
