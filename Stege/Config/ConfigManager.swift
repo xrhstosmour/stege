@@ -168,8 +168,13 @@ final class ConfigManager: ObservableObject {
             let currentText = try String(contentsOfFile: path, encoding: .utf8)
             let updatedText = updatedTOMLString(
                 original: currentText, key: key, newValue: newValue)
+            // Atomically, because this is the user's own file and it is
+            // rewritten whole. A failure part way through a direct write leaves
+            // it truncated, and the file watcher would then reload whatever
+            // fragment survived. Writing to a temporary file and renaming means
+            // the file on disk is only ever the old one or the new one.
             try updatedText.write(
-                toFile: path, atomically: false, encoding: .utf8)
+                toFile: path, atomically: true, encoding: .utf8)
             DispatchQueue.main.async {
                 self.parseConfigFile(at: path)
             }
