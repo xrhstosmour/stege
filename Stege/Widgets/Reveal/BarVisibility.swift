@@ -10,7 +10,14 @@ import AppKit
 final class BarVisibility: ObservableObject {
     static let shared = BarVisibility()
 
-    @Published private(set) var isHidden = false
+    /// Hidden either because the chevron was clicked, which is temporary, or
+    /// because the config file says so, which is not. Kept as two flags so
+    /// pointing away from a chevron-hidden bar cannot override a setting the
+    /// user wrote down.
+    var isHidden: Bool { isHiddenByConfig || isHiddenByChevron }
+
+    @Published private(set) var isHiddenByChevron = false
+    @Published private(set) var isHiddenByConfig = false
 
     /// How far down the pointer must travel before the bar comes back. Slightly
     /// more than the menu bar's own height by default, so the bar does not
@@ -28,15 +35,37 @@ final class BarVisibility: ObservableObject {
         guard !isHidden else { return }
         self.returnThreshold = CGFloat(returnThreshold)
         self.timeout = timeout
-        isHidden = true
+        isHiddenByChevron = true
         NotificationCenter.default.post(name: .stegeBarVisibilityChanged, object: nil)
         startWatchingPointer()
     }
 
+    /// Applies `hidden` from the config file.
+    ///
+    /// Unlike the chevron this does not watch the pointer or start a timer: the
+    /// bar stays hidden until the file says otherwise, which is the whole point
+    /// of writing it down rather than clicking.
+    func setHiddenByConfig(_ hidden: Bool) {
+        guard hidden != isHiddenByConfig else { return }
+        let wasHidden = isHidden
+        isHiddenByConfig = hidden
+        if hidden {
+            // A chevron hide already in flight is now redundant, and leaving its
+            // pointer monitor running would show the bar again on the next
+            // mouse move despite the file saying to keep it hidden.
+            stopWatchingPointer()
+            isHiddenByChevron = false
+        }
+        guard isHidden != wasHidden else { return }
+        NotificationCenter.default.post(name: .stegeBarVisibilityChanged, object: nil)
+    }
+
     func show() {
-        guard isHidden else { return }
-        isHidden = false
+        guard isHiddenByChevron else { return }
+        isHiddenByChevron = false
         stopWatchingPointer()
+        // Still hidden because the file says so, so nothing on screen changed.
+        guard !isHiddenByConfig else { return }
         NotificationCenter.default.post(name: .stegeBarVisibilityChanged, object: nil)
     }
 

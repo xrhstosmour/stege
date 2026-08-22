@@ -3,6 +3,7 @@ import SwiftUI
 
 struct RootToml: Decodable {
     var theme: String?
+    var hidden: Bool?
     var yabai: YabaiConfig?
     var aerospace: AerospaceConfig?
     var experimental: ExperimentalConfig?
@@ -10,6 +11,7 @@ struct RootToml: Decodable {
 
     init() {
         self.theme = nil
+        self.hidden = nil
         self.yabai = nil
         self.aerospace = nil
         self.widgets = WidgetsSection(displayed: [], others: [:])
@@ -25,6 +27,16 @@ struct Config {
 
     var theme: String {
         rootToml.theme ?? "light"
+    }
+
+    /// Whether the bar is hidden, leaving the real macOS menu bar and every
+    /// third-party status item on it reachable.
+    ///
+    /// The config file is watched, so flipping this applies immediately. It is
+    /// the same state the reveal chevron drives, just set from the file rather
+    /// than by a click.
+    var hidden: Bool {
+        rootToml.hidden ?? false
     }
     
     var yabai: YabaiConfig {
