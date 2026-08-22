@@ -82,6 +82,9 @@ struct MenuBarView: View {
         case "default.reveal":
             RevealWidget().environmentObject(config)
 
+        case "default.notifications":
+            NotificationsWidget().environmentObject(config)
+
         case "spacer":
             Spacer().frame(minWidth: 50, maxWidth: .infinity)
 
