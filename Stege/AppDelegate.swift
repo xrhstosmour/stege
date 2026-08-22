@@ -201,7 +201,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.informativeText = "\(message)\n\nPlease double check ~/.stege-config.toml and try again."
         alert.alertStyle = .critical
         alert.addButton(withTitle: "Quit")
-        
+
+        // An accessory app is not activated on launch, so without this the
+        // alert can open behind whatever is in front and look like a silent
+        // failure to start.
+        NSApp.activate(ignoringOtherApps: true)
         alert.runModal()
         NSApplication.shared.terminate(nil)
     }
