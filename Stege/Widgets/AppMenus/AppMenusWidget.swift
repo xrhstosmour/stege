@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// The frontmost application's menu titles, the feature prototyped in
@@ -21,8 +22,49 @@ struct AppMenusWidget: View {
         config["show-application-name"]?.boolValue ?? true
     }
 
+    /// When the menu titles past the application's own name are drawn.
+    ///
+    /// `always` is the default and matches macOS. `hover` and `modifier` keep
+    /// the bar quiet until asked, which suits a narrow display or a menu bar
+    /// already carrying a lot of workspaces.
+    enum Visibility: String {
+        case always
+        case hover
+        case modifier
+    }
+
+    var visibility: Visibility {
+        Visibility(rawValue: config["visibility"]?.stringValue ?? "always")
+            ?? .always
+    }
+
+    /// Which key reveals the menus under `visibility = "modifier"`.
+    var modifierKey: NSEvent.ModifierFlags {
+        ModifierKeyMonitor.modifier(
+            named: config["modifier-key"]?.stringValue ?? "option")
+    }
+
     @StateObject private var manager = AppMenusManager()
+    @StateObject private var modifiers = ModifierKeyMonitor.shared
+    @State private var isHovered = false
     @State private var rects: [String: CGRect] = [:]
+
+    /// Whether everything past the application's own name menu is drawn.
+    private var menusRevealed: Bool {
+        switch visibility {
+        case .always: return true
+        case .hover: return isHovered
+        case .modifier: return modifiers.isHolding(modifierKey)
+        }
+    }
+
+    private var visibleMenus: [AppMenuEntry] {
+        let all = Array(manager.menus.prefix(maximumMenus))
+        // The application's own name menu always stays: it is what the pointer
+        // has to reach to trigger a hover, and hiding it would leave nothing
+        // in the bar at all.
+        return menusRevealed ? all : Array(all.prefix(1))
+    }
 
     var body: some View {
         HStack(spacing: 2) {
@@ -30,8 +72,7 @@ struct AppMenusWidget: View {
                 permissionPrompt
             } else {
                 ForEach(
-                    Array(manager.menus.prefix(maximumMenus).enumerated()),
-                    id: \.element.id
+                    Array(visibleMenus.enumerated()), id: \.element.id
                 ) { index, menu in
                     // The first menu an application publishes is its own name
                     // menu, the one holding About and Quit. Drawing the name
@@ -46,6 +87,16 @@ struct AppMenusWidget: View {
         }
         .frame(maxHeight: .infinity)
         .background(.black.opacity(0.001))
+        .onHover { isHovered = $0 }
+        .animation(.smooth(duration: 0.15), value: menusRevealed)
+        .onAppear { if visibility == .modifier { modifiers.retain() } }
+        .onDisappear { if visibility == .modifier { modifiers.release() } }
+        .onChange(of: visibility) { previous, current in
+            // The configuration file is watched, so this can change while the
+            // bar is running, and the monitors have to follow it.
+            if previous == .modifier { modifiers.release() }
+            if current == .modifier { modifiers.retain() }
+        }
         .animation(.smooth(duration: 0.15), value: manager.applicationName)
         .onChange(of: manager.applicationName) { _, _ in
             // The previous application's menu titles are gone, so their frames
