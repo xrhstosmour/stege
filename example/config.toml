@@ -60,10 +60,11 @@ max-menus = 6                  # Chrome exposes 11, which crowds a laptop bar
 # Draws the application's own name menu, the first one, in bold, as macOS
 # does. That menu is always shown either way, since it holds About and Quit.
 show-application-name = true
-# When the menus past the application's own name are drawn.
-#   always   every menu, as macOS does
-#   hover    only while the pointer is over them
-#   modifier only while modifier-key is held
+# When the menus are drawn.
+#   always   in the bar beside the workspace pills, as macOS does
+#   hover    in place of the pills, while the pointer is in the bar
+#   modifier in place of the pills, while modifier-key is held
+# hover uses the pills as its target, so keep default.spaces in the bar for it.
 visibility = "always"
 modifier-key = "option"     # option, command, control, shift, function
 

@@ -46,31 +46,29 @@ struct AppMenusWidget: View {
 
     @StateObject private var manager = AppMenusManager()
     @StateObject private var modifiers = ModifierKeyMonitor.shared
-    @State private var isHovered = false
+    @ObservedObject private var reveal = AppMenusReveal.shared
     @State private var rects: [String: CGRect] = [:]
 
-    /// Whether everything past the application's own name menu is drawn.
+    /// Whether the menus are drawn at all.
+    ///
+    /// Under `always` they simply are. The other two modes take the workspace
+    /// pills' place when asked and give it back afterwards, so the answer is
+    /// shared state rather than this view's own: the pointer that opens them is
+    /// usually over the pills, not over anything this widget drew.
     private var menusRevealed: Bool {
-        switch visibility {
-        case .always: return true
-        case .hover: return isHovered
-        case .modifier: return modifiers.isHolding(modifierKey)
-        }
+        visibility == .always || reveal.isRevealed
     }
 
     private var visibleMenus: [AppMenuEntry] {
-        let all = Array(manager.menus.prefix(maximumMenus))
-        // The application's own name menu always stays: it is what the pointer
-        // has to reach to trigger a hover, and hiding it would leave nothing
-        // in the bar at all.
-        return menusRevealed ? all : Array(all.prefix(1))
+        Array(manager.menus.prefix(maximumMenus))
     }
 
     var body: some View {
         HStack(spacing: 2) {
             if !manager.isTrusted {
                 permissionPrompt
-            } else {
+            } else if menusRevealed {
+                applicationIcon
                 ForEach(
                     Array(visibleMenus.enumerated()), id: \.element.id
                 ) { index, menu in
@@ -92,7 +90,7 @@ struct AppMenusWidget: View {
             // `modifier` carry no tracking area at all.
             Group {
                 if visibility == .hover {
-                    HoverTracker { isHovered = $0 }
+                    HoverTracker { reveal.setHovered($0, from: .menus) }
                 }
             }
         )
@@ -104,6 +102,10 @@ struct AppMenusWidget: View {
             // bar is running, and the monitors have to follow it.
             releaseMonitors(for: previous)
             retainMonitors(for: current)
+        }
+        .onChange(of: modifiers.isHolding(modifierKey)) { _, holding in
+            guard visibility == .modifier else { return }
+            reveal.setRevealed(holding)
         }
         .animation(.smooth(duration: 0.15), value: manager.applicationName)
         .onChange(of: manager.applicationName) { _, _ in
@@ -117,11 +119,27 @@ struct AppMenusWidget: View {
     /// and is torn down with it.
     private func retainMonitors(for visibility: Visibility) {
         if visibility == .modifier { modifiers.retain() }
+        // Told here rather than computed by the spaces widget, because a bar
+        // with no app menus widget in it must never see its pills disappear.
+        reveal.swapsSpaces = visibility != .always
     }
 
     private func releaseMonitors(for visibility: Visibility) {
         if visibility == .modifier { modifiers.release() }
-        if visibility == .hover { isHovered = false }
+        reveal.swapsSpaces = false
+        reveal.setRevealed(false)
+    }
+
+    /// The frontmost application's icon, ahead of its name, so the swapped-in
+    /// row is recognisable at a glance rather than a wall of words.
+    @ViewBuilder
+    private var applicationIcon: some View {
+        if let icon = NSWorkspace.shared.frontmostApplication?.icon {
+            Image(nsImage: icon)
+                .resizable()
+                .frame(width: 15, height: 15)
+                .padding(.leading, 4)
+        }
     }
 
     @ViewBuilder

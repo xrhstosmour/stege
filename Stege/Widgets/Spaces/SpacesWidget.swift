@@ -4,16 +4,38 @@ struct SpacesWidget: View {
     @StateObject var viewModel = SpacesViewModel()
 
     @ObservedObject var configManager = ConfigManager.shared
+    /// The app menus widget takes this widget's place while it is revealed, so
+    /// the bar shows either the workspaces or the frontmost application's
+    /// menus, never both at once.
+    @ObservedObject private var reveal = AppMenusReveal.shared
     var foregroundHeight: CGFloat { configManager.config.experimental.foreground.resolveHeight() }
+
+    private var isStandingAside: Bool {
+        reveal.swapsSpaces && reveal.isRevealed
+    }
 
     var body: some View {
         HStack(spacing: foregroundHeight < 30 ? 0 : 8) {
-            ForEach(viewModel.spaces) { space in
-                SpaceView(space: space)
+            if !isStandingAside {
+                ForEach(viewModel.spaces) { space in
+                    SpaceView(space: space)
+                }
             }
         }
         .experimentalConfiguration(horizontalPadding: 5, cornerRadius: 10)
+        .background(
+            // The pills are what the pointer actually reaches for, so they are
+            // the hover target that swaps them out. Installed only for the
+            // modes that swap, so a bar showing the menus permanently carries
+            // no tracking area.
+            Group {
+                if reveal.swapsSpaces {
+                    HoverTracker { reveal.setHovered($0, from: .spaces) }
+                }
+            }
+        )
         .animation(.smooth(duration: 0.3), value: viewModel.spaces)
+        .animation(.smooth(duration: 0.15), value: isStandingAside)
         .foregroundStyle(Color.foreground)
         .environmentObject(viewModel)
     }
