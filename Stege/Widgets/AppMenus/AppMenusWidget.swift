@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The frontmost application's name followed by its menu titles, the feature
-/// prototyped in upstream issue #5 but never shipped.
+/// The frontmost application's menu titles, the feature prototyped in
+/// upstream issue #5 but never shipped.
 ///
 /// Clicking a title opens Stege's own rendering of that menu rather than the
 /// system one, which is what lets it match the rest of the bar. Selecting an
@@ -14,6 +14,9 @@ struct AppMenusWidget: View {
     /// How many menu titles to draw before truncating. Chrome exposes eleven,
     /// which crowds out the rest of the bar on a laptop display.
     var maximumMenus: Int { config["max-menus"]?.intValue ?? 6 }
+    /// Whether to emphasise the application's own name menu, the first one,
+    /// the way macOS does. The menu itself is always drawn, since it holds
+    /// About and Quit.
     var showApplicationName: Bool {
         config["show-application-name"]?.boolValue ?? true
     }
@@ -26,15 +29,18 @@ struct AppMenusWidget: View {
             if !manager.isTrusted {
                 permissionPrompt
             } else {
-                if showApplicationName, !manager.applicationName.isEmpty {
-                    Text(manager.applicationName)
-                        .font(.system(size: 13, weight: .semibold))
-                        .lineLimit(1)
-                        .padding(.horizontal, 6)
-                }
-
-                ForEach(manager.menus.prefix(maximumMenus)) { menu in
-                    menuTitle(menu)
+                ForEach(
+                    Array(manager.menus.prefix(maximumMenus).enumerated()),
+                    id: \.element.id
+                ) { index, menu in
+                    // The first menu an application publishes is its own name
+                    // menu, the one holding About and Quit. Drawing the name
+                    // separately as well printed it twice, "Finder Finder".
+                    // macOS emphasises that first menu instead, and doing the
+                    // same keeps it clickable rather than an inert label.
+                    menuTitle(
+                        menu,
+                        emphasised: index == 0 && showApplicationName)
                 }
             }
         }
@@ -49,9 +55,11 @@ struct AppMenusWidget: View {
     }
 
     @ViewBuilder
-    private func menuTitle(_ menu: AppMenuEntry) -> some View {
+    private func menuTitle(_ menu: AppMenuEntry, emphasised: Bool = false)
+        -> some View
+    {
         Text(menu.title)
-            .font(.system(size: 13))
+            .font(.system(size: 13, weight: emphasised ? .semibold : .regular))
             .lineLimit(1)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
