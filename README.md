@@ -217,8 +217,18 @@ Accessibility element, so the app behaves exactly as it would through its own me
 
 ![The File menu open](.github/assets/appmenu.png)
 
-Set `visibility = "hover"` to keep only the app's name in the bar until the pointer reaches
-it, or `visibility = "modifier"` to reveal the menus while a key is held.
+`visibility` decides when they appear:
+
+| Value | Behaviour |
+| --- | --- |
+| `always` | The menus sit in the bar next to the workspace pills, the way macOS shows them |
+| `hover` | The menus take the workspace pills' place while the pointer is in the bar, and fade back out when it leaves |
+| `modifier` | The same swap, held open by a key instead of the pointer |
+
+Under `hover` and `modifier` the menus replace the pills rather than crowding in beside them,
+so the bar shows one or the other and never grows. `hover` uses the pills themselves as the
+target, so keep `default.spaces` in `widgets.displayed` for it, or use `modifier`, which needs
+no target.
 
 ### Apple menu
 
