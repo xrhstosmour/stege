@@ -84,10 +84,11 @@ style = "icon"                 # icon, or dot to match the system indicator
 always-show = false
 
 [widgets.default.notifications]
-# Opens macOS's own Notification Center, which brings its list, its
-# per-notification dismiss and its Clear All with it. Stege does not draw
-# the list itself: there is no public API for it, and the private database
-# behind it needs Full Disk Access.
+# The popup shows which Focus is on and opens Notification Center, which is
+# where the notifications themselves stay. Stege does not draw the list:
+# there is no public API for it, and the private database behind it needs
+# Full Disk Access, which also grants read of Mail, Messages and browser
+# data. Focus state comes from ~/Library/DoNotDisturb, which does not.
 # Adds a second control opening Control Center beside the bell.
 show-control-centre = false
 
