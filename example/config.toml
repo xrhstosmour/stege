@@ -62,6 +62,8 @@ style = "icon"                 # icon, or dot to match the system indicator
 
 [widgets.default.audio]
 show-percentage = false        # the icon already conveys the level
+# Badges the speaker with a small slash when the microphone is muted.
+# The microphone is never a second icon in the bar.
 show-microphone = true
 
 [widgets.default.keyboardlayout]

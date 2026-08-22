@@ -18,6 +18,9 @@ final class AudioManager: ObservableObject {
     @Published private(set) var isOutputMuted = false
     @Published private(set) var isInputMuted = false
     @Published private(set) var hasInput = false
+    /// Input gain, 0 to 1. Nil when the device exposes no settable gain,
+    /// which is true of most USB and Bluetooth microphones.
+    @Published private(set) var inputVolume: Double?
     @Published private(set) var outputDevices: [AudioDevice] = []
     @Published private(set) var inputDevices: [AudioDevice] = []
     @Published private(set) var currentOutputID: AudioObjectID = 0
@@ -58,8 +61,10 @@ final class AudioManager: ObservableObject {
         if let input = Self.defaultDevice(input: true) {
             hasInput = true
             isInputMuted = Self.isMuted(input, input: true) ?? false
+            inputVolume = Self.volume(of: input, input: true)
         } else {
             hasInput = false
+            inputVolume = nil
         }
     }
 
@@ -80,29 +85,37 @@ final class AudioManager: ObservableObject {
         return device
     }
 
-    /// Output volume, 0 to 1.
+    /// Volume, 0 to 1, for either direction.
     ///
     /// `kAudioDevicePropertyVolumeScalar` is read on the main element first,
     /// which many devices do not implement, then per channel. The deprecated
     /// `VirtualMainVolume` selector that would have covered both is not exposed
     /// to Swift at all.
-    private static func volume(of device: AudioObjectID) -> Double? {
-        if let main = scalarVolume(device, channel: kAudioObjectPropertyElementMain) {
+    private static func volume(of device: AudioObjectID, input: Bool = false)
+        -> Double?
+    {
+        if let main = scalarVolume(
+            device, channel: kAudioObjectPropertyElementMain, input: input)
+        {
             return main
         }
         let channels = [1, 2].compactMap {
-            scalarVolume(device, channel: AudioObjectPropertyElement($0))
+            scalarVolume(
+                device, channel: AudioObjectPropertyElement($0), input: input)
         }
         guard !channels.isEmpty else { return nil }
         return channels.reduce(0, +) / Double(channels.count)
     }
 
     private static func scalarVolume(
-        _ device: AudioObjectID, channel: AudioObjectPropertyElement
+        _ device: AudioObjectID, channel: AudioObjectPropertyElement,
+        input: Bool = false
     ) -> Double? {
         var address = AudioObjectPropertyAddress(
             mSelector: kAudioDevicePropertyVolumeScalar,
-            mScope: kAudioDevicePropertyScopeOutput,
+            mScope: input
+                ? kAudioDevicePropertyScopeInput
+                : kAudioDevicePropertyScopeOutput,
             mElement: channel)
         guard AudioObjectHasProperty(device, &address) else { return nil }
         var value: Float32 = 0
@@ -217,17 +230,34 @@ final class AudioManager: ObservableObject {
     /// Writes to the main element where it exists, otherwise to each channel,
     /// mirroring how the value is read.
     func setVolume(_ newValue: Double) {
-        guard let device = Self.defaultDevice(input: false) else { return }
+        guard let written = write(volume: newValue, input: false) else { return }
+        volume = written
+    }
+
+    /// Input gain. Silently does nothing on a device with no settable gain,
+    /// which is why the popup only draws the slider when `inputVolume` is set.
+    func setInputVolume(_ newValue: Double) {
+        guard let written = write(volume: newValue, input: true) else { return }
+        inputVolume = written
+    }
+
+    /// Returns the value actually written, or nil when the device accepted
+    /// none, so the caller does not publish a level the hardware ignored.
+    private func write(volume newValue: Double, input: Bool) -> Double? {
+        guard let device = Self.defaultDevice(input: input) else { return nil }
         var value = Float32(min(1, max(0, newValue)))
         let elements: [AudioObjectPropertyElement] =
-            Self.scalarVolume(device, channel: kAudioObjectPropertyElementMain) != nil
-            ? [kAudioObjectPropertyElementMain] : [1, 2]
+            Self.scalarVolume(
+                device, channel: kAudioObjectPropertyElementMain, input: input)
+            != nil ? [kAudioObjectPropertyElementMain] : [1, 2]
 
         var wrote = false
         for element in elements {
             var address = AudioObjectPropertyAddress(
                 mSelector: kAudioDevicePropertyVolumeScalar,
-                mScope: kAudioDevicePropertyScopeOutput,
+                mScope: input
+                    ? kAudioDevicePropertyScopeInput
+                    : kAudioDevicePropertyScopeOutput,
                 mElement: element)
             guard AudioObjectHasProperty(device, &address) else { continue }
             if AudioObjectSetPropertyData(
@@ -237,7 +267,7 @@ final class AudioManager: ObservableObject {
                 wrote = true
             }
         }
-        if wrote { volume = Double(value) }
+        return wrote ? Double(value) : nil
     }
 
     func toggleInputMute() {
@@ -282,6 +312,11 @@ final class AudioManager: ObservableObject {
         if let input = Self.defaultDevice(input: true) {
             addListener(
                 to: input, selector: kAudioDevicePropertyMute,
+                scope: kAudioDevicePropertyScopeInput)
+            // So the popup's gain slider follows changes made anywhere else,
+            // the same way the output slider already does.
+            addListener(
+                to: input, selector: kAudioDevicePropertyVolumeScalar,
                 scope: kAudioDevicePropertyScopeInput)
         }
     }
