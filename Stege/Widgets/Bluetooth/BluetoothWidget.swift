@@ -28,18 +28,15 @@ struct BluetoothWidget: View {
             // A bare lock is unidentifiable: it says something is locked but
             // not what. Keeping the Bluetooth glyph and badging it with a small
             // lock says which permission is missing, which is the whole point.
-            // SF Symbols has no Bluetooth glyph, so the wave stands in for it.
             ZStack(alignment: .bottomTrailing) {
-                Image(
-                    systemName: manager.isPoweredOn && manager.isAuthorized
-                        ? "wave.3.right" : "wave.3.right.slash"
-                )
-                .font(.system(size: 12))
+                BluetoothGlyph(
+                    height: 13,
+                    slashed: !(manager.isPoweredOn && manager.isAuthorized))
 
                 if !manager.isAuthorized {
                     Image(systemName: "lock.fill")
                         .font(.system(size: 7, weight: .bold))
-                        .offset(x: 3, y: 2)
+                        .offset(x: 4, y: 2)
                 }
             }
             if let lowest = manager.devices.compactMap(\.batteryLevel).min() {
@@ -85,56 +82,118 @@ struct BluetoothPopup: View {
     @ObservedObject var manager: BluetoothManager
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(
-                !manager.isAuthorized
-                    ? "Bluetooth permission needed"
-                    : (manager.isPoweredOn ? "Bluetooth on" : "Bluetooth off")
-            )
-                .font(.system(size: 13, weight: .semibold))
+        VStack(alignment: .leading, spacing: 10) {
+            header
 
-            if manager.devices.isEmpty {
-                Text("No devices connected")
-                    .font(.system(size: 12))
+            if !manager.isAuthorized {
+                Text("Stege cannot read Bluetooth until it is allowed in Privacy & Security.")
+                    .font(.system(size: 11))
                     .opacity(0.7)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if manager.devices.isEmpty {
+                Text(
+                    manager.isPoweredOn
+                        ? "No devices connected" : "Turn Bluetooth on to connect a device"
+                )
+                .font(.system(size: 12))
+                .opacity(0.7)
+                .fixedSize(horizontal: false, vertical: true)
             } else {
-                ForEach(manager.devices) { device in
-                    HStack(spacing: 10) {
-                        // Names are user-set and can be long, and the
-                        // popup is a fixed width.
-                        Text(device.name)
-                            .font(.system(size: 12))
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                        Spacer(minLength: 16)
-                        if let level = device.batteryLevel {
-                            Text("\(Int((level * 100).rounded()))%")
-                                .font(.system(size: 12))
-                                .monospacedDigit()
-                                .opacity(0.7)
-                        }
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(manager.devices) { device in
+                        deviceRow(device)
                     }
                 }
             }
 
             Divider()
 
-            Text("Bluetooth Settings")
-                .font(.system(size: 12))
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    NSWorkspace.shared.open(
-                        URL(
-                            string:
-                                "x-apple.systempreferences:com.apple.BluetoothSettings"
-                        )!)
-                }
+            settingsRow
         }
         .padding(14)
         // A fixed width, not a minimum. `Divider` reports an ideal width of
         // infinity, so under `minWidth` it stretched the popup to the full
         // width of the screen-sized panel behind it, which then pushed the
         // left-aligned text off the edge of the display.
-        .frame(width: 240, alignment: .leading)
+        .frame(width: 250, alignment: .leading)
+    }
+
+    private var header: some View {
+        HStack(spacing: 8) {
+            BluetoothGlyph(
+                height: 15,
+                slashed: !(manager.isPoweredOn && manager.isAuthorized)
+            )
+            .foregroundStyle(
+                manager.isPoweredOn && manager.isAuthorized ? Color.blue : .secondary)
+
+            Text(
+                !manager.isAuthorized
+                    ? "Bluetooth unavailable"
+                    : (manager.isPoweredOn ? "Bluetooth on" : "Bluetooth off")
+            )
+            .font(.system(size: 13, weight: .semibold))
+
+            Spacer(minLength: 8)
+        }
+    }
+
+    /// Name on one line, a battery bar underneath for devices that report one.
+    /// A bare percentage was easy to miss next to a long device name.
+    @ViewBuilder
+    private func deviceRow(_ device: BluetoothDevice) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 10) {
+                // Names are user-set and can be long, and the popup is a fixed
+                // width.
+                Text(device.name)
+                    .font(.system(size: 12))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Spacer(minLength: 16)
+                if let level = device.batteryLevel {
+                    Text("\(Int((level * 100).rounded()))%")
+                        .font(.system(size: 12))
+                        .monospacedDigit()
+                        .opacity(0.7)
+                }
+            }
+
+            if let level = device.batteryLevel {
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(.white.opacity(0.15))
+                        Capsule()
+                            .fill(level <= 0.2 ? Color.red : Color.green)
+                            .frame(width: max(2, geometry.size.width * level))
+                    }
+                }
+                .frame(height: 3)
+            }
+        }
+    }
+
+    private var settingsRow: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "gearshape")
+                .font(.system(size: 11))
+            Text(
+                manager.isAuthorized
+                    ? "Bluetooth Settings" : "Open Privacy & Security"
+            )
+            .font(.system(size: 12))
+            Spacer(minLength: 8)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 9, weight: .semibold))
+                .opacity(0.5)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            let target =
+                manager.isAuthorized
+                ? "x-apple.systempreferences:com.apple.BluetoothSettings"
+                : "x-apple.systempreferences:com.apple.preference.security?Privacy_Bluetooth"
+            NSWorkspace.shared.open(URL(string: target)!)
+        }
     }
 }
