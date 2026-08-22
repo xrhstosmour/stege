@@ -1,4 +1,3 @@
-import EventKit
 import SwiftUI
 
 struct NowPlayingPopup: View {
