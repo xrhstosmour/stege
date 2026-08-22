@@ -54,6 +54,8 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
     /// Set when a join was attempted and did not take, so the popup can say so
     /// rather than silently doing nothing.
     @Published var joinFailure: String?
+    /// The network a join is currently in flight for, so its row can say so.
+    @Published var joining: String?
 
     /// Computed property for signal strength.
     var wifiSignalStrength: WifiSignalStrength {
@@ -287,18 +289,16 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
         }
     }
 
-    /// Joins a network that already has a saved profile.
+    /// Joins a network, with a password when one is needed.
     ///
-    /// Only known networks are joined from here. Anything else needs a
-    /// password, and asking for one in this popup would mean Stege handling a
-    /// credential it has no business seeing, so those hand off to the system
-    /// Wi-Fi settings instead.
-    func join(_ network: WifiNetwork) {
-        guard network.isKnown else {
-            openWifiSettings()
-            return
-        }
+    /// A nil password makes CoreWLAN use the saved keychain entry, which is
+    /// what a network with a profile already has. For anything else the popup
+    /// asks, and the value is handed straight to `associate` and dropped.
+    /// Nothing is stored here: CoreWLAN writes the successful one to the system
+    /// keychain itself, which is where it belongs.
+    func join(_ network: WifiNetwork, password: String? = nil) {
         joinFailure = nil
+        joining = network.ssid
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let interface = CWWiFiClient.shared().interface(),
@@ -306,21 +306,59 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
                     withSSID: network.ssid.data(using: .utf8)))?.first
             else {
                 DispatchQueue.main.async {
+                    self?.joining = nil
                     self?.joinFailure = "\(network.ssid) is no longer in range"
                 }
                 return
             }
             do {
-                // A nil password makes CoreWLAN use the saved keychain entry,
-                // which is the whole reason this is limited to known networks.
-                try interface.associate(to: match, password: nil)
-                DispatchQueue.main.async { self?.updateWiFiInfo() }
+                try interface.associate(to: match, password: password)
+                DispatchQueue.main.async {
+                    self?.joining = nil
+                    self?.updateWiFiInfo()
+                    self?.scanForNetworks()
+                }
             } catch {
                 DispatchQueue.main.async {
-                    self?.joinFailure = "Could not join \(network.ssid)"
+                    self?.joining = nil
+                    // The framework's own message says whether the password was
+                    // wrong or the join timed out, which is the only thing that
+                    // helps at this point.
+                    self?.joinFailure =
+                        "Could not join \(network.ssid). "
+                        + error.localizedDescription
                 }
             }
         }
+    }
+
+    /// Turns the Wi-Fi radio on or off. Everything else in this popup depends
+    /// on it, so having to leave for System Settings to flip it made the rest
+    /// unreachable exactly when it mattered.
+    func setPower(_ on: Bool) {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let interface = CWWiFiClient.shared().interface() else {
+                return
+            }
+            do {
+                try interface.setPower(on)
+                DispatchQueue.main.async {
+                    self?.updateWiFiInfo()
+                    if on { self?.scanForNetworks() }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self?.joinFailure =
+                        on
+                        ? "Could not turn Wi-Fi on"
+                        : "Could not turn Wi-Fi off"
+                }
+            }
+        }
+    }
+
+    var isPoweredOn: Bool {
+        CWWiFiClient.shared().interface()?.powerOn() ?? false
     }
 
     func openWifiSettings() {

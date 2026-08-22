@@ -8,6 +8,13 @@ import SwiftUI
 struct NetworkPopup: View {
     @ObservedObject var viewModel: NetworkStatusViewModel
 
+    /// The network whose password is being typed, and the password itself.
+    /// Held here rather than in the view model so it goes away with the popup
+    /// and is never anywhere a published value could be read from.
+    @State private var promptingFor: String?
+    @State private var password = ""
+    @FocusState private var passwordFocused: Bool
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if viewModel.wifiState != .notSupported {
@@ -50,11 +57,20 @@ struct NetworkPopup: View {
                 .font(.system(size: 13))
                 .foregroundStyle(isConnected ? Color.blue : .secondary)
                 .frame(width: 18)
-            Text(viewModel.ssid)
+            Text(viewModel.isPoweredOn ? viewModel.ssid : "Wi-Fi Off")
                 .font(.system(size: 13, weight: .semibold))
                 .lineLimit(1)
                 .truncationMode(.tail)
             Spacer(minLength: 8)
+            Toggle(
+                "",
+                isOn: Binding(
+                    get: { viewModel.isPoweredOn },
+                    set: { viewModel.setPower($0) })
+            )
+            .toggleStyle(.switch)
+            .controlSize(.mini)
+            .labelsHidden()
         }
     }
 
@@ -125,7 +141,58 @@ struct NetworkPopup: View {
         .onTapGesture { viewModel.openWifiSettings() }
     }
 
+    @ViewBuilder
     private func networkRow(_ network: WifiNetwork) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            rowLabel(network)
+            if promptingFor == network.ssid {
+                passwordField(for: network)
+            }
+        }
+    }
+
+    private func passwordField(for network: WifiNetwork) -> some View {
+        HStack(spacing: 6) {
+            SecureField("Password", text: $password)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+                .focused($passwordFocused)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(.primary.opacity(0.08))
+                )
+                .onSubmit { submit(network) }
+            Image(systemName: "arrow.right.circle.fill")
+                .font(.system(size: 14))
+                .opacity(password.isEmpty ? 0.3 : 1)
+                .contentShape(Rectangle())
+                .onTapGesture { submit(network) }
+        }
+        .padding(.leading, 24)
+    }
+
+    private func submit(_ network: WifiNetwork) {
+        guard !password.isEmpty else { return }
+        viewModel.join(network, password: password)
+        password = ""
+        promptingFor = nil
+    }
+
+    /// A tap joins straight away when the network is open or already saved,
+    /// and otherwise opens the password field under the row.
+    private func tapped(_ network: WifiNetwork) {
+        guard !network.isKnown, network.isSecure else {
+            viewModel.join(network)
+            return
+        }
+        password = ""
+        promptingFor = promptingFor == network.ssid ? nil : network.ssid
+        passwordFocused = promptingFor != nil
+    }
+
+    private func rowLabel(_ network: WifiNetwork) -> some View {
         HStack(spacing: 8) {
             // Variable value, not a per-strength symbol name: `wifi.low` and
             // `wifi.medium` do not exist, so every row below the strongest
@@ -143,16 +210,12 @@ struct NetworkPopup: View {
                     .font(.system(size: 9))
                     .opacity(0.5)
             }
-            // Anything without a saved profile opens the system picker rather
-            // than joining here, so the chevron says which of the two happens.
-            if !network.isKnown {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 8, weight: .semibold))
-                    .opacity(0.4)
+            if viewModel.joining == network.ssid {
+                ProgressView().controlSize(.mini)
             }
         }
         .contentShape(Rectangle())
-        .onTapGesture { viewModel.join(network) }
+        .onTapGesture { tapped(network) }
     }
 
     // MARK: - Symbols
