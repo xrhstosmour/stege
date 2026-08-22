@@ -14,6 +14,10 @@ struct AppMenuEntry: Identifiable {
     let isChecked: Bool
     let hasSubmenu: Bool
     let isSeparator: Bool
+    /// The action selector macOS names the item by, such as
+    /// `_restartRequested:`. Unlike the title this is not localised, so it
+    /// is the only safe way to pick a specific system item out by hand.
+    let identifier: String?
 
     /// The live Accessibility element, kept so activating the entry presses the
     /// real menu item rather than trying to reproduce what it does.
@@ -85,6 +89,7 @@ enum AppMenuReader {
             isChecked: false,
             hasSubmenu: true,
             isSeparator: false,
+            identifier: nil,
             element: first)
     }
 
@@ -113,6 +118,7 @@ enum AppMenuReader {
                 isChecked: false,
                 hasSubmenu: true,
                 isSeparator: false,
+                identifier: nil,
                 element: item)
         }
     }
@@ -137,7 +143,8 @@ enum AppMenuReader {
             guard !title.isEmpty else {
                 return AppMenuEntry(
                     title: "", shortcut: nil, isEnabled: false, isChecked: false,
-                    hasSubmenu: false, isSeparator: true, element: nil)
+                    hasSubmenu: false, isSeparator: true, identifier: nil,
+                    element: nil)
             }
 
             let submenu =
@@ -157,6 +164,7 @@ enum AppMenuReader {
                     .isEmpty,
                 hasSubmenu: !submenuEntries.isEmpty,
                 isSeparator: false,
+                identifier: attribute(entry, "AXIdentifier", as: String.self),
                 element: entry)
         }
     }

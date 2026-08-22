@@ -37,6 +37,11 @@ displayed = [
 
 [widgets.default.applemenu]
 icon-size = 14
+# The short menu, drawn in the bar's own style, with About This Mac,
+# System Information, Log Out, Restart and Shut Down. Set to false to hand
+# over to the full system menu instead, which also carries the duplicated
+# option-key entries macOS gives no way to tell apart.
+short-menu = true
 
 [widgets.default.spaces]
 space.show-key = true          # the workspace number or letter

@@ -1,0 +1,90 @@
+import ApplicationServices
+import SwiftUI
+
+/// A short Apple menu drawn in the bar's own style.
+///
+/// The system Apple menu carries fifteen entries, several of them duplicated
+/// because macOS keeps the Option-key alternates in the same list, which the
+/// Accessibility API gives no way to tell apart. This shows the five that are
+/// actually reached for.
+///
+/// Each row presses the real menu item rather than reimplementing what it does,
+/// so restart, shut down and log out all raise the system's own confirmation
+/// and honour whatever it decides. Items are found by their action selector,
+/// `_restartRequested:` and the like, because titles are localised and would
+/// only match in English.
+struct AppleMenuPopup: View {
+    @ObservedObject var manager: AppMenusManager
+
+    /// In the order macOS lists them, with the two power items last.
+    private static let wanted: [(identifier: String, title: String, symbol: String)] = [
+        ("_aboutThisMacRequested:", "About This Mac", "desktopcomputer"),
+        ("_systemInformationRequested:", "System Information", "info.circle"),
+        ("_logOutRequested:", "Log Out", "rectangle.portrait.and.arrow.right"),
+        ("_restartRequested:", "Restart", "arrow.clockwise"),
+        ("_shutDownRequested:", "Shut Down", "power"),
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                // The two that end the session are set apart, so neither is a
+                // neighbour of something harmless.
+                if row.identifier == "_logOutRequested:", index > 0 {
+                    Divider().padding(.vertical, 4)
+                }
+                menuRow(row)
+            }
+        }
+        .padding(10)
+        .frame(width: 210, alignment: .leading)
+    }
+
+    private struct Row {
+        let identifier: String
+        let title: String
+        let symbol: String
+        let element: AXUIElement
+    }
+
+    /// Only the entries the system actually published. An item that is missing,
+    /// which is what happens on a Mac with no restart available, is left out
+    /// rather than drawn as a row that does nothing.
+    private var rows: [Row] {
+        guard let appleMenu = manager.appleMenu else { return [] }
+        let entries = manager.entries(for: appleMenu)
+        return Self.wanted.compactMap { wanted in
+            guard
+                let entry = entries.first(where: {
+                    $0.identifier == wanted.identifier
+                }),
+                let element = entry.element
+            else { return nil }
+            return Row(
+                identifier: wanted.identifier, title: wanted.title,
+                symbol: wanted.symbol, element: element)
+        }
+    }
+
+    private func menuRow(_ row: Row) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: row.symbol)
+                .font(.system(size: 11))
+                .frame(width: 16)
+            Text(row.title)
+                .font(.system(size: 12))
+            Spacer(minLength: 8)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 5)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            MenuBarPopup.hide()
+            // After the popup is gone, so the confirmation macOS raises is not
+            // covered by a panel that is on its way out.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                AXUIElementPerformAction(row.element, kAXPressAction as CFString)
+            }
+        }
+    }
+}

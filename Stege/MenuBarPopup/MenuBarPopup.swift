@@ -126,6 +126,19 @@ class MenuBarPopup {
         }
     }
 
+    /// Dismisses the popup from code, for a row that has acted and should not
+    /// leave the panel sitting over whatever it just opened.
+    static func hide() {
+        guard let panel, panel.isVisible else { return }
+        NotificationCenter.default.post(name: .willHideWindow, object: nil)
+        let duration =
+            Double(Constants.menuBarPopupAnimationDurationInMilliseconds) / 1000.0
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
+            panel.orderOut(nil)
+            lastContentIdentifier = nil
+        }
+    }
+
     static func setup() {
         // Placeholder geometry only. `show(rect:id:)` moves the panel onto
         // whichever screen the widget was clicked on before it is ever
