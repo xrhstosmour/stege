@@ -12,6 +12,12 @@
 	     what modern macOS prefers, and `CFBundleIconFile` points at a real
 	     .icns. The catalog alone yielded the system placeholder icon here, so
 	     the .icns is what actually gets drawn. -->
+	<!-- Stege is a menu bar replacement, so it has no window to switch to and
+	     nothing to click in the Dock. Without this it takes a Dock tile and an
+	     app menu of its own, both of which are dead weight, and the tile sits
+	     next to the apps whose menus the bar is showing. -->
+	<key>LSUIElement</key>
+	<true/>
 	<key>CFBundleIconName</key>
 	<string>AppIcon</string>
 	<key>CFBundleIconFile</key>
