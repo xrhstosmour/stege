@@ -27,6 +27,7 @@ class CalendarManager: ObservableObject {
     @Published var tomorrowsEvents: [EKEvent] = []
     private let eventStore = EKEventStore()
     private var timer: Timer?
+    private var storeObserver: NSObjectProtocol?
 
     init(configProvider: ConfigProvider) {
         self.configProvider = configProvider
@@ -38,13 +39,31 @@ class CalendarManager: ObservableObject {
         stopMonitoring()
     }
 
+    /// Refreshes when the store changes, plus a slow tick for the clock.
+    ///
+    /// This used to re-read every event three times a second, five seconds
+    /// apart, whether or not anything had changed. `EKEventStoreChanged` fires
+    /// on every edit from anywhere, including a sync from an account, which
+    /// covers everything except the passage of time: an event starting, or the
+    /// day rolling over, moves what counts as next without the store changing
+    /// at all. A minute is enough for that, since a minute is all the bar
+    /// displays.
     private func startMonitoring() {
-        timer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) {
-            [weak self] _ in
-            self?.fetchTodaysEvents()
-            self?.fetchTomorrowsEvents()
-            self?.fetchNextEvent()
+        storeObserver = NotificationCenter.default.addObserver(
+            forName: .EKEventStoreChanged, object: eventStore,
+            queue: .main
+        ) { [weak self] _ in
+            self?.refresh()
         }
+
+        timer = Timer.scheduledTimer(withTimeInterval: 60.0, repeats: true) {
+            [weak self] _ in
+            self?.refresh()
+        }
+        refresh()
+    }
+
+    private func refresh() {
         fetchTodaysEvents()
         fetchTomorrowsEvents()
         fetchNextEvent()
@@ -53,14 +72,16 @@ class CalendarManager: ObservableObject {
     private func stopMonitoring() {
         timer?.invalidate()
         timer = nil
+        if let storeObserver {
+            NotificationCenter.default.removeObserver(storeObserver)
+        }
+        storeObserver = nil
     }
 
     private func requestAccess() {
         eventStore.requestFullAccessToEvents { [weak self] granted, error in
             if granted && error == nil {
-                self?.fetchTodaysEvents()
-                self?.fetchTomorrowsEvents()
-                self?.fetchNextEvent()
+                DispatchQueue.main.async { self?.refresh() }
             } else {
                 print(
                     "Calendar access not granted: \(String(describing: error))")
