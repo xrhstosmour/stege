@@ -243,9 +243,13 @@ output slider, both device pickers, and a microphone gain slider.
 
 ### Wi-Fi
 
-The current connection and its signal, then the networks in range. Clicking one you have
-joined before connects to it. Anything else opens the system Wi-Fi settings, deliberately:
-joining an unknown network needs a password, and Stege has no business handling one.
+The current connection and its signal, then the networks in range, with a switch for the
+radio itself. Clicking a network you have joined before, or an open one, connects straight
+away. A secured network you have not saved opens a password field under its row.
+
+The password is handed to CoreWLAN and dropped. Stege never stores it: `associate` writes the
+successful one to the system keychain, which is the same place the system Wi-Fi settings put
+it, and the next connection to that network needs no password at all.
 
 ![The Wi-Fi popup](.github/assets/wifi.png)
 
