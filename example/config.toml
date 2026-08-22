@@ -43,6 +43,12 @@ max-menus = 6                  # Chrome exposes 11, which crowds a laptop bar
 # Draws the application's own name menu, the first one, in bold, as macOS
 # does. That menu is always shown either way, since it holds About and Quit.
 show-application-name = true
+# When the menus past the application's own name are drawn.
+#   always   every menu, as macOS does
+#   hover    only while the pointer is over them
+#   modifier only while modifier-key is held
+visibility = "always"
+modifier-key = "option"     # option, command, control, shift, function
 
 # --- Right -----------------------------------------------------------------
 
