@@ -46,14 +46,17 @@ struct AppMenusWidget: View {
 
     @StateObject private var manager = AppMenusManager()
     @StateObject private var modifiers = ModifierKeyMonitor.shared
-    @State private var isHovered = false
+    @StateObject private var pointer = PointerMonitor.shared
+    /// The widget's own frame, so hover can be decided from the pointer's
+    /// screen position rather than from `onHover`, which never fires here.
+    @State private var widgetRect: CGRect = .zero
     @State private var rects: [String: CGRect] = [:]
 
     /// Whether everything past the application's own name menu is drawn.
     private var menusRevealed: Bool {
         switch visibility {
         case .always: return true
-        case .hover: return isHovered
+        case .hover: return pointer.isInside(widgetRect)
         case .modifier: return modifiers.isHolding(modifierKey)
         }
     }
@@ -87,21 +90,45 @@ struct AppMenusWidget: View {
         }
         .frame(maxHeight: .infinity)
         .background(.black.opacity(0.001))
-        .onHover { isHovered = $0 }
+        .background(
+            GeometryReader { geometry in
+                Color.clear
+                    .onAppear { widgetRect = geometry.frame(in: .global) }
+                    .onChange(of: geometry.frame(in: .global)) { _, new in
+                        widgetRect = new
+                    }
+            }
+        )
         .animation(.smooth(duration: 0.15), value: menusRevealed)
-        .onAppear { if visibility == .modifier { modifiers.retain() } }
-        .onDisappear { if visibility == .modifier { modifiers.release() } }
+        .onAppear { retainMonitors(for: visibility) }
+        .onDisappear { releaseMonitors(for: visibility) }
         .onChange(of: visibility) { previous, current in
             // The configuration file is watched, so this can change while the
             // bar is running, and the monitors have to follow it.
-            if previous == .modifier { modifiers.release() }
-            if current == .modifier { modifiers.retain() }
+            releaseMonitors(for: previous)
+            retainMonitors(for: current)
         }
         .animation(.smooth(duration: 0.15), value: manager.applicationName)
         .onChange(of: manager.applicationName) { _, _ in
             // The previous application's menu titles are gone, so their frames
             // are too. Without this they accumulate for the life of the process.
             rects.removeAll()
+        }
+    }
+
+    private func retainMonitors(for visibility: Visibility) {
+        switch visibility {
+        case .always: break
+        case .hover: pointer.retain()
+        case .modifier: modifiers.retain()
+        }
+    }
+
+    private func releaseMonitors(for visibility: Visibility) {
+        switch visibility {
+        case .always: break
+        case .hover: pointer.release()
+        case .modifier: modifiers.release()
         }
     }
 
