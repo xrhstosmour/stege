@@ -17,6 +17,7 @@ displayed = [
     "default.reveal",
     "default.monitor",
     "default.privacy",
+    "default.stayawake",
     "default.audio",
     "default.keyboardlayout",
     "default.bluetooth",
@@ -65,6 +66,11 @@ warning-level = 80             # percent at which the reading turns orange
 # here. Set always-show to keep both indicators visible, dimmed when idle.
 always-show = false
 style = "icon"                 # icon, or dot to match the system indicator
+
+[widgets.default.stayawake]
+# Only shows while something is holding the display awake, which is the
+# default. Set always-show to keep the cup visible, dimmed when idle.
+always-show = false
 
 [widgets.default.audio]
 show-percentage = false        # the icon already conveys the level
