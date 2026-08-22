@@ -1,6 +1,8 @@
+import Combine
 import SwiftUI
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private var configObserver: AnyCancellable?
     // One pair of panels per screen. A single panel sized to `NSScreen.main`
     // leaves every other display with no bar at all.
     private var backgroundPanels: [NSPanel] = []
@@ -31,6 +33,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
 
+        // Before the panels are built, not after: `setupPanels` reads the
+        // visibility state to decide whether to order them in, so applying this
+        // later would flash the bar on screen and immediately hide it again.
+        BarVisibility.shared.setHiddenByConfig(ConfigManager.shared.config.hidden)
+
         setupPanels()
 
         NotificationCenter.default.addObserver(
@@ -50,6 +57,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             selector: #selector(barVisibilityDidChange(_:)),
             name: .stegeBarVisibilityChanged,
             object: nil)
+
+        observeHiddenSetting()
+    }
+
+    /// Applies `hidden` from the config file, now and on every reload.
+    ///
+    /// The file is watched, so toggling the setting hides or shows the bar
+    /// without a restart, which is what makes it usable as a switch rather than
+    /// a launch option.
+    private func observeHiddenSetting() {
+        configObserver = ConfigManager.shared.$config
+            .map(\.hidden)
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { hidden in
+                BarVisibility.shared.setHiddenByConfig(hidden)
+            }
     }
 
     /// Orders Stege's panels out so the system menu bar underneath is reachable,

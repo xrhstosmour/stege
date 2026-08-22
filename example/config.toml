@@ -6,6 +6,11 @@
 # system follows System Settings, or force it with light or dark.
 theme = "system"
 
+# Hides the bar entirely, leaving the real macOS menu bar and every
+# third-party status item on it reachable. This file is watched, so
+# flipping it takes effect immediately with no restart.
+hidden = false
+
 [widgets]
 # The bar, left to right. Remove an entry to hide that widget entirely.
 # "spacer" pushes everything after it to the right, "divider" draws a separator.
