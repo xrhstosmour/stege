@@ -10,14 +10,18 @@ import AppKit
 final class BarVisibility: ObservableObject {
     static let shared = BarVisibility()
 
-    /// Hidden either because the chevron was clicked, which is temporary, or
-    /// because the config file says so, which is not. Kept as two flags so
-    /// pointing away from a chevron-hidden bar cannot override a setting the
-    /// user wrote down.
-    var isHidden: Bool { isHiddenByConfig || isHiddenByChevron }
+    /// Hidden because the chevron was clicked, which is temporary, because the
+    /// shortcut was pressed, which lasts until it is pressed again, or because
+    /// the config file says so, which lasts until the file changes. Kept as
+    /// separate flags so pointing away from a chevron-hidden bar cannot
+    /// override either of the other two.
+    var isHidden: Bool {
+        isHiddenByConfig || isHiddenByShortcut || isHiddenByChevron
+    }
 
     @Published private(set) var isHiddenByChevron = false
     @Published private(set) var isHiddenByConfig = false
+    @Published private(set) var isHiddenByShortcut = false
 
     /// How far down the pointer must travel before the bar comes back. Slightly
     /// more than the menu bar's own height by default, so the bar does not
@@ -60,12 +64,31 @@ final class BarVisibility: ObservableObject {
         NotificationCenter.default.post(name: .stegeBarVisibilityChanged, object: nil)
     }
 
+    /// Flips the shortcut's own hidden state.
+    ///
+    /// Unlike the chevron this does not watch the pointer or start a timer. The
+    /// shortcut that hid the bar is the way back, so there is nothing to
+    /// recover from, and a bar that reappeared on its own would fight the key
+    /// press that put it away.
+    func toggleByShortcut() {
+        let wasHidden = isHidden
+        isHiddenByShortcut.toggle()
+        if isHiddenByShortcut {
+            // A chevron hide already in flight would otherwise show the bar
+            // again on the next mouse move, undoing the shortcut.
+            stopWatchingPointer()
+            isHiddenByChevron = false
+        }
+        guard isHidden != wasHidden else { return }
+        NotificationCenter.default.post(name: .stegeBarVisibilityChanged, object: nil)
+    }
+
     func show() {
         guard isHiddenByChevron else { return }
         isHiddenByChevron = false
         stopWatchingPointer()
-        // Still hidden because the file says so, so nothing on screen changed.
-        guard !isHiddenByConfig else { return }
+        // Still hidden for another reason, so nothing on screen changed.
+        guard !isHiddenByConfig, !isHiddenByShortcut else { return }
         NotificationCenter.default.post(name: .stegeBarVisibilityChanged, object: nil)
     }
 

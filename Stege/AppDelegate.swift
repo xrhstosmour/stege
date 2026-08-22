@@ -3,6 +3,7 @@ import SwiftUI
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var configObserver: AnyCancellable?
+    private var shortcutObserver: AnyCancellable?
     // One pair of panels per screen. A single panel sized to `NSScreen.main`
     // leaves every other display with no bar at all.
     private var backgroundPanels: [NSPanel] = []
@@ -59,6 +60,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil)
 
         observeHiddenSetting()
+        observeToggleShortcut()
     }
 
     /// Applies `hidden` from the config file, now and on every reload.
@@ -73,6 +75,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .receive(on: DispatchQueue.main)
             .sink { hidden in
                 BarVisibility.shared.setHiddenByConfig(hidden)
+            }
+    }
+
+    /// Registers the shortcut from the config file, now and on every reload,
+    /// so changing it takes effect without a restart.
+    private func observeToggleShortcut() {
+        ToggleShortcut.shared.apply(ConfigManager.shared.config.toggleShortcut)
+        shortcutObserver = ConfigManager.shared.$config
+            .map(\.toggleShortcut)
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { shortcut in
+                ToggleShortcut.shared.apply(shortcut)
             }
     }
 

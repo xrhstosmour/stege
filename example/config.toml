@@ -11,6 +11,11 @@ theme = "system"
 # flipping it takes effect immediately with no restart.
 hidden = false
 
+# A system-wide shortcut that hides and shows the bar, so you do not have to
+# reach for the reveal chevron. Modifiers then a key, joined with "+". Leave it
+# out to register nothing.
+# toggle-shortcut = "cmd+alt+b"
+
 [widgets]
 # The bar, left to right. Remove an entry to hide that widget entirely.
 # "spacer" pushes everything after it to the right, "divider" draws a separator.

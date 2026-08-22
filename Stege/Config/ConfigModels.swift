@@ -4,14 +4,26 @@ import SwiftUI
 struct RootToml: Decodable {
     var theme: String?
     var hidden: Bool?
+    var toggleShortcut: String?
     var yabai: YabaiConfig?
     var aerospace: AerospaceConfig?
     var experimental: ExperimentalConfig?
     var widgets: WidgetsSection
 
+    enum CodingKeys: String, CodingKey {
+        case theme
+        case hidden
+        case toggleShortcut = "toggle-shortcut"
+        case yabai
+        case aerospace
+        case experimental
+        case widgets
+    }
+
     init() {
         self.theme = nil
         self.hidden = nil
+        self.toggleShortcut = nil
         self.yabai = nil
         self.aerospace = nil
         self.widgets = WidgetsSection(displayed: [], others: [:])
@@ -37,6 +49,12 @@ struct Config {
     /// than by a click.
     var hidden: Bool {
         rootToml.hidden ?? false
+    }
+
+    /// A system-wide shortcut that hides and shows the bar, written the way
+    /// other tools write one, "cmd+alt+b". Nil registers nothing.
+    var toggleShortcut: String? {
+        rootToml.toggleShortcut
     }
     
     var yabai: YabaiConfig {

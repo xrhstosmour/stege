@@ -90,6 +90,7 @@ hide it, reorder the list to move things around.
 ```toml
 theme = "system"          # system, light, dark
 hidden = false            # true takes the bar away entirely, see below
+# toggle-shortcut = "cmd+alt+b"  # hides and shows it from anywhere
 
 [widgets]
 displayed = [
@@ -176,6 +177,20 @@ view-variant = "vertical"
 every third-party status item on it reachable. The file is watched, so it takes effect as soon
 as you save, with no restart. The `default.reveal` chevron does the same thing temporarily,
 bringing the bar back as soon as the pointer moves away.
+
+`toggle-shortcut` gives you the same switch from the keyboard, anywhere:
+
+```toml
+toggle-shortcut = "cmd+alt+b"
+```
+
+Write it as modifiers then a key, joined with `+`. `cmd`, `command`, `opt`, `option`, `alt`,
+`ctrl`, `control` and `shift` all resolve, and the key can be a letter, a digit, a function
+key, or one of `space`, `return`, `tab`, `escape`, `delete`, `left`, `right`, `up`, `down`.
+At least one modifier is required. Leave the setting out to register nothing.
+
+The shortcut is independent of `hidden`: with `hidden = true` in the file the bar stays away
+whatever you press, since the file is the stronger statement.
 
 ### Appearance
 
