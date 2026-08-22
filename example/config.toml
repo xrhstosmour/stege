@@ -18,6 +18,7 @@ displayed = [
     "default.monitor",
     "default.privacy",
     "default.stayawake",
+    "default.notifications",
     "default.audio",
     "default.keyboardlayout",
     "default.bluetooth",
@@ -71,6 +72,14 @@ style = "icon"                 # icon, or dot to match the system indicator
 # Only shows while something is holding the display awake, which is the
 # default. Set always-show to keep the cup visible, dimmed when idle.
 always-show = false
+
+[widgets.default.notifications]
+# Opens macOS's own Notification Center, which brings its list, its
+# per-notification dismiss and its Clear All with it. Stege does not draw
+# the list itself: there is no public API for it, and the private database
+# behind it needs Full Disk Access.
+# Adds a second control opening Control Center beside the bell.
+show-control-centre = false
 
 [widgets.default.audio]
 show-percentage = false        # the icon already conveys the level
