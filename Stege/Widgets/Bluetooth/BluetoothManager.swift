@@ -17,7 +17,7 @@ struct BluetoothDevice: Identifiable {
 /// devices this app could connect to as a client, and would prompt for
 /// permission, while the bar only needs to report what the system is already
 /// connected to.
-final class BluetoothManager: ObservableObject {
+final class BluetoothManager: NSObject, ObservableObject {
     @Published private(set) var isPoweredOn = false
     @Published private(set) var devices: [BluetoothDevice] = []
     /// Whether the app is allowed to read Bluetooth at all.
@@ -34,8 +34,22 @@ final class BluetoothManager: ObservableObject {
     private let queue = DispatchQueue(label: "stege.bluetooth", qos: .utility)
     private var isReading = false
 
-    init(interval: TimeInterval = 5.0) {
+    /// Held so they can be unregistered. `IOBluetooth` hands back a
+    /// notification object per registration, and dropping it without
+    /// unregistering leaves the callback live.
+    private var connectNotification: IOBluetoothUserNotification?
+    private var disconnectNotifications: [IOBluetoothUserNotification] = []
+
+    /// A slow safety net, not the main refresh.
+    ///
+    /// Connecting and disconnecting are delivered as notifications, so the
+    /// timer no longer carries them. What it still covers has no notification
+    /// at all: the controller being switched on or off, and battery levels,
+    /// which macOS writes into its preferences without announcing.
+    init(interval: TimeInterval = 30.0) {
+        super.init()
         refresh()
+        registerForConnections()
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) {
             [weak self] _ in
             self?.refresh()
@@ -44,6 +58,56 @@ final class BluetoothManager: ObservableObject {
 
     deinit {
         timer?.invalidate()
+        connectNotification?.unregister()
+        disconnectNotifications.forEach { $0.unregister() }
+    }
+
+    private func registerForConnections() {
+        connectNotification = IOBluetoothDevice.register(
+            forConnectNotifications: self,
+            selector: #selector(deviceConnected(_:device:)))
+
+        // Only future connections are announced, so anything already connected
+        // when the bar starts needs its disconnect notification taken here or
+        // unplugging it would go unnoticed until the safety net ran.
+        queue.async { [weak self] in
+            guard let self,
+                let paired = IOBluetoothDevice.pairedDevices()
+                    as? [IOBluetoothDevice]
+            else { return }
+            let connected = paired.filter { $0.isConnected() }
+            DispatchQueue.main.async {
+                for device in connected {
+                    self.watchForDisconnect(of: device)
+                }
+            }
+        }
+    }
+
+    private func watchForDisconnect(of device: IOBluetoothDevice) {
+        guard
+            let notification = device.register(
+                forDisconnectNotification: self,
+                selector: #selector(deviceDisconnected(_:device:)))
+        else { return }
+        disconnectNotifications.append(notification)
+    }
+
+    @objc private func deviceConnected(
+        _ notification: IOBluetoothUserNotification, device: IOBluetoothDevice
+    ) {
+        // Registered per device, because `IOBluetooth` has no global
+        // disconnect notification the way it has a global connect one.
+        watchForDisconnect(of: device)
+        refresh()
+    }
+
+    @objc private func deviceDisconnected(
+        _ notification: IOBluetoothUserNotification, device: IOBluetoothDevice
+    ) {
+        notification.unregister()
+        disconnectNotifications.removeAll { $0 === notification }
+        refresh()
     }
 
     /// Reads on a background queue, never on the main thread.
