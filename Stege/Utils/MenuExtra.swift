@@ -62,7 +62,12 @@ enum MenuExtra {
     private static func pressSynchronously(
         _ identifier: Identifier, path: [String]
     ) -> Bool {
-        guard let extra = element(for: identifier),
+        guard let extra = element(for: identifier) else { return false }
+
+        let pointer = revealMenuBarIfHidden(for: extra)
+        defer { pointer.map(restorePointer) }
+
+        guard
             AXUIElementPerformAction(extra, kAXPressAction as CFString)
                 == .success
         else { return false }
@@ -80,42 +85,64 @@ enum MenuExtra {
         return true
     }
 
-    /// Whether a control inside an extra's panel is currently on.
+    // MARK: - The hidden menu bar
+
+    /// Brings the menu bar back on screen when it is set to hide, and reports
+    /// where the pointer was so it can be put back.
     ///
-    /// Opening the panel to read it is the cost of there being no API for the
-    /// value either. Only worth it for a state nothing else reports, which is
-    /// why Low Power Mode reads through `ProcessInfo` instead.
-    static func isOn(
-        _ identifier: Identifier, path: [String],
-        completion: @escaping (Bool?) -> Void
-    ) {
-        DispatchQueue.global(qos: .userInitiated).async {
-            var value: Bool?
-            if let extra = element(for: identifier),
-                AXUIElementPerformAction(extra, kAXPressAction as CFString)
-                    == .success
-            {
-                var control: AXUIElement?
-                for step in path {
-                    control = waitForControl(identified: step)
-                    guard let control else { break }
-                    // The last entry is the one being read, so it is not
-                    // pressed. Everything before it only opens the next panel.
-                    if step != path.last {
-                        AXUIElementPerformAction(
-                            control, kAXPressAction as CFString)
-                    }
-                }
-                if let control,
-                    let number = attribute(control, kAXValueAttribute as String)
-                        as? NSNumber
-                {
-                    value = number.boolValue
-                }
-                closePanel(openedBy: extra)
-            }
-            DispatchQueue.main.async { completion(value) }
+    /// Pressing an extra whose menu bar is hidden silently does nothing: macOS
+    /// parks the item above the top of the screen, at a negative y, and opens
+    /// no panel for it. The reveal is driven by pointer movement, and by a real
+    /// event, not by where the pointer happens to be, so moving it there
+    /// without one leaves the bar hidden. Warping it back afterwards is enough,
+    /// because the panel stays up once it is open.
+    ///
+    /// Returns nil when the bar was already on screen, which is the common case
+    /// for anyone who has not set it to hide, and then nothing touches the
+    /// pointer at all.
+    private static func revealMenuBarIfHidden(for extra: AXUIElement)
+        -> CGPoint?
+    {
+        guard isOffScreen(extra) else { return nil }
+        let origin = CGEvent(source: nil)?.location ?? .zero
+        movePointer(to: CGPoint(x: origin.x, y: 0))
+
+        let deadline = Date().addingTimeInterval(1.5)
+        while isOffScreen(extra), Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.02)
         }
+        // The item is back at a drawable position before the bar has finished
+        // arriving, and pressing it in between opens nothing.
+        Thread.sleep(forTimeInterval: 0.35)
+        return origin
+    }
+
+    /// Warped rather than moved by an event. An event would be a second mouse
+    /// movement in whatever the pointer is over, and the point is to leave no
+    /// trace beyond the trip itself.
+    private static func restorePointer(to origin: CGPoint) {
+        CGWarpMouseCursorPosition(origin)
+    }
+
+    private static func movePointer(to point: CGPoint) {
+        guard
+            let event = CGEvent(
+                mouseEventSource: nil, mouseType: .mouseMoved,
+                mouseCursorPosition: point, mouseButton: .left)
+        else { return }
+        event.post(tap: .cghidEventTap)
+    }
+
+    private static func isOffScreen(_ extra: AXUIElement) -> Bool {
+        guard let value = attribute(extra, kAXPositionAttribute as String),
+            CFGetTypeID(value) == AXValueGetTypeID()
+        else { return false }
+        var point = CGPoint.zero
+        guard
+            AXValueGetValue(
+                unsafeBitCast(value, to: AXValue.self), .cgPoint, &point)
+        else { return false }
+        return point.y < 0
     }
 
     // MARK: - Panels
@@ -123,17 +150,39 @@ enum MenuExtra {
     /// Presses the extra again, but only while its panel is still up.
     ///
     /// Some controls dismiss the panel themselves when pressed, and pressing
-    /// the extra then would open it back up rather than close it.
+    /// the extra then would open it back up rather than close it. Repeated
+    /// because one press does not always take when the panel has been stepped
+    /// into: the first goes back a level rather than closing.
     private static func closePanel(openedBy extra: AXUIElement) {
-        guard controlCentreApplication().map(hasPanel) == true else { return }
-        AXUIElementPerformAction(extra, kAXPressAction as CFString)
+        for _ in 0..<3 {
+            guard controlCentreApplication().map(hasPanel) == true else {
+                return
+            }
+            AXUIElementPerformAction(extra, kAXPressAction as CFString)
+            Thread.sleep(forTimeInterval: 0.2)
+        }
     }
 
     private static func hasPanel(_ application: AXUIElement) -> Bool {
+        !panels(of: application).isEmpty
+    }
+
+    /// The panel windows, filtered by role.
+    ///
+    /// Control Center answers `AXWindows` with itself when it has no panel up,
+    /// an element whose role is the application's rather than a window's and
+    /// whose children walk back into the menu bar. Counting the array is
+    /// therefore not enough, and searching it would find menu bar items in
+    /// place of panel controls.
+    private static func panels(of application: AXUIElement) -> [AXUIElement] {
         let windows =
             attribute(application, kAXWindowsAttribute as String)
             as? [AXUIElement]
-        return windows?.isEmpty == false
+        return
+            windows?.filter {
+                attribute($0, kAXRoleAttribute as String) as? String
+                    == kAXWindowRole as String
+            } ?? []
     }
 
     /// Polls rather than sleeps a fixed time. The panel is drawn in another
@@ -146,15 +195,11 @@ enum MenuExtra {
         guard let application = controlCentreApplication() else { return nil }
         let deadline = Date().addingTimeInterval(2)
         while Date() < deadline {
-            if let windows = attribute(
-                application, kAXWindowsAttribute as String) as? [AXUIElement]
-            {
-                for window in windows {
-                    if let match = descendant(
-                        of: window, identified: identifier, depth: 0)
-                    {
-                        return match
-                    }
+            for window in panels(of: application) {
+                if let match = descendant(
+                    of: window, identified: identifier, depth: 0)
+                {
+                    return match
                 }
             }
             Thread.sleep(forTimeInterval: 0.02)

@@ -282,6 +282,11 @@ Accessibility API. Nothing else can write that setting: `pmset` needs root, and 
 `LowPowerMode` framework answers only callers holding an Apple-issued entitlement. macOS
 therefore draws its own panel for a moment while the switch flips.
 
+If you have set the macOS menu bar to hide, which most people running Stege have, the pointer
+also goes to the top of the screen and back for about half a second. A hidden menu bar parks
+its items above the screen, where pressing them does nothing, and only real pointer movement
+brings them back.
+
 ![The battery popup](.github/assets/battery.png)
 
 ### Calendar
