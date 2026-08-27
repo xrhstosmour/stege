@@ -71,8 +71,9 @@ modifier-key = "option"     # option, command, control, shift, function
 # --- Right -----------------------------------------------------------------
 
 [widgets.default.reveal]
-return-threshold = 80          # points the pointer must drop before the bar returns
-timeout = 10                   # seconds before it returns regardless
+sticky = true                  # stay collapsed until the corner button is pressed
+return-threshold = 80          # sticky = false only: points the pointer must drop first
+timeout = 10                   # sticky = false only: seconds before it returns regardless
 
 [widgets.default.monitor]
 show-network = false           # upload and download throughput
