@@ -17,11 +17,15 @@ final class BarVisibility: ObservableObject {
     /// override either of the other two.
     var isHidden: Bool {
         isHiddenByConfig || isHiddenByShortcut || isHiddenByChevron
+            || isCollapsed
     }
 
     @Published private(set) var isHiddenByChevron = false
     @Published private(set) var isHiddenByConfig = false
     @Published private(set) var isHiddenByShortcut = false
+    /// Hidden by the chevron in its sticky mode, which unlike the others leaves
+    /// a small button on screen, because nothing else would bring the bar back.
+    @Published private(set) var isCollapsed = false
 
     /// How far down the pointer must travel before the bar comes back. Slightly
     /// more than the menu bar's own height by default, so the bar does not
@@ -44,6 +48,25 @@ final class BarVisibility: ObservableObject {
         startWatchingPointer()
     }
 
+    /// Collapses the bar, and expands it again on the second call.
+    ///
+    /// Unlike `hide`, this does not come back on its own. The pointer has to be
+    /// free to travel down into a status item's menu without the bar snapping
+    /// back over it, which is the whole point of a mode that stays put, so the
+    /// small button `AppDelegate` leaves on screen is the way back.
+    func toggleCollapsed() {
+        let wasHidden = isHidden
+        isCollapsed.toggle()
+        if isCollapsed {
+            // A temporary hide already in flight would otherwise expand the bar
+            // again on the next mouse move.
+            stopWatchingPointer()
+            isHiddenByChevron = false
+        }
+        guard isHidden != wasHidden else { return }
+        NotificationCenter.default.post(name: .stegeBarVisibilityChanged, object: nil)
+    }
+
     /// Applies `hidden` from the config file.
     ///
     /// Unlike the chevron this does not watch the pointer or start a timer: the
@@ -59,6 +82,9 @@ final class BarVisibility: ObservableObject {
             // mouse move despite the file saying to keep it hidden.
             stopWatchingPointer()
             isHiddenByChevron = false
+            // The collapsed button goes too. The file is now the reason the bar
+            // is away, and a button offering to bring it back would not work.
+            isCollapsed = false
         }
         guard isHidden != wasHidden else { return }
         NotificationCenter.default.post(name: .stegeBarVisibilityChanged, object: nil)
@@ -78,6 +104,7 @@ final class BarVisibility: ObservableObject {
             // again on the next mouse move, undoing the shortcut.
             stopWatchingPointer()
             isHiddenByChevron = false
+            isCollapsed = false
         }
         guard isHidden != wasHidden else { return }
         NotificationCenter.default.post(name: .stegeBarVisibilityChanged, object: nil)
@@ -88,7 +115,9 @@ final class BarVisibility: ObservableObject {
         isHiddenByChevron = false
         stopWatchingPointer()
         // Still hidden for another reason, so nothing on screen changed.
-        guard !isHiddenByConfig, !isHiddenByShortcut else { return }
+        guard !isHiddenByConfig, !isHiddenByShortcut, !isCollapsed else {
+            return
+        }
         NotificationCenter.default.post(name: .stegeBarVisibilityChanged, object: nil)
     }
 

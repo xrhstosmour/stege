@@ -112,7 +112,7 @@ Every widget, and what it shows:
 | `default.applemenu` | The Apple logo, opening the real Apple menu |
 | `default.spaces` | Window manager workspaces, with an icon per window |
 | `default.appmenus` | The frontmost app's menus |
-| `default.reveal` | A chevron that hides the bar until the pointer moves away |
+| `default.reveal` | A chevron that gets the bar out of the way of the real macOS menu bar |
 | `default.monitor` | CPU, memory, and optionally network throughput |
 | `default.privacy` | Microphone and camera in-use indicators |
 | `default.stayawake` | A cup, while something is keeping the display awake |
@@ -175,8 +175,20 @@ view-variant = "vertical"
 
 `hidden = true` takes the bar away entirely, leaving the real macOS menu bar and
 every third-party status item on it reachable. The file is watched, so it takes effect as soon
-as you save, with no restart. The `default.reveal` chevron does the same thing temporarily,
-bringing the bar back as soon as the pointer moves away.
+as you save, with no restart.
+
+The `default.reveal` chevron does the same thing from the bar. It collapses Stege and leaves a
+small button at the top-left corner of the screen, which expands it again. Everything macOS
+puts on its own menu bar, including every status item Stege does not draw, is usable in
+between. It stays collapsed until that button is pressed, because a status item's menu opens
+below the menu bar and a bar that came back on its own would land on top of it.
+
+```toml
+[widgets.default.reveal]
+sticky = true          # false: come back on pointer movement instead of on a second press
+return-threshold = 80  # `sticky = false` only: points the pointer must travel down
+timeout = 10           # `sticky = false` only: seconds before the bar returns anyway
+```
 
 `toggle-shortcut` gives you the same switch from the keyboard, anywhere:
 

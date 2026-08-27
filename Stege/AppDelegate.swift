@@ -8,6 +8,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // leaves every other display with no bar at all.
     private var backgroundPanels: [NSPanel] = []
     private var menuBarPanels: [NSPanel] = []
+    /// One per screen, holding nothing but the button that expands the bar
+    /// again. Only on screen while the bar is collapsed.
+    private var collapsedPanels: [NSPanel] = []
+
+    /// Big enough to hit without looking, small enough to cover almost none of
+    /// the menu bar it is sitting on.
+    private static let collapsedButtonSize = CGSize(width: 26, height: 22)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // A second copy would draw an overlapping bar on every display and
@@ -102,6 +109,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 panel.orderFrontRegardless()
             }
         }
+        // Only the collapsed mode leaves a way back on screen. The config file
+        // and the shortcut each have their own, and the temporary hide comes
+        // back on its own.
+        let collapsed = BarVisibility.shared.isCollapsed
+        for panel in collapsedPanels {
+            if collapsed {
+                panel.orderFrontRegardless()
+            } else {
+                panel.orderOut(nil)
+            }
+        }
     }
 
     @objc private func screenParametersDidChange(_ notification: Notification) {
@@ -129,6 +147,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         while menuBarPanels.count > screens.count {
             menuBarPanels.removeLast().close()
         }
+        while collapsedPanels.count > screens.count {
+            collapsedPanels.removeLast().close()
+        }
 
         for (index, screen) in screens.enumerated() {
             let frame = screen.frame
@@ -141,6 +162,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     menuBarPanels[index], to: frame,
                     level: Int(CGWindowLevelForKey(.backstopMenu)),
                     show: shouldShow)
+                reposition(
+                    collapsedPanels[index], to: collapsedFrame(on: frame),
+                    level: Int(CGWindowLevelForKey(.popUpMenuWindow)),
+                    show: BarVisibility.shared.isCollapsed)
             } else {
                 backgroundPanels.append(
                     makePanel(
@@ -154,8 +179,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         level: Int(CGWindowLevelForKey(.backstopMenu)),
                         hostingRootView: AnyView(MenuBarView()),
                         show: shouldShow))
+                // Above the menu bar rather than behind it, because the whole
+                // point is to stay reachable while the real menu bar is the
+                // thing on screen.
+                collapsedPanels.append(
+                    makePanel(
+                        frame: collapsedFrame(on: frame),
+                        level: Int(CGWindowLevelForKey(.popUpMenuWindow)),
+                        hostingRootView: AnyView(CollapsedRevealView()),
+                        show: BarVisibility.shared.isCollapsed))
             }
         }
+    }
+
+    /// The bottom-left corner of the screen's menu bar strip, at the leading
+    /// edge rather than the trailing one: the trailing end of a real menu bar
+    /// is where the status items are, and this would sit on top of them.
+    private func collapsedFrame(on screen: CGRect) -> CGRect {
+        let size = Self.collapsedButtonSize
+        return CGRect(
+            x: screen.minX,
+            y: screen.maxY - size.height,
+            width: size.width,
+            height: size.height)
     }
 
     /// The level is re-applied as well as the frame, because a sleep or wake
