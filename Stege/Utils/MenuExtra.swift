@@ -207,11 +207,14 @@ enum MenuExtra {
         return origin
     }
 
-    /// Warped rather than moved by an event. An event would be a second mouse
-    /// movement in whatever the pointer is over, and the point is to leave no
-    /// trace beyond the trip itself.
+    /// Moved by an event, not warped.
+    ///
+    /// A warp puts the pointer back without telling anything it moved, and a
+    /// menu bar set to hide only goes back up on a real movement. Warping left
+    /// it down, on top of Stege's own bar, swallowing the next click meant for
+    /// a widget, until the user happened to move the mouse.
     private static func restorePointer(to origin: CGPoint) {
-        CGWarpMouseCursorPosition(origin)
+        movePointer(to: origin)
     }
 
     private static func movePointer(to point: CGPoint) {
