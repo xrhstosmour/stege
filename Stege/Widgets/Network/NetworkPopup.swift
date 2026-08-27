@@ -54,15 +54,9 @@ struct NetworkPopup: View {
             title: viewModel.isPoweredOn ? viewModel.ssid : "Wi-Fi Off",
             tint: isConnected ? .blue : .secondary
         ) {
-            Toggle(
-                "",
-                isOn: Binding(
-                    get: { viewModel.isPoweredOn },
-                    set: { viewModel.setPower($0) })
-            )
-            .toggleStyle(.switch)
-            .controlSize(.mini)
-            .labelsHidden()
+            PopupSwitch(isOn: viewModel.isPoweredOn) {
+                viewModel.setPower(!viewModel.isPoweredOn)
+            }
         }
     }
 

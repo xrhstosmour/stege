@@ -71,15 +71,9 @@ struct BatteryPopup: View {
             if manager.isSwitchingPowerMode {
                 ProgressView().controlSize(.mini)
             } else {
-                Toggle(
-                    "",
-                    isOn: Binding(
-                        get: { manager.isLowPowerMode },
-                        set: { _ in manager.toggleLowPowerMode() })
-                )
-                .toggleStyle(.switch)
-                .controlSize(.mini)
-                .labelsHidden()
+                PopupSwitch(isOn: manager.isLowPowerMode) {
+                    manager.toggleLowPowerMode()
+                }
             }
         }
         .popupStaticRow()

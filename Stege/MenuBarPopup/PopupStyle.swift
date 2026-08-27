@@ -81,6 +81,41 @@ private struct PopupRow: ViewModifier {
     }
 }
 
+/// An on/off switch, drawn rather than taken from `Toggle`.
+///
+/// `Toggle(.switch)` renders nothing inside these popups. The popup's content
+/// is wrapped in `blur`, `scaleEffect` and `opacity` for its open and close
+/// animation, and the AppKit-backed switch behind that toggle style does not
+/// survive being composited through them, while `Slider` in the same popups
+/// does. The row simply came out with an empty space where the switch should
+/// be, in both the Wi-Fi and battery popups.
+///
+/// Shapes always draw, so this is built from two of them.
+struct PopupSwitch: View {
+    let isOn: Bool
+    let action: () -> Void
+
+    private let width: CGFloat = 26
+    private let height: CGFloat = 15
+
+    var body: some View {
+        Capsule()
+            .fill(isOn ? Color.accentColor : Color.primary.opacity(0.25))
+            .frame(width: width, height: height)
+            .overlay(alignment: isOn ? .trailing : .leading) {
+                Circle()
+                    .fill(.white)
+                    .padding(1.5)
+                    .shadow(radius: 0.5)
+            }
+            .animation(.smooth(duration: 0.15), value: isOn)
+            .contentShape(Rectangle())
+            .onTapGesture(perform: action)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityValue(isOn ? "on" : "off")
+    }
+}
+
 /// A popup's title line: a symbol, a name, and whatever control belongs on the
 /// right, such as a power switch.
 struct PopupHeader<Trailing: View>: View {
