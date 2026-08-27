@@ -261,6 +261,12 @@ list, and the private database behind it would mean holding Full Disk Access, wh
 read access to Mail, Messages and browser data. `show-control-centre` adds a second control for
 Control Center.
 
+The popup does list every Focus, including any you have made yourself, and switches between
+them. Which one is on is read from `~/Library/DoNotDisturb/DB`, which needs no permission.
+Switching goes through Control Center's own controls, for the same reason as Low Power Mode:
+the private `DoNotDisturb` framework answers only entitled callers, and returns an XPC error
+to everyone else.
+
 ### Bluetooth
 
 Every paired device is listed, connected ones first, with a battery bar for the devices that
