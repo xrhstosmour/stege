@@ -10,8 +10,9 @@ import SwiftUI
 /// which is far more than a menu bar widget should ask for, so the list stays
 /// where macOS keeps it and the popup opens it.
 ///
-/// What the popup can say without any of that is which Focus is on, read from
-/// `~/Library/DoNotDisturb/DB`, which is not behind Full Disk Access.
+/// What the popup can do without any of that is report and switch Focus, read
+/// from `~/Library/DoNotDisturb/DB`, which is not behind Full Disk Access, and
+/// written through Control Center's own switches.
 struct NotificationsWidget: View {
     @EnvironmentObject var configProvider: ConfigProvider
     var config: ConfigData { configProvider.config }
@@ -85,8 +86,10 @@ struct NotificationsPopup: View {
 
             // Left out entirely when the state cannot be read, rather than
             // reporting Focus as off when that is simply not known.
-            if focus.isReadable {
-                focusRow
+            if focus.isReadable, !focus.modes.isEmpty {
+                ForEach(focus.modes) { mode in
+                    focusRow(mode)
+                }
             }
 
             Divider().padding(.vertical, 4)
@@ -124,19 +127,31 @@ struct NotificationsPopup: View {
         .padding(.bottom, 2)
     }
 
-    private var focusRow: some View {
-        HStack(spacing: 10) {
-            Image(systemName: focus.activeFocus == nil ? "moon" : "moon.fill")
+    /// One row per Focus, switching it on or, when it is the one already on,
+    /// back off.
+    private func focusRow(_ mode: FocusMode) -> some View {
+        let isOn = focus.activeIdentifier == mode.id
+        return HStack(spacing: 10) {
+            Image(systemName: mode.symbol)
                 .font(.system(size: 11))
-                .foregroundStyle(focus.activeFocus == nil ? Color.secondary : Color.purple)
+                .foregroundStyle(isOn ? Color.purple : Color.secondary)
                 .frame(width: 16)
-            Text(focus.activeFocus ?? "Focus off")
+            Text(mode.name)
                 .font(.system(size: 12))
                 .lineLimit(1)
             Spacer(minLength: 8)
+            if focus.switching == mode.id {
+                ProgressView().controlSize(.mini)
+            } else if isOn {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Color.purple)
+            }
         }
         .padding(.horizontal, 4)
         .padding(.vertical, 3)
+        .contentShape(Rectangle())
+        .onTapGesture { focus.toggle(mode) }
     }
 
     private func row(
