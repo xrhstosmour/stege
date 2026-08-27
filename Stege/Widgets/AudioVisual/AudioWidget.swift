@@ -74,10 +74,10 @@ struct AudioPopup: View {
     @ObservedObject var manager: AudioManager
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Sound").font(.system(size: 13, weight: .semibold))
+        VStack(alignment: .leading, spacing: PopupStyle.spacing) {
+            PopupHeader(symbol: outputSymbol, title: "Sound")
 
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 Image(systemName: "speaker.fill").font(.system(size: 10))
                 Slider(
                     value: Binding(
@@ -86,26 +86,27 @@ struct AudioPopup: View {
                     ), in: 0...1)
                 Image(systemName: "speaker.wave.3.fill").font(.system(size: 10))
             }
+            .popupStaticRow()
 
             deviceSection(
-                title: "Output", symbol: "hifispeaker",
-                devices: manager.outputDevices,
+                title: "Output", devices: manager.outputDevices,
                 selected: manager.currentOutputID, input: false)
 
             if !manager.inputDevices.isEmpty {
                 deviceSection(
-                    title: "Input", symbol: "mic",
-                    devices: manager.inputDevices,
+                    title: "Input", devices: manager.inputDevices,
                     selected: manager.currentInputID, input: true)
 
                 Divider()
                 microphoneLevel
             }
         }
-        .padding(14)
-        // Fixed, not a minimum: `Slider` expands to fill whatever it is offered
-        // and the popup panel spans the whole screen.
-        .frame(width: 280, alignment: .leading)
+        .popupContainer(wide: true)
+    }
+
+    private var outputSymbol: String {
+        manager.volume <= 0.001
+            ? "speaker.slash.fill" : "speaker.wave.2.fill"
     }
 
     /// A level slider rather than an on/off row, so the microphone reads the
@@ -115,17 +116,8 @@ struct AudioPopup: View {
     @ViewBuilder
     private var microphoneLevel: some View {
         if let level = manager.inputVolume {
-            HStack(spacing: 8) {
-                Image(
-                    systemName: manager.isInputMuted
-                        ? "mic.slash.fill" : "mic.fill"
-                )
-                .font(.system(size: 10))
-                .foregroundStyle(manager.isInputMuted ? .red : .primary)
-                .frame(width: 14)
-                .contentShape(Rectangle())
-                .onTapGesture { manager.toggleInputMute() }
-
+            HStack(spacing: 10) {
+                microphoneGlyph
                 Slider(
                     value: Binding(
                         get: { level },
@@ -135,44 +127,50 @@ struct AudioPopup: View {
                 .disabled(manager.isInputMuted)
                 .opacity(manager.isInputMuted ? 0.4 : 1)
             }
+            .popupStaticRow()
         } else {
-            HStack(spacing: 8) {
-                Image(
-                    systemName: manager.isInputMuted
-                        ? "mic.slash.fill" : "mic.fill"
+            HStack(spacing: 10) {
+                microphoneGlyph
+                Text(
+                    manager.isInputMuted
+                        ? "Microphone muted" : "Microphone on"
                 )
-                .font(.system(size: 11))
-                .foregroundStyle(manager.isInputMuted ? .red : .primary)
-                Text(manager.isInputMuted ? "Microphone muted" : "Microphone on")
-                    .font(.system(size: 12))
+                .font(.system(size: PopupStyle.bodySize))
                 Spacer(minLength: 12)
             }
+            .popupRow { manager.toggleInputMute() }
+        }
+    }
+
+    private var microphoneGlyph: some View {
+        Image(systemName: manager.isInputMuted ? "mic.slash.fill" : "mic.fill")
+            .font(.system(size: PopupStyle.captionSize))
+            .foregroundStyle(manager.isInputMuted ? .red : .primary)
+            .frame(width: 14)
             .contentShape(Rectangle())
             .onTapGesture { manager.toggleInputMute() }
-        }
     }
 
     @ViewBuilder
     private func deviceSection(
-        title: String, symbol: String, devices: [AudioDevice],
-        selected: AudioObjectID, input: Bool
+        title: String, devices: [AudioDevice], selected: AudioObjectID,
+        input: Bool
     ) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Image(systemName: symbol).font(.system(size: 10)).opacity(0.7)
-                Text(title).font(.system(size: 11, weight: .medium)).opacity(0.7)
-            }
+        VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
+            PopupSectionTitle(title).popupStaticRow()
             ForEach(devices) { device in
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 9, weight: .bold))
+                        .font(.system(size: 10, weight: .semibold))
                         .opacity(device.id == selected ? 1 : 0)
-                        .frame(width: 10)
-                    Text(device.name).font(.system(size: 12)).lineLimit(1)
+                        .frame(width: PopupStyle.iconColumn)
+                    Text(device.name)
+                        .font(.system(size: PopupStyle.bodySize))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                     Spacer(minLength: 8)
                 }
-                .contentShape(Rectangle())
-                .onTapGesture { manager.selectDevice(device, input: input) }
+                .popupRow { manager.selectDevice(device, input: input) }
             }
         }
     }

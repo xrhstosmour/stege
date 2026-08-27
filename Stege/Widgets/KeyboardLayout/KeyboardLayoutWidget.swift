@@ -45,69 +45,45 @@ struct KeyboardLayoutPopup: View {
     @ObservedObject var manager: KeyboardLayoutManager
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 8) {
-                Image(systemName: "keyboard").font(.system(size: 11))
-                Text("Input Sources")
-                    .font(.system(size: 13, weight: .semibold))
-                Spacer(minLength: 8)
-            }
-            .padding(.horizontal, 6)
-            .padding(.bottom, 4)
+        VStack(alignment: .leading, spacing: PopupStyle.spacing) {
+            PopupHeader(symbol: "keyboard", title: "Input Sources")
 
-            ForEach(manager.sources) { source in
-                row(source)
+            VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
+                ForEach(manager.sources) { source in
+                    row(source)
+                }
             }
 
-            Divider().padding(.vertical, 4)
+            Divider()
 
-            settingsRow
+            // Adding and removing input sources belongs to the system, and this
+            // popup only switches between the ones already enabled.
+            PopupSettingsRow(title: "Keyboard Settings") {
+                openSettings(
+                    "x-apple.systempreferences:com.apple.Keyboard-Settings.extension"
+                )
+            }
         }
-        .padding(10)
-        .frame(width: 240, alignment: .leading)
+        .popupContainer()
     }
 
     private func row(_ source: KeyboardInputSource) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             Image(systemName: "checkmark")
-                .font(.system(size: 9, weight: .bold))
+                .font(.system(size: 10, weight: .semibold))
                 .opacity(source.id == manager.currentID ? 1 : 0)
-                .frame(width: 10)
-            Text(source.name).font(.system(size: 12)).lineLimit(1)
+                .frame(width: PopupStyle.iconColumn)
+            Text(source.name)
+                .font(.system(size: PopupStyle.bodySize))
+                .lineLimit(1)
             Spacer(minLength: 8)
             Text(source.code)
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: PopupStyle.captionSize, weight: .medium))
                 .opacity(0.6)
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 4)
-        .contentShape(Rectangle())
-        .onTapGesture {
+        .popupRow {
             manager.select(source)
             MenuBarPopup.hide()
-        }
-    }
-
-    private var settingsRow: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "gearshape").font(.system(size: 11)).frame(width: 10)
-            Text("Keyboard Settings").font(.system(size: 12))
-            Spacer(minLength: 8)
-            Image(systemName: "chevron.right")
-                .font(.system(size: 9, weight: .semibold)).opacity(0.5)
-        }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 4)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            MenuBarPopup.hide()
-            // Adding and removing input sources belongs to the system, and this
-            // popup only switches between the ones already enabled.
-            NSWorkspace.shared.open(
-                URL(
-                    string:
-                        "x-apple.systempreferences:com.apple.Keyboard-Settings.extension"
-                )!)
         }
     }
 }
