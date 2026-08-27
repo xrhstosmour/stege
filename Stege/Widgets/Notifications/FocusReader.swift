@@ -36,6 +36,9 @@ final class FocusReader: ObservableObject {
     @Published private(set) var modes: [FocusMode] = []
     /// The mode a switch is in flight for.
     @Published private(set) var switching: String?
+    /// Set when the switch could not be reached, so the popup says so instead
+    /// of leaving a row that appears to have ignored the click.
+    @Published private(set) var failure: String?
     /// False when the files cannot be read at all, so the widget can leave the
     /// row out rather than claim Focus is off when it does not know.
     @Published private(set) var isReadable = true
@@ -92,11 +95,16 @@ final class FocusReader: ObservableObject {
     func toggle(_ mode: FocusMode) {
         guard switching == nil else { return }
         switching = mode.id
+        failure = nil
         MenuExtra.press(
             .controlCentre,
             path: ["controlcenter-focus-modes", "focus-mode-activity-\(mode.id)"]
-        ) { [weak self] _ in
+        ) { [weak self] pressed in
             self?.switching = nil
+            // Control Center's Focus tile can be removed from the panel, and
+            // then there is nothing to press.
+            self?.failure =
+                pressed ? nil : "Could not reach Control Center's Focus control"
             // The files are rewritten as the assertion is taken, but not
             // always before the press returns, so this reads once more a
             // moment later rather than showing the previous state until the

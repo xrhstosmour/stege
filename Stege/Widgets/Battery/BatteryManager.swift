@@ -22,6 +22,9 @@ class BatteryManager: ObservableObject {
     /// True while the switch is being flipped, so the popup can show the
     /// change is in flight rather than appear to have ignored the click.
     @Published private(set) var isSwitchingPowerMode = false
+    /// Set when the switch could not be reached, so the popup says so instead
+    /// of quietly snapping back to where it was.
+    @Published private(set) var powerModeFailure: String?
 
     private var runLoopSource: CFRunLoopSource?
     private var powerStateObserver: NSObjectProtocol?
@@ -58,14 +61,20 @@ class BatteryManager: ObservableObject {
     func toggleLowPowerMode() {
         guard !isSwitchingPowerMode else { return }
         isSwitchingPowerMode = true
+        powerModeFailure = nil
         MenuExtra.press(.battery, path: ["energy-mode-low"]) {
-            [weak self] _ in
+            [weak self] pressed in
             self?.isSwitchingPowerMode = false
             // The notification above normally lands first. Reading here as
             // well means a missed one leaves the switch right rather than
             // stuck showing the previous state.
             self?.isLowPowerMode = ProcessInfo.processInfo
                 .isLowPowerModeEnabled
+            // The battery menu extra can be switched off in Control Center
+            // settings, and then there is no switch to press. Saying so beats
+            // a toggle that silently springs back.
+            self?.powerModeFailure =
+                pressed ? nil : "Could not reach the Low Power Mode switch"
         }
     }
 

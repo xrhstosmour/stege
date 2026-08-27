@@ -30,6 +30,13 @@ struct BatteryPopup: View {
 
             VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
                 lowPowerRow
+                if let failure = manager.powerModeFailure {
+                    Text(failure)
+                        .font(.system(size: PopupStyle.captionSize))
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .popupStaticRow()
+                }
                 PopupSettingsRow(title: "Battery Settings") {
                     openSettings(
                         "x-apple.systempreferences:com.apple.Battery-Settings.extension"

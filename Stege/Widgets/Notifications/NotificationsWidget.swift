@@ -96,6 +96,13 @@ struct NotificationsPopup: View {
                     ForEach(focus.modes) { mode in
                         focusRow(mode)
                     }
+                    if let failure = focus.failure {
+                        Text(failure)
+                            .font(.system(size: PopupStyle.captionSize))
+                            .foregroundStyle(.orange)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .popupStaticRow()
+                    }
                 }
             }
 
