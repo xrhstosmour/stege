@@ -93,7 +93,7 @@ struct BluetoothPopup: View {
             } else if manager.devices.isEmpty {
                 Text(
                     manager.isPoweredOn
-                        ? "No devices connected" : "Turn Bluetooth on to connect a device"
+                        ? "Nothing paired yet" : "Turn Bluetooth on to connect a device"
                 )
                 .font(.system(size: 12))
                 .opacity(0.7)
@@ -106,11 +106,24 @@ struct BluetoothPopup: View {
                 }
             }
 
+            if let failure = manager.failure {
+                Text(failure)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if manager.isPoweredOn, manager.isAuthorized {
+                Divider()
+                nearby
+            }
+
             Divider()
 
             settingsRow
         }
         .padding(14)
+        .onDisappear { manager.stopScan() }
         // A fixed width, not a minimum. `Divider` reports an ideal width of
         // infinity, so under `minWidth` it stretched the popup to the full
         // width of the screen-sized panel behind it, which then pushed the
@@ -138,12 +151,72 @@ struct BluetoothPopup: View {
         }
     }
 
+    // MARK: - Nearby
+
+    /// Devices that are not paired yet, behind an explicit scan. An inquiry
+    /// keeps the radio busy and degrades whatever is already connected, so it
+    /// never runs unless it was asked for.
+    @ViewBuilder
+    private var nearby: some View {
+        HStack(spacing: 6) {
+            Text("Other Devices")
+                .font(.system(size: 11, weight: .semibold))
+                .opacity(0.6)
+            Spacer(minLength: 8)
+            if manager.isScanning {
+                ProgressView().controlSize(.mini)
+                Text("Stop")
+                    .font(.system(size: 11))
+                    .opacity(0.7)
+                    .contentShape(Rectangle())
+                    .onTapGesture { manager.stopScan() }
+            } else {
+                Text("Scan")
+                    .font(.system(size: 11))
+                    .opacity(0.7)
+                    .contentShape(Rectangle())
+                    .onTapGesture { manager.startScan() }
+            }
+        }
+
+        if manager.discovered.isEmpty {
+            Text(manager.isScanning ? "Looking…" : "None found")
+                .font(.system(size: 12))
+                .opacity(0.6)
+        } else {
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(manager.discovered) { device in
+                    HStack(spacing: 10) {
+                        Text(device.name)
+                            .font(.system(size: 12))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        Spacer(minLength: 12)
+                        if manager.busy == device.id {
+                            ProgressView().controlSize(.mini)
+                        } else {
+                            Text("Pair")
+                                .font(.system(size: 11, weight: .medium))
+                                .opacity(0.7)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture { manager.pair(device) }
+                }
+            }
+        }
+    }
+
     /// Name on one line, a battery bar underneath for devices that report one.
     /// A bare percentage was easy to miss next to a long device name.
     @ViewBuilder
     private func deviceRow(_ device: BluetoothDevice) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 10) {
+                Image(systemName: "circle.fill")
+                    .font(.system(size: 6))
+                    .foregroundStyle(device.isConnected ? Color.blue : .clear)
+                    .frame(width: 6)
                 // Names are user-set and can be long, and the popup is a fixed
                 // width.
                 Text(device.name)
@@ -151,13 +224,18 @@ struct BluetoothPopup: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
                 Spacer(minLength: 16)
-                if let level = device.batteryLevel {
+                if manager.busy == device.id {
+                    ProgressView().controlSize(.mini)
+                } else if let level = device.batteryLevel {
                     Text("\(Int((level * 100).rounded()))%")
                         .font(.system(size: 12))
                         .monospacedDigit()
                         .opacity(0.7)
                 }
             }
+            .contentShape(Rectangle())
+            .onTapGesture { manager.toggleConnection(device) }
+            .help(device.isConnected ? "Disconnect" : "Connect")
 
             if let level = device.batteryLevel {
                 GeometryReader { geometry in

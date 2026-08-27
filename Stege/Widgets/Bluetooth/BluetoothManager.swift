@@ -3,12 +3,14 @@ import CoreBluetooth
 import Foundation
 import IOBluetooth
 
-/// A connected Bluetooth device and its battery level, when it reports one.
+/// A Bluetooth device, paired or merely in range.
 struct BluetoothDevice: Identifiable {
     let id: String
     let name: String
     /// 0 to 1, or nil when the device does not report a battery level.
     let batteryLevel: Double?
+    let isConnected: Bool
+    let isPaired: Bool
 }
 
 /// Bluetooth power state and connected devices.
@@ -19,7 +21,16 @@ struct BluetoothDevice: Identifiable {
 /// connected to.
 final class BluetoothManager: NSObject, ObservableObject {
     @Published private(set) var isPoweredOn = false
+    /// Everything the system has paired, connected or not, so the popup can
+    /// connect one back rather than only report what is already up.
     @Published private(set) var devices: [BluetoothDevice] = []
+    /// Devices found by an inquiry that are not paired yet.
+    @Published private(set) var discovered: [BluetoothDevice] = []
+    @Published private(set) var isScanning = false
+    /// The address a connect, disconnect or pair is in flight for.
+    @Published private(set) var busy: String?
+    /// Set when an action did not take, so the popup can say so.
+    @Published private(set) var failure: String?
     /// Whether the app is allowed to read Bluetooth at all.
     ///
     /// Read through `CBManager.authorization`, which reports the current state
@@ -40,6 +51,12 @@ final class BluetoothManager: NSObject, ObservableObject {
     private var connectNotification: IOBluetoothUserNotification?
     private var disconnectNotifications: [IOBluetoothUserNotification] = []
 
+    /// Held for the length of one scan or one pairing. Both are one at a time:
+    /// the radio can only do one inquiry, and pairing two devices at once is
+    /// not something the popup can express.
+    private var activeInquiry: IOBluetoothDeviceInquiry?
+    private var activePairing: IOBluetoothDevicePair?
+
     /// A slow safety net, not the main refresh.
     ///
     /// Connecting and disconnecting are delivered as notifications, so the
@@ -58,6 +75,7 @@ final class BluetoothManager: NSObject, ObservableObject {
 
     deinit {
         timer?.invalidate()
+        activeInquiry?.stop()
         connectNotification?.unregister()
         disconnectNotifications.forEach { $0.unregister() }
     }
@@ -143,6 +161,8 @@ final class BluetoothManager: NSObject, ObservableObject {
                 self.isAuthorized = true
                 guard powered != self.isPoweredOn
                     || connected.map(\.id) != self.devices.map(\.id)
+                    || connected.map(\.isConnected)
+                        != self.devices.map(\.isConnected)
                     || connected.map(\.batteryLevel)
                         != self.devices.map(\.batteryLevel)
                 else { return }
@@ -152,15 +172,121 @@ final class BluetoothManager: NSObject, ObservableObject {
         }
     }
 
+    /// Every paired device, connected first and then by name, which is the
+    /// order the system's own list uses.
     private static func connectedDevices() -> [BluetoothDevice] {
         guard let paired = IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice]
         else { return [] }
-        return paired.filter { $0.isConnected() }.map { device in
-            BluetoothDevice(
-                id: device.addressString ?? UUID().uuidString,
-                name: device.name ?? device.addressString ?? "Unknown",
-                batteryLevel: batteryLevel(for: device))
+        return
+            paired
+            .map { device in
+                BluetoothDevice(
+                    id: device.addressString ?? UUID().uuidString,
+                    name: device.name ?? device.addressString ?? "Unknown",
+                    batteryLevel: batteryLevel(for: device),
+                    isConnected: device.isConnected(),
+                    isPaired: true)
+            }
+            .sorted {
+                $0.isConnected == $1.isConnected
+                    ? $0.name.localizedCaseInsensitiveCompare($1.name)
+                        == .orderedAscending
+                    : $0.isConnected
+            }
+    }
+
+    // MARK: - Acting on a device
+
+    private static func device(withAddress address: String) -> IOBluetoothDevice? {
+        IOBluetoothDevice(addressString: address)
+    }
+
+    /// Connects or disconnects, whichever the device is not already.
+    ///
+    /// `openConnection` brings up the baseband link and macOS restores the
+    /// profiles on top of it, which is what makes a headset audible again
+    /// without this having to know anything about audio.
+    func toggleConnection(_ device: BluetoothDevice) {
+        busy = device.id
+        failure = nil
+        let address = device.id
+        let shouldConnect = !device.isConnected
+
+        queue.async { [weak self] in
+            guard let target = Self.device(withAddress: address) else {
+                DispatchQueue.main.async {
+                    self?.busy = nil
+                    self?.failure = "\(device.name) is not reachable"
+                }
+                return
+            }
+            let result =
+                shouldConnect
+                ? target.openConnection() : target.closeConnection()
+            DispatchQueue.main.async {
+                self?.busy = nil
+                if result != kIOReturnSuccess {
+                    self?.failure =
+                        shouldConnect
+                        ? "Could not connect \(device.name)"
+                        : "Could not disconnect \(device.name)"
+                }
+                self?.refresh()
+            }
         }
+    }
+
+    /// Pairs a device found by the inquiry.
+    ///
+    /// The delegate answers only the confirmation macOS would otherwise put on
+    /// screen itself. A device that wants a typed PIN is left to the system,
+    /// which has the UI for it, and reports back as a failure here.
+    func pair(_ device: BluetoothDevice) {
+        guard let target = Self.device(withAddress: device.id) else { return }
+        busy = device.id
+        failure = nil
+        // Built and set by selector rather than through `pairWithDevice:` or
+        // `device`. Each macOS SDK imports those differently, a factory
+        // initialiser or a plain method, a property or a getter, so a source
+        // form that compiles against one fails against the next. The selector
+        // is the same on all of them.
+        let pairing = IOBluetoothDevicePair()
+        _ = pairing.perform(Selector(("setDevice:")), with: target)
+        pairing.delegate = self
+        activePairing = pairing
+        if pairing.start() != kIOReturnSuccess {
+            busy = nil
+            failure = "Could not start pairing \(device.name)"
+            activePairing = nil
+        }
+    }
+
+    // MARK: - Discovery
+
+    /// Looks for devices that are not paired yet.
+    ///
+    /// Stopped as soon as the popup goes away: an inquiry keeps the radio busy,
+    /// and one left running would degrade whatever is already connected.
+    func startScan() {
+        guard !isScanning else { return }
+        discovered = []
+        failure = nil
+        let inquiry = IOBluetoothDeviceInquiry(delegate: self)
+        inquiry?.updateNewDeviceNames = true
+        inquiry?.inquiryLength = 8
+        activeInquiry = inquiry
+        if inquiry?.start() == kIOReturnSuccess {
+            isScanning = true
+        } else {
+            failure = "Could not start scanning"
+            activeInquiry = nil
+        }
+    }
+
+    func stopScan() {
+        activeInquiry?.stop()
+        activeInquiry = nil
+        isScanning = false
     }
 
     /// Battery level, where the device publishes one.
@@ -187,5 +313,72 @@ final class BluetoothManager: NSObject, ObservableObject {
         guard let lowest = levels.min() else { return nil }
         // Stored as a fraction by some devices and a percentage by others.
         return lowest > 1 ? lowest / 100 : lowest
+    }
+}
+
+
+// MARK: - Inquiry
+
+extension BluetoothManager: IOBluetoothDeviceInquiryDelegate {
+    func deviceInquiryDeviceFound(
+        _ sender: IOBluetoothDeviceInquiry!, device: IOBluetoothDevice!
+    ) {
+        add(device)
+    }
+
+    /// Names arrive after the addresses do, so a device first appears as its
+    /// address and is rewritten once the radio has read the name.
+    func deviceInquiryDeviceNameUpdated(
+        _ sender: IOBluetoothDeviceInquiry!, device: IOBluetoothDevice!,
+        devicesRemaining: UInt32
+    ) {
+        add(device)
+    }
+
+    func deviceInquiryComplete(
+        _ sender: IOBluetoothDeviceInquiry!, error: IOReturn, aborted: Bool
+    ) {
+        isScanning = false
+        activeInquiry = nil
+    }
+
+    private func add(_ device: IOBluetoothDevice?) {
+        guard let device, let address = device.addressString else { return }
+        // Already-paired devices are in the list above, and offering to pair
+        // one again would do nothing.
+        guard !device.isPaired() else { return }
+        let entry = BluetoothDevice(
+            id: address,
+            name: device.name ?? address,
+            batteryLevel: nil,
+            isConnected: device.isConnected(),
+            isPaired: false)
+        if let index = discovered.firstIndex(where: { $0.id == address }) {
+            discovered[index] = entry
+        } else {
+            discovered.append(entry)
+        }
+    }
+}
+
+// MARK: - Pairing
+
+extension BluetoothManager: IOBluetoothDevicePairDelegate {
+    /// Answering yes here is the same click the system dialog would ask for,
+    /// and the request only arrives because this app started the pairing.
+    func devicePairingUserConfirmationRequest(
+        _ sender: Any!, numericValue: BluetoothNumericValue
+    ) {
+        activePairing?.replyUserConfirmation(true)
+    }
+
+    func devicePairingFinished(_ sender: Any!, error: IOReturn) {
+        busy = nil
+        activePairing = nil
+        if error != kIOReturnSuccess {
+            failure = "Pairing did not complete"
+        }
+        refresh()
+        discovered = []
     }
 }

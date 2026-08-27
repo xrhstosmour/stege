@@ -263,6 +263,14 @@ Control Center.
 
 ### Bluetooth
 
+Every paired device is listed, connected ones first, with a battery bar for the devices that
+report a level. Clicking a device connects or disconnects it. `Scan` looks for devices that are
+not paired yet and offers to pair them, and stops as soon as the popup closes, because an
+inquiry keeps the radio busy and degrades whatever is already connected.
+
+There is no power switch. macOS has no public API for turning the Bluetooth controller on and
+off, so the popup links to Bluetooth Settings for that.
+
 ![The Bluetooth popup](.github/assets/bluetooth.png)
 
 ### Battery
