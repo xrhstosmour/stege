@@ -274,10 +274,15 @@ read access to Mail, Messages and browser data. `show-control-centre` adds a sec
 Control Center.
 
 The popup does list every Focus, including any you have made yourself, and switches between
-them. Which one is on is read from `~/Library/DoNotDisturb/DB`, which needs no permission.
-Switching goes through Control Center's own controls, for the same reason as Low Power Mode:
-the private `DoNotDisturb` framework answers only entitled callers, and returns an XPC error
-to everyone else.
+them, both through Control Center's own controls. `~/Library/DoNotDisturb/DB`, where macOS
+keeps the state, turns out to need Full Disk Access, and the private `DoNotDisturb` framework
+answers only callers holding an Apple-issued entitlement, so Control Center is the only route
+left.
+
+Reading it means opening a Control Center panel, so the list is read once and kept, not on
+every popup. The circular arrow next to the `Focus` heading reads it again, which is what to
+press after adding a Focus in System Settings. Between switches the tick can be stale if a
+Focus is changed from somewhere else.
 
 ### Bluetooth
 

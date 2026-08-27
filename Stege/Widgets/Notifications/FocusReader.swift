@@ -2,175 +2,146 @@ import Combine
 import Foundation
 
 /// A Focus the user can switch on, whether one macOS ships or one they made.
-struct FocusMode: Identifiable {
-    /// The mode identifier macOS uses, such as
-    /// `com.apple.donotdisturb.mode.default`. Control Center names its own
-    /// switch after this, which is how a mode is turned on.
+struct FocusMode: Identifiable, Codable, Equatable {
+    /// Control Center names its switch `focus-mode-activity-<id>`, which is how
+    /// this is turned on.
     let id: String
+    /// What macOS calls it, translated, so this is what goes on screen.
     let name: String
-    /// The SF Symbol macOS shows for it, where it names one.
-    let symbol: String
 }
 
-/// Which Focus, if any, is on, and switching between them.
+/// The Focus modes, and switching between them.
 ///
-/// There is no public API for either. macOS keeps the state in
-/// `~/Library/DoNotDisturb/DB`, which unlike the notification database is not
-/// behind Full Disk Access, so it can be read with nothing granted. Only two
-/// small JSON files are touched, and neither contains message content.
+/// Both go through Control Center, which is the only route that does not need a
+/// permission Stege is unwilling to ask for.
 ///
-/// `Assertions.json` exists only while a Focus is on, so its absence is the
-/// answer rather than a failure. `ModeConfigurations.json` maps the identifier
-/// in it to a display name, including any Focus the user has made themselves.
+/// This used to read `~/Library/DoNotDisturb/DB` directly, on the belief that
+/// the directory was not protected. It is: an app without Full Disk Access gets
+/// `Operation not permitted` opening `ModeConfigurations.json`, confirmed with
+/// a throwaway bundle, and only a terminal that already holds Full Disk Access
+/// can read it. So the row never appeared in a real install, which is exactly
+/// what it was written to do when it could not read the state.
 ///
-/// Writing goes the other way, through Control Center, because the private
-/// `DoNotDisturb` framework refuses an unentitled caller: every call on
-/// `DNDModeAssertionService` comes back as an XPC error, checked here.
+/// The private `DoNotDisturb` framework is no better: every call on
+/// `DNDModeAssertionService` comes back as an XPC error without an Apple-issued
+/// entitlement.
+///
+/// What is left is Control Center's own Focus panel, where each mode is a
+/// switch carrying its identifier, its translated name, and whether it is on.
+/// Reading it means opening that panel, so the list is fetched once and kept,
+/// and refreshed whenever a switch is made, since the panel is open anyway.
 final class FocusReader: ObservableObject {
-    /// The active Focus's display name, or nil when none is on.
-    @Published private(set) var activeFocus: String?
-    /// The active Focus's mode identifier, which is what the switch is named
-    /// after, unlike the display name.
-    @Published private(set) var activeIdentifier: String?
-    /// Every Focus that can be switched on, in the order macOS lists them.
+    /// Every Focus that can be switched on, in the order Control Center lists
+    /// them.
     @Published private(set) var modes: [FocusMode] = []
+    /// The active Focus's identifier, or nil when none is on.
+    @Published private(set) var activeIdentifier: String?
+    /// The active Focus's display name, for the widget's tooltip and glyph.
+    var activeFocus: String? {
+        guard let activeIdentifier else { return nil }
+        return modes.first { $0.id == activeIdentifier }?.name ?? "Focus"
+    }
     /// The mode a switch is in flight for.
     @Published private(set) var switching: String?
-    /// Set when the switch could not be reached, so the popup says so instead
-    /// of leaving a row that appears to have ignored the click.
+    /// True while the list is being read out of Control Center.
+    @Published private(set) var isLoading = false
+    /// Set when Control Center's Focus control could not be reached.
     @Published private(set) var failure: String?
-    /// False when the files cannot be read at all, so the widget can leave the
-    /// row out rather than claim Focus is off when it does not know.
-    @Published private(set) var isReadable = true
 
-    private let directory = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent("Library/DoNotDisturb/DB")
-    private var timer: Timer?
+    /// Kept between launches so the panel only has to be opened once, rather
+    /// than every time the popup is shown.
+    private static let storageKey = "stege.focus.modes"
 
-    /// Polled rather than watched. The directory is rewritten wholesale when a
-    /// Focus changes, so a descriptor on either file goes stale immediately,
-    /// and this is only read while something is looking at it.
-    init(interval: TimeInterval = 10) {
-        refresh()
-        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) {
-            [weak self] _ in
-            self?.refresh()
-        }
+    init() {
+        modes = Self.storedModes()
     }
 
-    deinit {
-        timer?.invalidate()
-    }
-
+    /// Reads the list and the active mode out of Control Center.
+    ///
+    /// Only worth calling when something is about to be shown or has just been
+    /// changed: it opens a panel on screen, and moves the pointer to the top of
+    /// the display when the menu bar is set to hide.
     func refresh() {
-        let configurations = directory
-            .appendingPathComponent("ModeConfigurations.json")
-        guard FileManager.default.isReadableFile(atPath: configurations.path)
-        else {
-            isReadable = false
-            activeFocus = nil
-            activeIdentifier = nil
-            modes = []
-            return
+        guard !isLoading else { return }
+        isLoading = true
+        MenuExtra.read(
+            .controlCentre, path: ["controlcenter-focus-modes"],
+            matching: Self.identifierPrefix
+        ) { [weak self] controls in
+            guard let self else { return }
+            self.isLoading = false
+            guard !controls.isEmpty else {
+                // Leave whatever was stored on screen rather than emptying the
+                // list because one read did not land.
+                self.failure = "Could not read Control Center's Focus modes"
+                return
+            }
+            self.failure = nil
+            self.modes = controls.map {
+                FocusMode(
+                    id: String($0.identifier.dropFirst(
+                        Self.identifierPrefix.count)),
+                    name: $0.label)
+            }
+            self.activeIdentifier =
+                controls.first { $0.isOn }
+                .map { String($0.identifier.dropFirst(
+                    Self.identifierPrefix.count)) }
+            Self.store(self.modes)
         }
-        isReadable = true
-        modes = availableModes(in: configurations)
+    }
 
-        let assertions = directory.appendingPathComponent("Assertions.json")
-        guard let identifier = activeModeIdentifier(at: assertions) else {
-            activeFocus = nil
-            activeIdentifier = nil
-            return
-        }
-        activeIdentifier = identifier
-        activeFocus =
-            modes.first { $0.id == identifier }?.name ?? "Focus"
+    /// Reads the list only when there is nothing to show yet, so opening the
+    /// popup does not flash a Control Center panel every time.
+    func refreshIfNeeded() {
+        guard modes.isEmpty else { return }
+        refresh()
     }
 
     /// Switches a Focus on, or off when it is the one already on.
     ///
-    /// Control Center's Focus tile has to be opened before the switch inside it
-    /// exists, hence the two step path. Both are `AXIdentifier`s, which macOS
-    /// ships untranslated, so this does not depend on the system language.
+    /// Control Center's Focus tile has to be pressed before the switch inside
+    /// it exists, hence the two step path. Both are `AXIdentifier`s, which
+    /// macOS ships untranslated.
     func toggle(_ mode: FocusMode) {
         guard switching == nil else { return }
         switching = mode.id
         failure = nil
         MenuExtra.press(
             .controlCentre,
-            path: ["controlcenter-focus-modes", "focus-mode-activity-\(mode.id)"]
+            path: [
+                "controlcenter-focus-modes",
+                Self.identifierPrefix + mode.id,
+            ]
         ) { [weak self] pressed in
-            self?.switching = nil
-            // Control Center's Focus tile can be removed from the panel, and
-            // then there is nothing to press.
-            self?.failure =
-                pressed ? nil : "Could not reach Control Center's Focus control"
-            // The files are rewritten as the assertion is taken, but not
-            // always before the press returns, so this reads once more a
-            // moment later rather than showing the previous state until the
-            // timer comes round.
-            self?.refresh()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                self?.refresh()
+            guard let self else { return }
+            self.switching = nil
+            guard pressed else {
+                // Control Center's Focus tile can be taken out of the panel,
+                // and then there is nothing to press.
+                self.failure = "Could not reach Control Center's Focus control"
+                return
             }
+            // Believed rather than read back, so the row ticks immediately.
+            // The next `refresh` corrects it if the switch did something else.
+            self.activeIdentifier =
+                self.activeIdentifier == mode.id ? nil : mode.id
         }
     }
 
-    private func activeModeIdentifier(at url: URL) -> String? {
-        guard let data = try? Data(contentsOf: url),
-            let root = try? JSONSerialization.jsonObject(with: data)
-                as? [String: Any],
-            let storeAssertions = root["data"] as? [[String: Any]]
-        else { return nil }
+    // MARK: - Storage
 
-        for entry in storeAssertions {
-            guard
-                let records = entry["storeAssertionRecords"] as? [[String: Any]]
-            else { continue }
-            for record in records {
-                if let details = record["assertionDetails"] as? [String: Any],
-                    let identifier = details[
-                        "assertionDetailsModeIdentifier"] as? String
-                {
-                    return identifier
-                }
-            }
-        }
-        return nil
-    }
+    private static let identifierPrefix = "focus-mode-activity-"
 
-    private func availableModes(in url: URL) -> [FocusMode] {
-        guard let data = try? Data(contentsOf: url),
-            let root = try? JSONSerialization.jsonObject(with: data)
-                as? [String: Any],
-            let entries = root["data"] as? [[String: Any]]
+    private static func storedModes() -> [FocusMode] {
+        guard let data = UserDefaults.standard.data(forKey: storageKey),
+            let modes = try? JSONDecoder().decode([FocusMode].self, from: data)
         else { return [] }
+        return modes
+    }
 
-        var found: [FocusMode] = []
-        var seen: Set<String> = []
-        for entry in entries {
-            guard
-                let configurations = entry["modeConfigurations"]
-                    as? [String: Any]
-            else { continue }
-            for (identifier, value) in configurations {
-                guard !seen.contains(identifier),
-                    let configuration = value as? [String: Any],
-                    let mode = configuration["mode"] as? [String: Any],
-                    let name = mode["name"] as? String
-                else { continue }
-                seen.insert(identifier)
-                found.append(
-                    FocusMode(
-                        id: identifier, name: name,
-                        symbol: mode["symbolImageName"] as? String
-                            ?? "moon.fill"))
-            }
-        }
-        // The file is a dictionary, so its order is not the order macOS shows.
-        // Sorted by name so the list at least does not move between reads.
-        return found.sorted {
-            $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
-        }
+    private static func store(_ modes: [FocusMode]) {
+        guard let data = try? JSONEncoder().encode(modes) else { return }
+        UserDefaults.standard.set(data, forKey: storageKey)
     }
 }

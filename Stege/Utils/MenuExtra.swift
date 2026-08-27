@@ -85,6 +85,96 @@ enum MenuExtra {
         return true
     }
 
+    /// One control read out of a panel.
+    struct PanelControl {
+        let identifier: String
+        /// The label macOS shows next to it, which unlike the identifier is
+        /// translated, and is therefore what to put on screen.
+        let label: String
+        let isOn: Bool
+    }
+
+    /// Opens a panel and reads every control whose identifier starts with
+    /// `prefix`, rather than pressing one.
+    ///
+    /// This is how a list macOS keeps to itself can be shown without the
+    /// permission its own storage is behind. `path` is the chain of controls to
+    /// press to reach the panel holding them, exactly as in `press`.
+    static func read(
+        _ identifier: Identifier, path: [String], matching prefix: String,
+        completion: @escaping ([PanelControl]) -> Void
+    ) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let controls = readSynchronously(
+                identifier, path: path, matching: prefix)
+            DispatchQueue.main.async { completion(controls) }
+        }
+    }
+
+    private static func readSynchronously(
+        _ identifier: Identifier, path: [String], matching prefix: String
+    ) -> [PanelControl] {
+        guard let extra = element(for: identifier) else { return [] }
+        let pointer = revealMenuBarIfHidden(for: extra)
+        defer { pointer.map(restorePointer) }
+
+        guard
+            AXUIElementPerformAction(extra, kAXPressAction as CFString)
+                == .success
+        else { return [] }
+        defer { closePanel(openedBy: extra) }
+
+        for step in path {
+            guard let control = waitForControl(identified: step),
+                AXUIElementPerformAction(control, kAXPressAction as CFString)
+                    == .success
+            else { return [] }
+        }
+
+        // The panel is drawn a moment after the press returns, so wait for
+        // anything matching to appear before collecting the rest.
+        guard waitForControl(identifiedBy: { $0.hasPrefix(prefix) }) != nil
+        else { return [] }
+
+        guard let application = controlCentreApplication() else { return [] }
+        var found: [PanelControl] = []
+        var seen: Set<String> = []
+        for window in panels(of: application) {
+            collect(
+                from: window, prefix: prefix, into: &found, seen: &seen,
+                depth: 0)
+        }
+        return found
+    }
+
+    private static func collect(
+        from element: AXUIElement, prefix: String,
+        into found: inout [PanelControl], seen: inout Set<String>, depth: Int
+    ) {
+        guard depth < 12 else { return }
+        if let identifier = attribute(element, "AXIdentifier") as? String,
+            identifier.hasPrefix(prefix), !seen.contains(identifier)
+        {
+            seen.insert(identifier)
+            found.append(
+                PanelControl(
+                    identifier: identifier,
+                    label: attribute(element, kAXDescriptionAttribute as String)
+                        as? String ?? identifier,
+                    isOn: (attribute(element, kAXValueAttribute as String)
+                        as? NSNumber)?.boolValue ?? false))
+        }
+        guard
+            let children = attribute(element, kAXChildrenAttribute as String)
+                as? [AXUIElement]
+        else { return }
+        for child in children {
+            collect(
+                from: child, prefix: prefix, into: &found, seen: &seen,
+                depth: depth + 1)
+        }
+    }
+
     // MARK: - The hidden menu bar
 
     /// Brings the menu bar back on screen when it is set to hide, and reports
@@ -192,12 +282,18 @@ enum MenuExtra {
     private static func waitForControl(identified identifier: String)
         -> AXUIElement?
     {
+        waitForControl(identifiedBy: { $0 == identifier })
+    }
+
+    private static func waitForControl(
+        identifiedBy matches: (String) -> Bool
+    ) -> AXUIElement? {
         guard let application = controlCentreApplication() else { return nil }
         let deadline = Date().addingTimeInterval(2)
         while Date() < deadline {
             for window in panels(of: application) {
                 if let match = descendant(
-                    of: window, identified: identifier, depth: 0)
+                    of: window, matching: matches, depth: 0)
                 {
                     return match
                 }
@@ -207,13 +303,20 @@ enum MenuExtra {
         return nil
     }
 
+    /// The first match in a depth-first walk.
+    ///
+    /// First, not any, matters: while a Focus is on, Control Center adds
+    /// duration rows underneath it that carry the same identifier as the mode
+    /// itself, and the mode is the one above them.
     private static func descendant(
-        of element: AXUIElement, identified identifier: String, depth: Int
+        of element: AXUIElement, matching matches: (String) -> Bool, depth: Int
     ) -> AXUIElement? {
         // The panels are shallow, and a bound keeps a cycle in someone else's
         // hierarchy from becoming an infinite walk in this one.
         guard depth < 12 else { return nil }
-        if attribute(element, "AXIdentifier") as? String == identifier {
+        if let identifier = attribute(element, "AXIdentifier") as? String,
+            matches(identifier)
+        {
             return element
         }
         guard
@@ -222,7 +325,7 @@ enum MenuExtra {
         else { return nil }
         for child in children {
             if let match = descendant(
-                of: child, identified: identifier, depth: depth + 1)
+                of: child, matching: matches, depth: depth + 1)
             {
                 return match
             }
