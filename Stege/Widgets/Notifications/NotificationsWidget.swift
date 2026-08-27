@@ -10,9 +10,9 @@ import SwiftUI
 /// which is far more than a menu bar widget should ask for, so the list stays
 /// where macOS keeps it and the popup opens it.
 ///
-/// What the popup can do without any of that is report and switch Focus, read
-/// from `~/Library/DoNotDisturb/DB`, which is not behind Full Disk Access, and
-/// written through Control Center's own switches.
+/// What the popup can do without any of that is list the Focus modes and
+/// switch between them, through Control Center's own controls. See
+/// `FocusReader` for why that is the only route.
 struct NotificationsWidget: View {
     @EnvironmentObject var configProvider: ConfigProvider
     var config: ConfigData { configProvider.config }
@@ -37,9 +37,10 @@ struct NotificationsWidget: View {
             .background(.black.opacity(0.001))
             .help(focus.activeFocus ?? "Notifications")
             .onTapGesture {
-                // Read again on open rather than only on the timer, so a Focus
-                // switched on a moment ago is already right.
-                focus.refresh()
+                // Only when there is nothing to show yet. A read opens a
+                // Control Center panel, which is not something to do every
+                // time the bell is clicked.
+                focus.refreshIfNeeded()
                 MenuBarPopup.show(rect: rect, id: "notifications") {
                     NotificationsPopup(focus: focus)
                 }
@@ -88,21 +89,42 @@ struct NotificationsPopup: View {
                 title: focus.activeFocus ?? "Notifications",
                 tint: focus.activeFocus == nil ? .primary : .purple)
 
-            // Left out entirely when the state cannot be read, rather than
-            // reporting Focus as off when that is simply not known.
-            if focus.isReadable, !focus.modes.isEmpty {
-                VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
-                    PopupSectionTitle("Focus").popupStaticRow()
+            VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
+                PopupSectionTitle(title: "Focus") {
+                    if focus.isLoading {
+                        ProgressView().controlSize(.mini)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 10, weight: .semibold))
+                            .opacity(0.5)
+                            .contentShape(Rectangle())
+                            .onTapGesture { focus.refresh() }
+                            .help("Read the list from Control Center again")
+                    }
+                }
+                .popupStaticRow()
+
+                if focus.modes.isEmpty {
+                    Text(
+                        focus.isLoading
+                            ? "Reading Control Center…"
+                            : "No Focus modes read yet"
+                    )
+                    .font(.system(size: PopupStyle.bodySize))
+                    .opacity(0.6)
+                    .popupStaticRow()
+                } else {
                     ForEach(focus.modes) { mode in
                         focusRow(mode)
                     }
-                    if let failure = focus.failure {
-                        Text(failure)
-                            .font(.system(size: PopupStyle.captionSize))
-                            .foregroundStyle(.orange)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .popupStaticRow()
-                    }
+                }
+
+                if let failure = focus.failure {
+                    Text(failure)
+                        .font(.system(size: PopupStyle.captionSize))
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .popupStaticRow()
                 }
             }
 
@@ -141,7 +163,7 @@ struct NotificationsPopup: View {
     private func focusRow(_ mode: FocusMode) -> some View {
         let isOn = focus.activeIdentifier == mode.id
         return HStack(spacing: 10) {
-            Image(systemName: mode.symbol)
+            Image(systemName: isOn ? "moon.fill" : "moon")
                 .font(.system(size: PopupStyle.captionSize))
                 .foregroundStyle(isOn ? Color.purple : Color.secondary)
                 .frame(width: PopupStyle.iconColumn)
