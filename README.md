@@ -61,7 +61,7 @@ window at first launch lists whatever is still missing.
 
 | Permission | Needed for | Without it |
 | --- | --- | --- |
-| Accessibility | Reading and driving the frontmost app's menus, and the Apple menu | The menus are replaced by an "Enable Accessibility" button |
+| Accessibility | Reading and driving the frontmost app's menus, the Apple menu, and the system switches the popups expose | The menus are replaced by an "Enable Accessibility" button, and the system switches do nothing |
 | Bluetooth | The Bluetooth widget | The glyph shows a small lock and opens the settings pane |
 | Location | Showing the Wi-Fi network name, and the nearby network list | The name is hidden, everything else still works |
 | Calendars | Events in the clock widget and calendar popup | Events are omitted |
@@ -266,6 +266,13 @@ Control Center.
 ![The Bluetooth popup](.github/assets/bluetooth.png)
 
 ### Battery
+
+Charge, time estimate, health and cycles, and a switch for Low Power Mode.
+
+The switch is the one macOS puts in the battery menu extra's own panel, pressed through the
+Accessibility API. Nothing else can write that setting: `pmset` needs root, and the private
+`LowPowerMode` framework answers only callers holding an Apple-issued entitlement. macOS
+therefore draws its own panel for a moment while the switch flips.
 
 ![The battery popup](.github/assets/battery.png)
 

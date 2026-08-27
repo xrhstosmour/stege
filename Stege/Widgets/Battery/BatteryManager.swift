@@ -19,16 +19,54 @@ class BatteryManager: ObservableObject {
     @Published var healthFraction: Double?
     @Published var cycleCount: Int?
     @Published var isLowPowerMode: Bool = false
+    /// True while the switch is being flipped, so the popup can show the
+    /// change is in flight rather than appear to have ignored the click.
+    @Published private(set) var isSwitchingPowerMode = false
 
     private var runLoopSource: CFRunLoopSource?
+    private var powerStateObserver: NSObjectProtocol?
 
     init() {
         updateBatteryStatus()
         startMonitoring()
+        // Low Power Mode does not always move a power source, so the IOKit
+        // notification below can miss it. This one is posted for exactly this
+        // change and nothing else.
+        powerStateObserver = NotificationCenter.default.addObserver(
+            forName: .NSProcessInfoPowerStateDidChange, object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.isLowPowerMode = ProcessInfo.processInfo
+                .isLowPowerModeEnabled
+        }
     }
 
     deinit {
         stopMonitoring()
+        if let powerStateObserver {
+            NotificationCenter.default.removeObserver(powerStateObserver)
+        }
+    }
+
+    /// Flips Low Power Mode.
+    ///
+    /// There is no API for writing it. `pmset` needs root, and the private
+    /// `LowPowerMode` framework answers only entitled callers, so this presses
+    /// the switch in the battery menu extra's own panel through the
+    /// Accessibility API, the same access the app menus already need. macOS
+    /// draws that panel for a moment while it happens.
+    func toggleLowPowerMode() {
+        guard !isSwitchingPowerMode else { return }
+        isSwitchingPowerMode = true
+        MenuExtra.press(.battery, path: ["energy-mode-low"]) {
+            [weak self] _ in
+            self?.isSwitchingPowerMode = false
+            // The notification above normally lands first. Reading here as
+            // well means a missed one leaves the switch right rather than
+            // stuck showing the previous state.
+            self?.isLowPowerMode = ProcessInfo.processInfo
+                .isLowPowerModeEnabled
+        }
     }
 
     private func startMonitoring() {
