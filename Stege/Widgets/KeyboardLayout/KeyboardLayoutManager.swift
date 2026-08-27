@@ -51,10 +51,28 @@ final class KeyboardLayoutManager: ObservableObject {
     }
 
     /// Switches the system's input source, which is what the menu bar's own
-    /// input menu does. Nothing is stored here: the notification this class
-    /// already listens to reports the change back.
+    /// input menu does.
+    ///
+    /// The notification alone is not enough here. It arrives before this
+    /// process's own view of the current source has caught up, so the read it
+    /// triggers returns the source that was just replaced and the bar goes on
+    /// showing it. Switching to `ABC` from the popup left the bar reading `EL`
+    /// indefinitely while the system was already on `ABC`. So the change is
+    /// also read back a few times afterwards, stopping as soon as it lands.
     func select(_ source: KeyboardInputSource) {
+        let previous = currentID
         TISSelectInputSource(source.source)
+        readBack(until: previous, attempt: 0)
+    }
+
+    private func readBack(until previous: String, attempt: Int) {
+        guard attempt < 6 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            guard let self else { return }
+            self.refresh()
+            guard self.currentID == previous else { return }
+            self.readBack(until: previous, attempt: attempt + 1)
+        }
     }
 
     /// Keyboard layouts and input modes that the user has enabled, filtered the
