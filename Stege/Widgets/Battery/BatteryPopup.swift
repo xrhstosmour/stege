@@ -1,11 +1,6 @@
 import SwiftUI
 
 /// Battery detail: charge, time estimate, health, cycles, and the power mode.
-///
-/// Power mode is opened in System Settings rather than switched here. Changing
-/// it requires root, and a menu bar app is not worth a standing privileged
-/// helper, which was the same conclusion reached for the earlier `SketchyBar`
-/// version of this bar.
 struct BatteryPopup: View {
     @ObservedObject var manager: BatteryManager
 
@@ -41,34 +36,59 @@ struct BatteryPopup: View {
 
             Divider()
 
-            HStack(spacing: 8) {
-                Image(
-                    systemName: manager.isLowPowerMode
-                        ? "leaf.fill" : "leaf"
-                )
-                .font(.system(size: 11))
-                .foregroundStyle(manager.isLowPowerMode ? .green : .primary)
-                Text(
-                    manager.isLowPowerMode
-                        ? "Low Power Mode on" : "Low Power Mode off"
-                )
-                .font(.system(size: 12))
-                Spacer(minLength: 12)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 9, weight: .semibold))
-                    .opacity(0.5)
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                NSWorkspace.shared.open(
-                    URL(
-                        string:
-                            "x-apple.systempreferences:com.apple.Battery-Settings.extension"
-                    )!)
-            }
+            lowPowerRow
+
+            settingsRow
         }
         .padding(14)
         .frame(width: 240, alignment: .leading)
+    }
+
+    private var lowPowerRow: some View {
+        HStack(spacing: 10) {
+            Image(systemName: manager.isLowPowerMode ? "leaf.fill" : "leaf")
+                .font(.system(size: 11))
+                .foregroundStyle(manager.isLowPowerMode ? .green : .primary)
+                .frame(width: 16)
+            Text("Low Power Mode").font(.system(size: 12))
+            Spacer(minLength: 12)
+            if manager.isSwitchingPowerMode {
+                ProgressView().controlSize(.mini)
+            } else {
+                Toggle(
+                    "",
+                    isOn: Binding(
+                        get: { manager.isLowPowerMode },
+                        // The switch is a toggle, not a setter: the state to
+                        // move to is whichever one it is not in.
+                        set: { _ in manager.toggleLowPowerMode() })
+                )
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+                .labelsHidden()
+            }
+        }
+    }
+
+    private var settingsRow: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "gearshape")
+                .font(.system(size: 11))
+                .frame(width: 16)
+            Text("Battery Settings").font(.system(size: 12))
+            Spacer(minLength: 12)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 9, weight: .semibold))
+                .opacity(0.5)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            NSWorkspace.shared.open(
+                URL(
+                    string:
+                        "x-apple.systempreferences:com.apple.Battery-Settings.extension"
+                )!)
+        }
     }
 
     /// Rendered as hours and minutes, since a bare minute count past an hour is
