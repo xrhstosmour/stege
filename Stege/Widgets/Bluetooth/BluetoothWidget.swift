@@ -82,24 +82,20 @@ struct BluetoothPopup: View {
     @ObservedObject var manager: BluetoothManager
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: PopupStyle.spacing) {
             header
 
             if !manager.isAuthorized {
-                Text("Stege cannot read Bluetooth until it is allowed in Privacy & Security.")
-                    .font(.system(size: 11))
-                    .opacity(0.7)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else if manager.devices.isEmpty {
-                Text(
-                    manager.isPoweredOn
-                        ? "Nothing paired yet" : "Turn Bluetooth on to connect a device"
+                note(
+                    "Stege cannot read Bluetooth until it is allowed in Privacy & Security."
                 )
-                .font(.system(size: 12))
-                .opacity(0.7)
-                .fixedSize(horizontal: false, vertical: true)
+            } else if manager.devices.isEmpty {
+                note(
+                    manager.isPoweredOn
+                        ? "Nothing paired yet"
+                        : "Turn Bluetooth on to connect a device")
             } else {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
                     ForEach(manager.devices) { device in
                         deviceRow(device)
                     }
@@ -108,9 +104,10 @@ struct BluetoothPopup: View {
 
             if let failure = manager.failure {
                 Text(failure)
-                    .font(.system(size: 11))
+                    .font(.system(size: PopupStyle.captionSize))
                     .foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
+                    .popupStaticRow()
             }
 
             if manager.isPoweredOn, manager.isAuthorized {
@@ -120,17 +117,23 @@ struct BluetoothPopup: View {
 
             Divider()
 
-            settingsRow
+            PopupSettingsRow(
+                title: manager.isAuthorized
+                    ? "Bluetooth Settings" : "Open Privacy & Security"
+            ) {
+                openSettings(
+                    manager.isAuthorized
+                        ? "x-apple.systempreferences:com.apple.BluetoothSettings"
+                        : "x-apple.systempreferences:com.apple.preference.security?Privacy_Bluetooth"
+                )
+            }
         }
-        .padding(14)
+        .popupContainer()
         .onDisappear { manager.stopScan() }
-        // A fixed width, not a minimum. `Divider` reports an ideal width of
-        // infinity, so under `minWidth` it stretched the popup to the full
-        // width of the screen-sized panel behind it, which then pushed the
-        // left-aligned text off the edge of the display.
-        .frame(width: 250, alignment: .leading)
     }
 
+    /// The glyph is drawn rather than an SF Symbol, so the header is built by
+    /// hand instead of using `PopupHeader`.
     private var header: some View {
         HStack(spacing: 8) {
             BluetoothGlyph(
@@ -138,17 +141,28 @@ struct BluetoothPopup: View {
                 slashed: !(manager.isPoweredOn && manager.isAuthorized)
             )
             .foregroundStyle(
-                manager.isPoweredOn && manager.isAuthorized ? Color.blue : .secondary)
+                manager.isPoweredOn && manager.isAuthorized
+                    ? Color.blue : .secondary
+            )
+            .frame(width: 18)
 
             Text(
                 !manager.isAuthorized
                     ? "Bluetooth unavailable"
                     : (manager.isPoweredOn ? "Bluetooth on" : "Bluetooth off")
             )
-            .font(.system(size: 13, weight: .semibold))
+            .font(.system(size: PopupStyle.titleSize, weight: .semibold))
 
             Spacer(minLength: 8)
         }
+    }
+
+    private func note(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: PopupStyle.bodySize))
+            .opacity(0.6)
+            .fixedSize(horizontal: false, vertical: true)
+            .popupStaticRow()
     }
 
     // MARK: - Nearby
@@ -158,37 +172,36 @@ struct BluetoothPopup: View {
     /// never runs unless it was asked for.
     @ViewBuilder
     private var nearby: some View {
-        HStack(spacing: 6) {
-            Text("Other Devices")
-                .font(.system(size: 11, weight: .semibold))
-                .opacity(0.6)
-            Spacer(minLength: 8)
-            if manager.isScanning {
-                ProgressView().controlSize(.mini)
-                Text("Stop")
-                    .font(.system(size: 11))
-                    .opacity(0.7)
-                    .contentShape(Rectangle())
-                    .onTapGesture { manager.stopScan() }
-            } else {
-                Text("Scan")
-                    .font(.system(size: 11))
-                    .opacity(0.7)
-                    .contentShape(Rectangle())
-                    .onTapGesture { manager.startScan() }
+        VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
+            PopupSectionTitle(title: "Other Devices") {
+                if manager.isScanning {
+                    ProgressView().controlSize(.mini)
+                    Text("Stop")
+                        .font(.system(size: PopupStyle.captionSize))
+                        .opacity(0.7)
+                        .contentShape(Rectangle())
+                        .onTapGesture { manager.stopScan() }
+                } else {
+                    Text("Scan")
+                        .font(.system(size: PopupStyle.captionSize))
+                        .opacity(0.7)
+                        .contentShape(Rectangle())
+                        .onTapGesture { manager.startScan() }
+                }
             }
-        }
+            .popupStaticRow()
 
-        if manager.discovered.isEmpty {
-            Text(manager.isScanning ? "Looking…" : "None found")
-                .font(.system(size: 12))
-                .opacity(0.6)
-        } else {
-            VStack(alignment: .leading, spacing: 6) {
+            if manager.discovered.isEmpty {
+                note(manager.isScanning ? "Looking…" : "None found")
+            } else {
                 ForEach(manager.discovered) { device in
                     HStack(spacing: 10) {
+                        Image(systemName: "plus.circle")
+                            .font(.system(size: PopupStyle.captionSize))
+                            .opacity(0.6)
+                            .frame(width: PopupStyle.iconColumn)
                         Text(device.name)
-                            .font(.system(size: 12))
+                            .font(.system(size: PopupStyle.bodySize))
                             .lineLimit(1)
                             .truncationMode(.tail)
                         Spacer(minLength: 12)
@@ -196,12 +209,15 @@ struct BluetoothPopup: View {
                             ProgressView().controlSize(.mini)
                         } else {
                             Text("Pair")
-                                .font(.system(size: 11, weight: .medium))
+                                .font(
+                                    .system(
+                                        size: PopupStyle.captionSize,
+                                        weight: .medium)
+                                )
                                 .opacity(0.7)
                         }
                     }
-                    .contentShape(Rectangle())
-                    .onTapGesture { manager.pair(device) }
+                    .popupRow { manager.pair(device) }
                 }
             }
         }
@@ -211,16 +227,16 @@ struct BluetoothPopup: View {
     /// A bare percentage was easy to miss next to a long device name.
     @ViewBuilder
     private func deviceRow(_ device: BluetoothDevice) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 10) {
                 Image(systemName: "circle.fill")
                     .font(.system(size: 6))
                     .foregroundStyle(device.isConnected ? Color.blue : .clear)
-                    .frame(width: 6)
+                    .frame(width: PopupStyle.iconColumn)
                 // Names are user-set and can be long, and the popup is a fixed
                 // width.
                 Text(device.name)
-                    .font(.system(size: 12))
+                    .font(.system(size: PopupStyle.bodySize))
                     .lineLimit(1)
                     .truncationMode(.tail)
                 Spacer(minLength: 16)
@@ -228,50 +244,26 @@ struct BluetoothPopup: View {
                     ProgressView().controlSize(.mini)
                 } else if let level = device.batteryLevel {
                     Text("\(Int((level * 100).rounded()))%")
-                        .font(.system(size: 12))
+                        .font(.system(size: PopupStyle.bodySize))
                         .monospacedDigit()
                         .opacity(0.7)
                 }
             }
-            .contentShape(Rectangle())
-            .onTapGesture { manager.toggleConnection(device) }
-            .help(device.isConnected ? "Disconnect" : "Connect")
 
             if let level = device.batteryLevel {
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
-                        Capsule().fill(.white.opacity(0.15))
+                        Capsule().fill(.primary.opacity(0.15))
                         Capsule()
                             .fill(level <= 0.2 ? Color.red : Color.green)
                             .frame(width: max(2, geometry.size.width * level))
                     }
                 }
                 .frame(height: 3)
+                .padding(.leading, PopupStyle.iconColumn + 10)
             }
         }
-    }
-
-    private var settingsRow: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "gearshape")
-                .font(.system(size: 11))
-            Text(
-                manager.isAuthorized
-                    ? "Bluetooth Settings" : "Open Privacy & Security"
-            )
-            .font(.system(size: 12))
-            Spacer(minLength: 8)
-            Image(systemName: "chevron.right")
-                .font(.system(size: 9, weight: .semibold))
-                .opacity(0.5)
-        }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            let target =
-                manager.isAuthorized
-                ? "x-apple.systempreferences:com.apple.BluetoothSettings"
-                : "x-apple.systempreferences:com.apple.preference.security?Privacy_Bluetooth"
-            NSWorkspace.shared.open(URL(string: target)!)
-        }
+        .popupRow { manager.toggleConnection(device) }
+        .help(device.isConnected ? "Disconnect" : "Connect")
     }
 }

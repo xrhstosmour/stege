@@ -81,50 +81,52 @@ struct NotificationsPopup: View {
     @ObservedObject var focus: FocusReader
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            header
+        VStack(alignment: .leading, spacing: PopupStyle.spacing) {
+            PopupHeader(
+                symbol: focus.activeFocus == nil
+                    ? "bell.fill" : "bell.slash.fill",
+                title: focus.activeFocus ?? "Notifications",
+                tint: focus.activeFocus == nil ? .primary : .purple)
 
             // Left out entirely when the state cannot be read, rather than
             // reporting Focus as off when that is simply not known.
             if focus.isReadable, !focus.modes.isEmpty {
-                ForEach(focus.modes) { mode in
-                    focusRow(mode)
+                VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
+                    PopupSectionTitle("Focus").popupStaticRow()
+                    ForEach(focus.modes) { mode in
+                        focusRow(mode)
+                    }
                 }
             }
 
-            Divider().padding(.vertical, 4)
+            Divider()
 
-            row(
-                "bell.badge", "Open Notification Center",
-                trailing: "chevron.right"
-            ) {
-                MenuBarPopup.hide()
-                // After the popup is gone, so the two panels are not on screen
-                // together.
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                    MenuExtra.press(.notificationCentre)
+            VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
+                PopupSettingsRow(
+                    title: "Notification Center", symbol: "bell.badge"
+                ) {
+                    MenuBarPopup.hide()
+                    // After the popup is gone, so the two panels are not on
+                    // screen together.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        MenuExtra.press(.notificationCentre)
+                    }
+                }
+
+                PopupSettingsRow(title: "Notification Settings") {
+                    openSettings(
+                        "x-apple.systempreferences:com.apple.Notifications-Settings.extension"
+                    )
+                }
+
+                PopupSettingsRow(title: "Focus Settings", symbol: "moon") {
+                    openSettings(
+                        "x-apple.systempreferences:com.apple.Focus-Settings.extension"
+                    )
                 }
             }
-
-            row("gearshape", "Notification Settings", trailing: "chevron.right") {
-                open("x-apple.systempreferences:com.apple.Notifications-Settings.extension")
-            }
-
-            row("moon", "Focus Settings", trailing: "chevron.right") {
-                open("x-apple.systempreferences:com.apple.Focus-Settings.extension")
-            }
         }
-        .padding(12)
-        .frame(width: 240, alignment: .leading)
-    }
-
-    private var header: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "bell.fill").font(.system(size: 12))
-            Text("Notifications").font(.system(size: 13, weight: .semibold))
-            Spacer(minLength: 8)
-        }
-        .padding(.bottom, 2)
+        .popupContainer()
     }
 
     /// One row per Focus, switching it on or, when it is the one already on,
@@ -133,11 +135,11 @@ struct NotificationsPopup: View {
         let isOn = focus.activeIdentifier == mode.id
         return HStack(spacing: 10) {
             Image(systemName: mode.symbol)
-                .font(.system(size: 11))
+                .font(.system(size: PopupStyle.captionSize))
                 .foregroundStyle(isOn ? Color.purple : Color.secondary)
-                .frame(width: 16)
+                .frame(width: PopupStyle.iconColumn)
             Text(mode.name)
-                .font(.system(size: 12))
+                .font(.system(size: PopupStyle.bodySize))
                 .lineLimit(1)
             Spacer(minLength: 8)
             if focus.switching == mode.id {
@@ -148,32 +150,6 @@ struct NotificationsPopup: View {
                     .foregroundStyle(Color.purple)
             }
         }
-        .padding(.horizontal, 4)
-        .padding(.vertical, 3)
-        .contentShape(Rectangle())
-        .onTapGesture { focus.toggle(mode) }
-    }
-
-    private func row(
-        _ symbol: String, _ title: String, trailing: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: symbol).font(.system(size: 11)).frame(width: 16)
-            Text(title).font(.system(size: 12))
-            Spacer(minLength: 8)
-            Image(systemName: trailing)
-                .font(.system(size: 9, weight: .semibold))
-                .opacity(0.45)
-        }
-        .padding(.horizontal, 4)
-        .padding(.vertical, 4)
-        .contentShape(Rectangle())
-        .onTapGesture(perform: action)
-    }
-
-    private func open(_ target: String) {
-        guard let url = URL(string: target) else { return }
-        NSWorkspace.shared.open(url)
+        .popupRow { focus.toggle(mode) }
     }
 }

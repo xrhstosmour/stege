@@ -304,6 +304,13 @@ account.
 
 ![The calendar popup](.github/assets/calendar.png)
 
+### Popup style
+
+Every popup uses one width, one padding and one row shape, defined in
+[`Stege/MenuBarPopup/PopupStyle.swift`](Stege/MenuBarPopup/PopupStyle.swift). Rows that do
+something highlight under the pointer, the way the menus they replace do, and rows that only
+report something do not.
+
 ## Known limitations
 
 **Option-key menu entries are always visible.** macOS hides alternate menu items until Option

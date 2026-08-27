@@ -16,7 +16,7 @@ struct NetworkPopup: View {
     @FocusState private var passwordFocused: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: PopupStyle.spacing) {
             if viewModel.wifiState != .notSupported {
                 current
                 details
@@ -26,23 +26,20 @@ struct NetworkPopup: View {
 
             if viewModel.ethernetState != .notSupported {
                 Divider()
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     Image(systemName: ethernetSymbol)
-                        .font(.system(size: 12))
-                        .frame(width: 16)
-                    Text("Ethernet")
-                        .font(.system(size: 12))
+                        .font(.system(size: PopupStyle.bodySize))
+                        .frame(width: PopupStyle.iconColumn)
+                    Text("Ethernet").font(.system(size: PopupStyle.bodySize))
                     Spacer(minLength: 12)
                     Text(viewModel.ethernetState.rawValue)
-                        .font(.system(size: 12))
+                        .font(.system(size: PopupStyle.bodySize))
                         .opacity(0.7)
                 }
+                .popupStaticRow()
             }
         }
-        .padding(14)
-        // Fixed, not a minimum: `Divider` reports an ideal width of infinity
-        // and the popup panel behind it spans the whole screen.
-        .frame(width: 260, alignment: .leading)
+        .popupContainer()
         .onAppear {
             viewModel.requestSSIDAccessIfNeeded()
             viewModel.scanForNetworks()
@@ -52,16 +49,11 @@ struct NetworkPopup: View {
     // MARK: - Current connection
 
     private var current: some View {
-        HStack(spacing: 8) {
-            Image(systemName: wifiSymbol)
-                .font(.system(size: 13))
-                .foregroundStyle(isConnected ? Color.blue : .secondary)
-                .frame(width: 18)
-            Text(viewModel.isPoweredOn ? viewModel.ssid : "Wi-Fi Off")
-                .font(.system(size: 13, weight: .semibold))
-                .lineLimit(1)
-                .truncationMode(.tail)
-            Spacer(minLength: 8)
+        PopupHeader(
+            symbol: wifiSymbol,
+            title: viewModel.isPoweredOn ? viewModel.ssid : "Wi-Fi Off",
+            tint: isConnected ? .blue : .secondary
+        ) {
             Toggle(
                 "",
                 isOn: Binding(
@@ -77,7 +69,7 @@ struct NetworkPopup: View {
     @ViewBuilder
     private var details: some View {
         if isConnected {
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
                 detailRow("Signal", viewModel.wifiSignalStrength.rawValue)
                 detailRow("RSSI", "\(viewModel.rssi) dBm")
                 detailRow("Noise", "\(viewModel.noise) dBm")
@@ -88,57 +80,55 @@ struct NetworkPopup: View {
 
     private func detailRow(_ label: String, _ value: String) -> some View {
         HStack(spacing: 12) {
-            Text(label).font(.system(size: 11)).opacity(0.6)
+            Text(label)
+                .font(.system(size: PopupStyle.captionSize)).opacity(0.6)
             Spacer(minLength: 12)
-            Text(value).font(.system(size: 11)).monospacedDigit().opacity(0.85)
+            Text(value)
+                .font(.system(size: PopupStyle.captionSize))
+                .monospacedDigit()
+                .opacity(0.85)
         }
+        .popupStaticRow()
     }
 
     // MARK: - Other networks
 
     @ViewBuilder
     private var nearby: some View {
-        HStack(spacing: 6) {
-            Text("Other Networks")
-                .font(.system(size: 11, weight: .semibold))
-                .opacity(0.6)
-            Spacer(minLength: 8)
-            if viewModel.isScanning {
-                ProgressView().controlSize(.mini)
+        VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
+            PopupSectionTitle(title: "Other Networks") {
+                if viewModel.isScanning {
+                    ProgressView().controlSize(.mini)
+                }
             }
-        }
+            .popupStaticRow()
 
-        if let failure = viewModel.joinFailure {
-            Text(failure)
-                .font(.system(size: 11))
-                .foregroundStyle(.orange)
-                .fixedSize(horizontal: false, vertical: true)
-        }
+            if let failure = viewModel.joinFailure {
+                Text(failure)
+                    .font(.system(size: PopupStyle.captionSize))
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .popupStaticRow()
+            }
 
-        if viewModel.nearbyNetworks.isEmpty {
-            Text(viewModel.isScanning ? "Scanning…" : "None in range")
-                .font(.system(size: 12))
-                .opacity(0.6)
-        } else {
-            // Capped so a busy area cannot grow the popup past the screen. The
-            // rest are reachable through the system settings row below.
-            VStack(alignment: .leading, spacing: 6) {
+            if viewModel.nearbyNetworks.isEmpty {
+                Text(viewModel.isScanning ? "Scanning…" : "None in range")
+                    .font(.system(size: PopupStyle.bodySize))
+                    .opacity(0.6)
+                    .popupStaticRow()
+            } else {
+                // Capped so a busy area cannot grow the popup past the screen.
+                // The rest are reachable through the system settings row below.
                 ForEach(viewModel.nearbyNetworks.prefix(6)) { network in
                     networkRow(network)
                 }
             }
         }
 
-        HStack(spacing: 8) {
-            Image(systemName: "gearshape").font(.system(size: 11)).frame(width: 16)
-            Text("Wi-Fi Settings").font(.system(size: 12))
-            Spacer(minLength: 8)
-            Image(systemName: "chevron.right")
-                .font(.system(size: 9, weight: .semibold))
-                .opacity(0.5)
+        PopupSettingsRow(title: "Wi-Fi Settings") {
+            MenuBarPopup.hide()
+            viewModel.openWifiSettings()
         }
-        .contentShape(Rectangle())
-        .onTapGesture { viewModel.openWifiSettings() }
     }
 
     @ViewBuilder
@@ -170,7 +160,7 @@ struct NetworkPopup: View {
                 .contentShape(Rectangle())
                 .onTapGesture { submit(network) }
         }
-        .padding(.leading, 24)
+        .padding(.leading, PopupStyle.iconColumn + 16)
     }
 
     private func submit(_ network: WifiNetwork) {
@@ -193,15 +183,18 @@ struct NetworkPopup: View {
     }
 
     private func rowLabel(_ network: WifiNetwork) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             // Variable value, not a per-strength symbol name: `wifi.low` and
             // `wifi.medium` do not exist, so every row below the strongest
             // rendered as blank space where its icon should have been.
-            Image(systemName: "wifi", variableValue: signalFraction(for: network.rssi))
-                .font(.system(size: 11))
-                .frame(width: 16)
+            Image(
+                systemName: "wifi",
+                variableValue: signalFraction(for: network.rssi)
+            )
+            .font(.system(size: PopupStyle.captionSize))
+            .frame(width: PopupStyle.iconColumn)
             Text(network.ssid)
-                .font(.system(size: 12))
+                .font(.system(size: PopupStyle.bodySize))
                 .lineLimit(1)
                 .truncationMode(.tail)
             Spacer(minLength: 8)
@@ -214,8 +207,7 @@ struct NetworkPopup: View {
                 ProgressView().controlSize(.mini)
             }
         }
-        .contentShape(Rectangle())
-        .onTapGesture { tapped(network) }
+        .popupRow { tapped(network) }
     }
 
     // MARK: - Symbols
