@@ -33,6 +33,31 @@ struct RevealWidget: View {
         CGFloat(config["icon-size"]?.intValue ?? 15)
     }
 
+    /// How the appended icons are drawn.
+    ///
+    /// `monochrome` is the default, because a row of full-colour application
+    /// icons next to Stege's own single-weight glyphs looks like two bars
+    /// stapled together, and macOS draws its own menu bar in one colour for the
+    /// same reason. `colour` leaves them as the applications ship them.
+    ///
+    /// Neither is the glyph the application actually puts in the menu bar.
+    /// Reading that means photographing the item, which needs Screen Recording
+    /// and, because a hidden status item is parked off screen where
+    /// `ScreenCaptureKit` refuses to capture it, the menu bar pulled down for
+    /// every refresh.
+    enum IconStyle: String {
+        case monochrome
+        case colour
+        case color
+    }
+
+    var iconStyle: IconStyle {
+        IconStyle(rawValue: config["icon-style"]?.stringValue ?? "monochrome")
+            ?? .monochrome
+    }
+
+    private var isMonochrome: Bool { iconStyle == .monochrome }
+
     /// Stay out of the way until pressed again, rather than coming back on
     /// pointer movement. `collapse` only.
     var sticky: Bool { config["sticky"]?.boolValue ?? true }
@@ -135,6 +160,12 @@ struct RevealWidget: View {
             }
         }
         .frame(width: iconSize, height: iconSize)
+        .grayscale(isMonochrome ? 1 : 0)
+        // Grey alone leaves an icon designed for a bright background looking
+        // muddy against a black bar, so the contrast is opened up and the
+        // whole thing lifted towards white.
+        .contrast(isMonochrome ? 1.35 : 1)
+        .brightness(isMonochrome ? 0.12 : 0)
         .contentShape(Rectangle())
         .onTapGesture { reader.press(item) }
         .help(item.name)

@@ -73,6 +73,7 @@ modifier-key = "option"     # option, command, control, shift, function
 [widgets.default.reveal]
 mode = "extras"                # append the other apps' status items, or "collapse"
 icon-size = 15                 # extras only: how big those icons are drawn
+icon-style = "monochrome"      # extras only: or "colour" to leave them as they ship
 sticky = true                  # collapse only: stay away until the corner button is pressed
 return-threshold = 80          # collapse + sticky = false: points the pointer must drop first
 timeout = 10                   # collapse + sticky = false: seconds before it returns
