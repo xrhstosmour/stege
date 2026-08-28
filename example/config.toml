@@ -71,9 +71,11 @@ modifier-key = "option"     # option, command, control, shift, function
 # --- Right -----------------------------------------------------------------
 
 [widgets.default.reveal]
-sticky = true                  # stay collapsed until the corner button is pressed
-return-threshold = 80          # sticky = false only: points the pointer must drop first
-timeout = 10                   # sticky = false only: seconds before it returns regardless
+mode = "extras"                # append the other apps' status items, or "collapse"
+icon-size = 15                 # extras only: how big those icons are drawn
+sticky = true                  # collapse only: stay away until the corner button is pressed
+return-threshold = 80          # collapse + sticky = false: points the pointer must drop first
+timeout = 10                   # collapse + sticky = false: seconds before it returns
 
 [widgets.default.monitor]
 show-network = false           # upload and download throughput
