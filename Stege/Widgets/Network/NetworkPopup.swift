@@ -13,6 +13,7 @@ struct NetworkPopup: View {
     /// and is never anywhere a published value could be read from.
     @State private var promptingFor: String?
     @State private var password = ""
+    @State private var isPasswordVisible = false
     @FocusState private var passwordFocused: Bool
 
     var body: some View {
@@ -97,7 +98,9 @@ struct NetworkPopup: View {
             }
             .popupStaticRow()
 
-            if let failure = viewModel.joinFailure {
+            // Only while no card is open. A failure belongs next to the
+            // network it is about, and the card puts it there.
+            if let failure = viewModel.joinFailure, promptingFor == nil {
                 Text(failure)
                     .font(.system(size: PopupStyle.captionSize))
                     .foregroundStyle(.orange)
@@ -130,50 +133,143 @@ struct NetworkPopup: View {
         VStack(alignment: .leading, spacing: 6) {
             rowLabel(network)
             if promptingFor == network.ssid {
-                passwordField(for: network)
+                joinCard(for: network)
             }
         }
     }
 
+    // MARK: - Joining
+
+    /// What appears under a secured network that has not been joined before.
+    ///
+    /// This used to be a bare secure field with an arrow next to it, indented
+    /// under the row, with no heading, no way to check what had been typed and
+    /// no way out other than clicking the row again. It reads as a small sheet
+    /// now: it says which network it is asking about, it can show the password
+    /// back, and it has both of the two answers as buttons.
+    private func joinCard(for network: WifiNetwork) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Password for “\(network.ssid)”")
+                .font(.system(size: PopupStyle.captionSize))
+                .opacity(0.7)
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            passwordField(for: network)
+
+            if let failure = viewModel.joinFailure {
+                Text(failure)
+                    .font(.system(size: PopupStyle.captionSize))
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            HStack(spacing: 6) {
+                Spacer(minLength: 0)
+                cardButton("Cancel", filled: false, enabled: true) {
+                    dismissCard()
+                }
+                cardButton("Join", filled: true, enabled: !password.isEmpty) {
+                    submit(network)
+                }
+            }
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(.white.opacity(0.06))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .strokeBorder(.white.opacity(0.10), lineWidth: 1)
+                )
+        )
+    }
+
+    /// The field itself, secure by default with the usual way to look at what
+    /// was typed. A long Wi-Fi key is easy to get wrong and impossible to check
+    /// against a row of dots.
     private func passwordField(for network: WifiNetwork) -> some View {
         HStack(spacing: 6) {
-            SecureField("Password", text: $password)
-                .textFieldStyle(.plain)
-                .font(.system(size: 12))
-                .focused($passwordFocused)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(.primary.opacity(0.08))
-                )
-                .onSubmit { submit(network) }
-            Image(systemName: "arrow.right.circle.fill")
-                .font(.system(size: 14))
-                .opacity(password.isEmpty ? 0.3 : 1)
+            Group {
+                if isPasswordVisible {
+                    TextField("Password", text: $password)
+                } else {
+                    SecureField("Password", text: $password)
+                }
+            }
+            .textFieldStyle(.plain)
+            .font(.system(size: 12))
+            .focused($passwordFocused)
+            .onSubmit { submit(network) }
+
+            Image(systemName: isPasswordVisible ? "eye.slash" : "eye")
+                .font(.system(size: 11))
+                .opacity(0.6)
                 .contentShape(Rectangle())
-                .onTapGesture { submit(network) }
+                .onTapGesture { isPasswordVisible.toggle() }
+                .help(isPasswordVisible ? "Hide the password" : "Show the password")
         }
-        .padding(.leading, PopupStyle.iconColumn + 16)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(.black.opacity(0.25))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .strokeBorder(.white.opacity(0.12), lineWidth: 1)
+                )
+        )
+    }
+
+    private func cardButton(
+        _ title: String, filled: Bool, enabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Text(title)
+            .font(.system(size: PopupStyle.bodySize, weight: .medium))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(filled ? Color.accentColor : .white.opacity(0.10))
+            )
+            .opacity(enabled ? 1 : 0.4)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                guard enabled else { return }
+                action()
+            }
     }
 
     private func submit(_ network: WifiNetwork) {
         guard !password.isEmpty else { return }
         viewModel.join(network, password: password)
+        dismissCard()
+    }
+
+    private func dismissCard() {
         password = ""
+        isPasswordVisible = false
         promptingFor = nil
+        passwordFocused = false
     }
 
     /// A tap joins straight away when the network is open or already saved,
-    /// and otherwise opens the password field under the row.
+    /// and otherwise opens the join card under the row.
     private func tapped(_ network: WifiNetwork) {
         guard !network.isKnown, network.isSecure else {
             viewModel.join(network)
             return
         }
+        if promptingFor == network.ssid {
+            dismissCard()
+            return
+        }
         password = ""
-        promptingFor = promptingFor == network.ssid ? nil : network.ssid
-        passwordFocused = promptingFor != nil
+        isPasswordVisible = false
+        viewModel.joinFailure = nil
+        promptingFor = network.ssid
+        passwordFocused = true
     }
 
     private func rowLabel(_ network: WifiNetwork) -> some View {
