@@ -7,12 +7,18 @@ import SwiftUI
 /// API for that, and the only source is a private SQLite database in a
 /// TCC-protected group container, which would mean holding Full Disk Access.
 /// That permission also grants read access to Mail, Messages and browser data,
-/// which is far more than a menu bar widget should ask for, so the list stays
-/// where macOS keeps it and the popup opens it.
+/// which is far more than a menu bar widget should ask for.
 ///
-/// What the popup can do without any of that is list the Focus modes and
-/// switch between them, through Control Center's own controls. See
-/// `FocusReader` for why that is the only route.
+/// It does not open Notification Center either. It used to, and a row whose
+/// whole job is to hand off to the panel the bar was meant to replace is not
+/// worth a row: pressing it slides Notification Center over the screen and the
+/// popup underneath it disappears, so the two are never usefully on screen
+/// together. The trackpad gesture and the shortcut in Keyboard settings both
+/// still open it, and neither goes through here.
+///
+/// What the popup does is list the Focus modes and switch between them,
+/// through Control Center's own controls. See `FocusReader` for why that is the
+/// only route.
 struct NotificationsWidget: View {
     @EnvironmentObject var configProvider: ConfigProvider
     var config: ConfigData { configProvider.config }
@@ -131,17 +137,6 @@ struct NotificationsPopup: View {
             Divider()
 
             VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
-                PopupSettingsRow(
-                    title: "Notification Center", symbol: "bell.badge"
-                ) {
-                    MenuBarPopup.hide()
-                    // After the popup is gone, so the two panels are not on
-                    // screen together.
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                        MenuExtra.press(.notificationCentre)
-                    }
-                }
-
                 PopupSettingsRow(title: "Notification Settings") {
                     openSettings(
                         "x-apple.systempreferences:com.apple.Notifications-Settings.extension"
