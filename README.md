@@ -178,7 +178,9 @@ every third-party status item on it reachable. The file is watched, so it takes 
 as you save, with no restart.
 
 The `default.reveal` chevron does the same thing from the bar. It collapses Stege and leaves a
-small button at the top-left corner of the screen, which expands it again. Everything macOS
+small button in the middle of the menu bar, just left of the notch on a display that has one,
+which expands it again. The middle because both ends are taken: the Apple menu is at one and
+the status items this just uncovered are at the other. Everything macOS
 puts on its own menu bar, including every status item Stege does not draw, is usable in
 between. It stays collapsed until that button is pressed, because a status item's menu opens
 below the menu bar and a bar that came back on its own would land on top of it.

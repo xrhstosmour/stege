@@ -163,7 +163,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     level: Int(CGWindowLevelForKey(.backstopMenu)),
                     show: shouldShow)
                 reposition(
-                    collapsedPanels[index], to: collapsedFrame(on: frame),
+                    collapsedPanels[index], to: collapsedFrame(on: screen),
                     level: Int(CGWindowLevelForKey(.popUpMenuWindow)),
                     show: BarVisibility.shared.isCollapsed)
             } else {
@@ -184,7 +184,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 // thing on screen.
                 collapsedPanels.append(
                     makePanel(
-                        frame: collapsedFrame(on: frame),
+                        frame: collapsedFrame(on: screen),
                         level: Int(CGWindowLevelForKey(.popUpMenuWindow)),
                         hostingRootView: AnyView(CollapsedRevealView()),
                         show: BarVisibility.shared.isCollapsed))
@@ -192,14 +192,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// The bottom-left corner of the screen's menu bar strip, at the leading
-    /// edge rather than the trailing one: the trailing end of a real menu bar
-    /// is where the status items are, and this would sit on top of them.
-    private func collapsedFrame(on screen: CGRect) -> CGRect {
+    /// Where the button that brings the bar back sits while it is away.
+    ///
+    /// Neither end of the menu bar is free. The trailing end is the status
+    /// items, which are the whole reason the bar stepped aside, and the leading
+    /// end is the Apple menu, which this used to sit squarely on top of: 26
+    /// points from the left edge covers the logo, so collapsing the bar made
+    /// the Apple menu unclickable.
+    ///
+    /// The middle is the part nothing occupies. Menus fill from the left and
+    /// status items from the right, and on a display with a notch the middle is
+    /// not even drawable. `auxiliaryTopLeftArea` is the usable strip to the
+    /// left of the notch, so its trailing end is as close to the middle as this
+    /// can get while staying visible. Displays without a notch do not publish
+    /// one, and there the middle is the middle.
+    private func collapsedFrame(on screen: NSScreen) -> CGRect {
         let size = Self.collapsedButtonSize
+        let frame = screen.frame
+        let x: CGFloat
+        if let leftOfNotch = screen.auxiliaryTopLeftArea {
+            x = leftOfNotch.maxX - size.width
+        } else {
+            x = frame.midX - size.width / 2
+        }
         return CGRect(
-            x: screen.minX,
-            y: screen.maxY - size.height,
+            x: x,
+            y: frame.maxY - size.height,
             width: size.width,
             height: size.height)
     }
