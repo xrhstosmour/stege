@@ -184,7 +184,15 @@ private struct WindowView: View {
                     }
                 }
             }
+            // Focus moves to another workspace and this pill stops being the
+            // trigger, taking its tracking area with it while the pointer is
+            // still inside. Nothing would report the pointer leaving.
+            .onDisappear { reveal.forget(.spaces) }
         )
+        .onChange(of: isRevealTrigger) { _, isTrigger in
+            guard !isTrigger else { return }
+            reveal.forget(.spaces)
+        }
         .onTapGesture {
             if reveal.togglesOnClick, window.isFocused {
                 reveal.toggleRevealed()
