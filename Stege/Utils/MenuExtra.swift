@@ -46,17 +46,19 @@ enum MenuExtra {
     /// Used by the row of menu bar extras, where the element comes from that
     /// application's own `AXExtrasMenuBar` rather than from `Identifier`.
     ///
-    /// Two differences from the presses above. The panel is left open, because
-    /// opening that application's menu is the whole point rather than a step on
-    /// the way to a control. And the pointer stays where the item is instead of
-    /// going back: the menu opens anchored to the item, so leaving the pointer
-    /// there puts it on the menu that just appeared, and on a menu bar set to
-    /// hide, moving away is what would send it back up underneath.
+    /// Nothing is revealed and the pointer is not touched. Control Center's own
+    /// extras have to be brought on screen before they answer to a press, and
+    /// other applications' status items turn out not to: pressing one parked at
+    /// y = -28 opens its menu just the same. So there is no menu bar sliding
+    /// down and no pointer jumping to the top of the screen, both of which the
+    /// reveal used to cause.
+    ///
+    /// The panel is left open, because opening that application's menu is the
+    /// whole point rather than a step on the way to a control.
     static func press(
         element: AXUIElement, completion: @escaping (Bool) -> Void = { _ in }
     ) {
         DispatchQueue.global(qos: .userInitiated).async {
-            _ = revealMenuBarIfHidden(for: element)
             let pressed =
                 AXUIElementPerformAction(element, kAXPressAction as CFString)
                 == .success

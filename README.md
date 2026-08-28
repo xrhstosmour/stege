@@ -180,12 +180,20 @@ as you save, with no restart.
 The `default.reveal` chevron works from the bar and has two modes.
 
 `extras`, the default, appends the other applications' status items to the bar: 1Password,
-Docker, Dropbox and whatever else is running, each as its own icon. Clicking one presses the
-real item, so that application opens its real menu. Nothing is screenshotted and no window is
-moved. Every application publishes its status item through the Accessibility API, under
+Docker, Dropbox and whatever else is running. Clicking one presses the real item, so that
+application opens its real menu, with no pointer movement and without the menu bar coming down.
+
+Every application publishes its status item through the Accessibility API, under
 `AXExtrasMenuBar`, so the item can be found, ordered the way macOS orders it, and pressed,
-using the same permission the app menus already need. Bartender and Ice take a picture of each
-item instead, which costs a Screen Recording grant and a capture every time an icon changes.
+using the same permission the app menus already need. Nothing is screenshotted and no window is
+moved.
+
+The icon drawn is the application's own, in one colour by default, because a row of full-colour
+icons beside Stege's single-weight glyphs looks like two bars stapled together. It is not the
+glyph the application actually puts in the menu bar. Reading that means photographing the item,
+which is what Bartender and Ice do: it costs a Screen Recording grant, and because a hidden
+status item is parked off screen where `ScreenCaptureKit` refuses to capture it, the menu bar
+has to be pulled down for every refresh.
 
 `collapse` is the older behaviour. It takes Stege away so the real menu bar underneath becomes
 reachable, and leaves a small button in the middle of the menu bar, just left of the notch on a
@@ -198,6 +206,7 @@ came back on its own would land on top of it.
 [widgets.default.reveal]
 mode = "extras"        # or "collapse"
 icon-size = 15         # `extras` only: how big the appended icons are drawn
+icon-style = "monochrome"  # `extras` only: or "colour" to leave them as they ship
 sticky = true          # `collapse` only, false: come back on pointer movement
 return-threshold = 80  # `collapse` and `sticky = false` only: points the pointer must drop
 timeout = 10           # `collapse` and `sticky = false` only: seconds before it returns
