@@ -96,9 +96,11 @@ struct RevealWidget: View {
             .help(helpText)
     }
 
+    /// Points at what pressing it does, not at where the items are. `<` pulls
+    /// the rest of the menu bar in from the right, `>` sends it back.
     private var chevronSymbol: String {
         switch mode {
-        case .extras: return isShowingExtras ? "chevron.left" : "chevron.right"
+        case .extras: return isShowingExtras ? "chevron.right" : "chevron.left"
         case .collapse: return sticky ? "chevron.left" : "chevron.right"
         }
     }
