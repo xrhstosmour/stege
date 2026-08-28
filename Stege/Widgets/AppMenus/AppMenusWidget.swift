@@ -96,9 +96,19 @@ struct AppMenusWidget: View {
         .background(
             // Only installed for the mode that needs it, so `always` and
             // `modifier` carry no tracking area at all.
-            Group {
+            ZStack {
                 if visibility == .hover {
                     HoverTracker { reveal.setHovered($0, from: .menus) }
+                    GeometryReader { geometry in
+                        Color.clear
+                            .onAppear {
+                                reveal.setSpan(
+                                    geometry.frame(in: .global), for: .menus)
+                            }
+                            .onChange(of: geometry.frame(in: .global)) { _, new in
+                                reveal.setSpan(new, for: .menus)
+                            }
+                    }
                 }
             }
         )
@@ -130,12 +140,14 @@ struct AppMenusWidget: View {
         // Told here rather than computed by the spaces widget, because a bar
         // with no app menus widget in it must never see its pills disappear.
         reveal.swapsSpaces = visibility != .always
+        reveal.revealsOnHover = visibility == .hover
         reveal.togglesOnClick = visibility == .click
     }
 
     private func releaseMonitors(for visibility: Visibility) {
         if visibility == .modifier { modifiers.release() }
         reveal.swapsSpaces = false
+        reveal.revealsOnHover = false
         reveal.togglesOnClick = false
         reveal.setRevealed(false)
     }

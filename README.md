@@ -236,7 +236,7 @@ Accessibility element, so the app behaves exactly as it would through its own me
 | Value | Behaviour |
 | --- | --- |
 | `always` | The menus sit in the bar next to the workspace pills, the way macOS shows them |
-| `hover` | The menus take the workspace pills' place while the pointer is in the bar, and fade back out when it leaves |
+| `hover` | The menus take the workspace pills' place while the pointer rests on the pill of the window that is already focused, and fade back out when it moves off them |
 | `modifier` | The same swap, held open by a key instead of the pointer |
 | `click` | The same swap, made by clicking the pill of the window that is already focused, and undone by clicking the application icon the menus appear next to |
 
@@ -245,11 +245,11 @@ beside them, so the bar shows one or the other and never grows. `hover` and `cli
 pills themselves as the target, so keep `default.spaces` in `widgets.displayed` for those, or
 use `modifier`, which needs no target.
 
-Prefer `click` over `hover` on a bar that shows workspaces. Under `hover` the pointer has to
-cross the pills to reach any of them, which swaps them out from under it, so no window in
-another workspace can be clicked at all. `click` only swaps when asked, and clicking the
-focused window is a request to focus what is already focused, so the gesture takes nothing
-away.
+Under `hover` and `click` only one pill is the target, the window that is already focused, and
+under `hover` the menus fall away again as soon as the pointer moves off them. Both of those
+are there so the rest of the bar stays usable: with every pill a target and the reveal held for
+the whole width of the bar, aiming at another workspace swapped it out for the menus on the way
+and no window in it could be clicked at all.
 
 ### Apple menu
 

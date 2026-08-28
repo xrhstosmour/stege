@@ -23,17 +23,6 @@ struct SpacesWidget: View {
             }
         }
         .experimentalConfiguration(horizontalPadding: 5, cornerRadius: 10)
-        .background(
-            // The pills are what the pointer actually reaches for, so they are
-            // the hover target that swaps them out. Installed only for the
-            // modes that swap, so a bar showing the menus permanently carries
-            // no tracking area.
-            Group {
-                if reveal.swapsSpaces {
-                    HoverTracker { reveal.setHovered($0, from: .spaces) }
-                }
-            }
-        )
         .animation(.smooth(duration: 0.3), value: viewModel.spaces)
         .animation(.smooth(duration: 0.15), value: isStandingAside)
         .foregroundStyle(Color.foreground)
@@ -114,15 +103,23 @@ private struct WindowView: View {
     var maxLength: Int { titleConfig["max-length"]?.intValue ?? 50 }
     var alwaysDisplayAppTitleFor: [String] { titleConfig["always-display-app-name-for"]?.arrayValue?.filter({ $0.stringValue != nil }).map { $0.stringValue! } ?? [] }
 
-    /// Under `visibility = "click"` on the app menus widget, clicking the
-    /// window that is already focused swaps the workspaces for that
-    /// application's menus rather than focusing what is already focused.
+    /// The window that is already focused is the one the app menus widget
+    /// swaps in for. Under `click` a click on it does the swap, and under
+    /// `hover` the pointer resting on it does.
     @ObservedObject private var reveal = AppMenusReveal.shared
 
     let window: AnyWindow
     let space: AnySpace
 
     @State var isHovered = false
+
+    /// Whether this pill is the one that reveals the menus. Only the focused
+    /// window: making every pill a trigger is what stopped another workspace
+    /// from being clickable, because aiming at one swapped it out for the
+    /// menus on the way.
+    private var isRevealTrigger: Bool {
+        reveal.revealsOnHover && window.isFocused
+    }
 
     var body: some View {
         let titleMaxLength = maxLength
@@ -171,6 +168,23 @@ private struct WindowView: View {
         .animation(.smooth, value: isHovered)
         .frame(height: 30)
         .contentShape(Rectangle())
+        .background(
+            ZStack {
+                if isRevealTrigger {
+                    HoverTracker { reveal.setHovered($0, from: .spaces) }
+                    GeometryReader { geometry in
+                        Color.clear
+                            .onAppear {
+                                reveal.setSpan(
+                                    geometry.frame(in: .global), for: .spaces)
+                            }
+                            .onChange(of: geometry.frame(in: .global)) { _, new in
+                                reveal.setSpan(new, for: .spaces)
+                            }
+                    }
+                }
+            }
+        )
         .onTapGesture {
             if reveal.togglesOnClick, window.isFocused {
                 reveal.toggleRevealed()
