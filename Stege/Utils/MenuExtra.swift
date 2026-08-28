@@ -25,6 +25,7 @@ enum MenuExtra {
         case notificationCentre = "com.apple.menuextra.clock"
         case controlCentre = "com.apple.menuextra.controlcenter"
         case battery = "com.apple.menuextra.battery"
+        case bluetooth = "com.apple.menuextra.bluetooth"
     }
 
     /// Whether the extra exists and can be pressed, so a widget can say the
@@ -308,18 +309,24 @@ enum MenuExtra {
     private static func waitForControl(identified identifier: String)
         -> AXUIElement?
     {
-        waitForControl(identifiedBy: { $0 == identifier })
+        // Pressable, because this is only ever called to press the result.
+        // Identifiers are not unique inside a panel: Bluetooth labels both its
+        // heading and the switch next to it `bluetooth-header`, and the label
+        // comes first in the walk, so without this the switch would never be
+        // the one found and the press would land on a piece of text.
+        waitForControl(identifiedBy: { $0 == identifier }, pressable: true)
     }
 
     private static func waitForControl(
-        identifiedBy matches: (String) -> Bool
+        identifiedBy matches: (String) -> Bool, pressable: Bool = false
     ) -> AXUIElement? {
         guard let application = controlCentreApplication() else { return nil }
         let deadline = Date().addingTimeInterval(2)
         while Date() < deadline {
             for window in panels(of: application) {
                 if let match = descendant(
-                    of: window, matching: matches, depth: 0)
+                    of: window, matching: matches, pressable: pressable,
+                    depth: 0)
                 {
                     return match
                 }
@@ -329,19 +336,30 @@ enum MenuExtra {
         return nil
     }
 
+    /// Whether the element answers to a press at all, which is what separates a
+    /// control from the text labelling it.
+    private static func isPressable(_ element: AXUIElement) -> Bool {
+        var names: CFArray?
+        guard AXUIElementCopyActionNames(element, &names) == .success,
+            let actions = names as? [String]
+        else { return false }
+        return actions.contains(kAXPressAction as String)
+    }
+
     /// The first match in a depth-first walk.
     ///
     /// First, not any, matters: while a Focus is on, Control Center adds
     /// duration rows underneath it that carry the same identifier as the mode
     /// itself, and the mode is the one above them.
     private static func descendant(
-        of element: AXUIElement, matching matches: (String) -> Bool, depth: Int
+        of element: AXUIElement, matching matches: (String) -> Bool,
+        pressable: Bool, depth: Int
     ) -> AXUIElement? {
         // The panels are shallow, and a bound keeps a cycle in someone else's
         // hierarchy from becoming an infinite walk in this one.
         guard depth < 12 else { return nil }
         if let identifier = attribute(element, "AXIdentifier") as? String,
-            matches(identifier)
+            matches(identifier), !pressable || isPressable(element)
         {
             return element
         }
@@ -351,7 +369,8 @@ enum MenuExtra {
         else { return nil }
         for child in children {
             if let match = descendant(
-                of: child, matching: matches, depth: depth + 1)
+                of: child, matching: matches, pressable: pressable,
+                depth: depth + 1)
             {
                 return match
             }
