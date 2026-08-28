@@ -141,7 +141,7 @@ window.title.max-length = 50
 [widgets.default.appmenus]
 max-menus = 6                       # Chrome exposes 11, which crowds a laptop bar
 show-application-name = true        # draw the app's own menu in bold, as macOS does
-visibility = "always"               # always, hover, modifier
+visibility = "always"               # always, hover, modifier, click
 modifier-key = "option"             # option, command, control, shift, function
 
 [widgets.default.audio]
@@ -236,11 +236,18 @@ Accessibility element, so the app behaves exactly as it would through its own me
 | `always` | The menus sit in the bar next to the workspace pills, the way macOS shows them |
 | `hover` | The menus take the workspace pills' place while the pointer is in the bar, and fade back out when it leaves |
 | `modifier` | The same swap, held open by a key instead of the pointer |
+| `click` | The same swap, made by clicking the pill of the window that is already focused, and undone by clicking the application icon the menus appear next to |
 
-Under `hover` and `modifier` the menus replace the pills rather than crowding in beside them,
-so the bar shows one or the other and never grows. `hover` uses the pills themselves as the
-target, so keep `default.spaces` in `widgets.displayed` for it, or use `modifier`, which needs
-no target.
+Under `hover`, `modifier` and `click` the menus replace the pills rather than crowding in
+beside them, so the bar shows one or the other and never grows. `hover` and `click` use the
+pills themselves as the target, so keep `default.spaces` in `widgets.displayed` for those, or
+use `modifier`, which needs no target.
+
+Prefer `click` over `hover` on a bar that shows workspaces. Under `hover` the pointer has to
+cross the pills to reach any of them, which swaps them out from under it, so no window in
+another workspace can be clicked at all. `click` only swaps when asked, and clicking the
+focused window is a request to focus what is already focused, so the gesture takes nothing
+away.
 
 ### Apple menu
 

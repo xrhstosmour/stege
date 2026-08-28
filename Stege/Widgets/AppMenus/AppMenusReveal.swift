@@ -20,6 +20,14 @@ final class AppMenusReveal: ObservableObject {
     /// widget is in the bar at all.
     @Published var swapsSpaces = false
 
+    /// True under `visibility = "click"`, where the pill of the window that is
+    /// already focused is the thing that reveals the menus.
+    ///
+    /// Read by the spaces widget, which owns that pill. Clicking the focused
+    /// window is otherwise a request to focus what is already focused, so the
+    /// gesture costs nothing that was doing anything.
+    @Published var togglesOnClick = false
+
     enum Source {
         case spaces
         case menus
@@ -76,6 +84,12 @@ final class AppMenusReveal: ObservableObject {
         let height = ConfigManager.shared.config.experimental.foreground
             .resolveHeight()
         return screen.frame.maxY - location.y <= height
+    }
+
+    /// Reveals the menus when they are hidden, and puts the workspaces back
+    /// when they are not.
+    func toggleRevealed() {
+        setRevealed(!isRevealed)
     }
 
     /// For the modes that do not depend on the pointer, where the answer is
