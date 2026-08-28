@@ -17,7 +17,17 @@ struct TimeWidget: View {
     }
 
     @State private var currentTime = Date()
-    let calendarManager: CalendarManager
+
+    /// Owned, not handed in. It was built inline by `MenuBarView` and passed as
+    /// a plain property, so every re-evaluation of that view constructed a
+    /// fresh one, each with its own `EKEventStore`, its own timer and its own
+    /// store observer. It was also not observed, so the next event line only
+    /// changed when something else happened to redraw the widget.
+    @StateObject private var calendarManager: CalendarManager
+
+    init(calendarManager: @autoclosure @escaping () -> CalendarManager) {
+        _calendarManager = StateObject(wrappedValue: calendarManager())
+    }
 
     @State private var rect = CGRect()
 
@@ -39,6 +49,13 @@ struct TimeWidget: View {
         .shadow(color: .foregroundShadowOutside, radius: 3)
         .onReceive(timer) { date in
             currentTime = date
+        }
+        .onAppear {
+            // Only when the next event is actually going to be drawn. With
+            // `show-events = false` the bar shows a clock, and a clock has no
+            // business asking for a calendar.
+            guard calendarShowEvents else { return }
+            calendarManager.requestAccessIfNeeded()
         }
         .background(
             GeometryReader { geometry in
