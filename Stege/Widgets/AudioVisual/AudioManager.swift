@@ -29,6 +29,10 @@ final class AudioManager: ObservableObject {
     /// The registered block is kept alongside the address because
     /// `AudioObjectRemovePropertyListenerBlock` only removes the exact block it
     /// was given. Passing a fresh one silently removes nothing and leaks.
+    /// Where the level was before a mute that had to be done by turning it
+    /// down, so unmuting can put it back rather than guessing.
+    private var volumeBeforeMute: Double = 0
+
     private struct Listener {
         let device: AudioObjectID
         let address: AudioObjectPropertyAddress
@@ -271,18 +275,46 @@ final class AudioManager: ObservableObject {
     }
 
     func toggleInputMute() {
-        guard let device = Self.defaultDevice(input: true) else { return }
+        toggleMute(input: true)
+    }
+
+    /// Not every output device carries a mute property, the built-in speakers
+    /// among them, so the volume is dropped to zero and restored instead when
+    /// there is nothing to set. The icon reads the same either way.
+    func toggleOutputMute() {
+        guard !toggleMute(input: false) else { return }
+        if isOutputMuted || volume <= 0.001 {
+            setVolume(volumeBeforeMute > 0.001 ? volumeBeforeMute : 0.25)
+            isOutputMuted = false
+        } else {
+            volumeBeforeMute = volume
+            setVolume(0)
+            isOutputMuted = true
+        }
+    }
+
+    @discardableResult
+    private func toggleMute(input: Bool) -> Bool {
+        guard let device = Self.defaultDevice(input: input) else { return false }
         var address = AudioObjectPropertyAddress(
             mSelector: kAudioDevicePropertyMute,
-            mScope: kAudioDevicePropertyScopeInput,
+            mScope: input
+                ? kAudioDevicePropertyScopeInput
+                : kAudioDevicePropertyScopeOutput,
             mElement: kAudioObjectPropertyElementMain)
-        var muted: UInt32 = isInputMuted ? 0 : 1
+        guard AudioObjectHasProperty(device, &address) else { return false }
+        var muted: UInt32 = (input ? isInputMuted : isOutputMuted) ? 0 : 1
         let size = UInt32(MemoryLayout<UInt32>.size)
         guard
             AudioObjectSetPropertyData(device, &address, 0, nil, size, &muted)
                 == noErr
-        else { return }
-        isInputMuted = muted != 0
+        else { return false }
+        if input {
+            isInputMuted = muted != 0
+        } else {
+            isOutputMuted = muted != 0
+        }
+        return true
     }
 
     // MARK: - Listening

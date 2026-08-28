@@ -257,8 +257,15 @@ and no window in it could be clicked at all.
 
 ### Sound
 
-One icon in the bar rather than a separate speaker and microphone. The popup carries the
-output slider, both device pickers, and a microphone gain slider.
+One icon in the bar rather than a separate speaker and microphone, and a popup built as two
+matching blocks. Output and input each get the same three things in the same order: what it is,
+a level slider with its percentage, and the devices to choose between. Clicking the glyph at
+the left of either slider mutes that half.
+
+Output devices that carry no mute property, the built-in speakers among them, are muted by
+dropping the level to zero and put back where they were on the way out. An input device that
+exposes no settable gain, which is most USB and Bluetooth microphones, shows muted or not in
+the slider's place, since a slider that cannot move is worse than no slider.
 
 ![The sound popup](.github/assets/sound.png)
 
