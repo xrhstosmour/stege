@@ -39,6 +39,7 @@ final class AppMenusReveal: ObservableObject {
 
     private var sources: Set<String> = []
     private var pendingHide: DispatchWorkItem?
+    private var watchdog: Timer?
     /// The horizontal span each side of the swap occupies, in screen points.
     /// See `isPointerInHoldRegion`.
     private var spans: [String: ClosedRange<CGFloat>] = [:]
@@ -59,6 +60,19 @@ final class AppMenusReveal: ObservableObject {
             return
         }
         scheduleHide()
+    }
+
+    /// Forgets a trigger that is no longer on screen.
+    ///
+    /// A tracking area reports the pointer leaving, unless the view carrying it
+    /// is taken out of the hierarchy while the pointer is still inside, and
+    /// that is exactly what clicking another workspace does: focus moves, the
+    /// pill that was the trigger stops being one, and its tracker goes with no
+    /// exit ever delivered. The reveal was then held by a source that could
+    /// never let go, and the menus stayed up over the workspaces for good.
+    func forget(_ source: Source) {
+        spans.removeValue(forKey: String(describing: source))
+        setHovered(false, from: source)
     }
 
     /// Where each side of the swap is, so the hold region can follow it.
@@ -130,5 +144,30 @@ final class AppMenusReveal: ObservableObject {
     private func set(_ value: Bool) {
         guard value != isRevealed else { return }
         isRevealed = value
+        // Only the pointer-driven mode. Under `click` and `modifier` the
+        // pointer is nowhere in particular and the watchdog would close the
+        // menus the instant they opened.
+        value && revealsOnHover ? startWatchdog() : stopWatchdog()
+    }
+
+    /// A second way out, in case a tracker is ever lost the way `forget`
+    /// describes and nothing calls it. The pointer's position is the truth
+    /// about whether the reveal should still be held, and `sources` is only a
+    /// cache of it, so while the menus are up that truth is checked directly.
+    private func startWatchdog() {
+        stopWatchdog()
+        watchdog = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) {
+            [weak self] _ in
+            guard let self, !self.isPointerInHoldRegion else { return }
+            self.sources.removeAll()
+            self.pendingHide?.cancel()
+            self.pendingHide = nil
+            self.set(false)
+        }
+    }
+
+    private func stopWatchdog() {
+        watchdog?.invalidate()
+        watchdog = nil
     }
 }
