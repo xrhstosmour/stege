@@ -19,7 +19,7 @@ struct SoundGlyph: View {
     var isInputMuted: Bool
     /// Drawn only when the machine has an input device at all.
     var hasInput: Bool = true
-    var size: CGFloat = 12
+    var size: CGFloat = BarStyle.glyphSize
 
     var body: some View {
         HStack(spacing: size * 0.08) {

@@ -87,7 +87,7 @@ struct RevealWidget: View {
 
     private var chevron: some View {
         Image(systemName: chevronSymbol)
-            .font(.system(size: 11, weight: .semibold))
+            .font(.system(size: BarStyle.chevronSize, weight: .semibold))
             .padding(.horizontal, 4)
             .frame(maxHeight: .infinity)
             .contentShape(Rectangle())
