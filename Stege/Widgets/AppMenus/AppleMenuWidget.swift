@@ -17,12 +17,23 @@ struct AppleMenuWidget: View {
     @StateObject private var manager = AppMenusManager()
     @State private var rect: CGRect = .zero
 
+    @State private var isHovered = false
+
     var body: some View {
         Image(systemName: "apple.logo")
             .font(.system(size: iconSize))
             .padding(.horizontal, 6)
             .frame(maxHeight: .infinity)
+            // Lit under the pointer like the menu titles beside it, so the two
+            // ends of the same row behave the same way.
+            .background(
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .fill(.white.opacity(isHovered ? 0.16 : 0))
+                    .padding(.vertical, 5)
+            )
             .contentShape(Rectangle())
+            .onHover { isHovered = $0 }
+            .animation(.smooth(duration: 0.12), value: isHovered)
             .background(
                 GeometryReader { geometry in
                     Color.clear

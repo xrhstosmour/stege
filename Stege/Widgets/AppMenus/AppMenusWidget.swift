@@ -181,26 +181,14 @@ struct AppMenusWidget: View {
     private func menuTitle(_ menu: AppMenuEntry, emphasised: Bool = false)
         -> some View
     {
-        Text(menu.title)
-            .font(.system(size: 13, weight: emphasised ? .semibold : .regular))
-            .lineLimit(1)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .contentShape(Rectangle())
-            .background(
-                GeometryReader { geometry in
-                    Color.clear
-                        .onAppear { rects[menu.id] = geometry.frame(in: .global) }
-                        .onChange(of: geometry.frame(in: .global)) { _, new in
-                            rects[menu.id] = new
-                        }
-                }
-            )
-            .onTapGesture {
+        AppMenuTitle(
+            title: menu.title, emphasised: emphasised,
+            onFrameChange: { rects[menu.id] = $0 },
+            action: {
                 AppMenuPresenter.present(
                     menu: menu, manager: manager,
                     below: rects[menu.id] ?? .zero)
-            }
+            })
     }
 
     /// Without Accessibility permission there are no menus to show at all, so
@@ -215,5 +203,48 @@ struct AppMenusWidget: View {
         .padding(.horizontal, 6)
         .contentShape(Rectangle())
         .onTapGesture { AppMenuReader.requestTrust() }
+    }
+}
+
+/// One menu title, lit under the pointer the way macOS lights its own.
+///
+/// Without this the titles were the only things in the bar that gave no sign
+/// they could be clicked: the workspace pills highlight, every popup row
+/// highlights, and File, Edit and View sat there as plain text.
+///
+/// `onHover` rather than a tracking area, because unlike the reveal this only
+/// has to be right while the pointer is over the title itself, and the popup
+/// that opens takes the pointer with it.
+private struct AppMenuTitle: View {
+    let title: String
+    let emphasised: Bool
+    let onFrameChange: (CGRect) -> Void
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Text(title)
+            .font(.system(size: 13, weight: emphasised ? .semibold : .regular))
+            .lineLimit(1)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .fill(.white.opacity(isHovered ? 0.16 : 0))
+            )
+            .contentShape(Rectangle())
+            .background(
+                GeometryReader { geometry in
+                    Color.clear
+                        .onAppear { onFrameChange(geometry.frame(in: .global)) }
+                        .onChange(of: geometry.frame(in: .global)) { _, new in
+                            onFrameChange(new)
+                        }
+                }
+            )
+            .onHover { isHovered = $0 }
+            .animation(.smooth(duration: 0.12), value: isHovered)
+            .onTapGesture(perform: action)
     }
 }
