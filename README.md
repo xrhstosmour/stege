@@ -282,8 +282,10 @@ matching blocks. Output and input each get the same three things in the same ord
 a level slider with its percentage, and the devices to choose between. Clicking the glyph at
 the left of either slider mutes that half.
 
-Output devices that carry no mute property, the built-in speakers among them, are muted by
-dropping the level to zero and put back where they were on the way out. An input device that
+Scrolling on the icon changes the volume and right-clicking it mutes, so the popup is only
+needed for picking a device. Output devices that carry no mute property, the built-in speakers
+among them, are muted by dropping the level to zero and put back where they were on the way
+out. An input device that
 exposes no settable gain, which is most USB and Bluetooth microphones, shows muted or not in
 the slider's place, since a slider that cannot move is worse than no slider.
 
