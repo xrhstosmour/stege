@@ -40,6 +40,9 @@ final class AppMenusReveal: ObservableObject {
     private var sources: Set<String> = []
     private var pendingHide: DispatchWorkItem?
     private var watchdog: Timer?
+    /// See `suppressUntilPointerLeaves`.
+    private var isSuppressed = false
+    private var suppression: Timer?
     /// The horizontal span each side of the swap occupies, in screen points.
     /// See `isPointerInHoldRegion`.
     private var spans: [String: ClosedRange<CGFloat>] = [:]
@@ -50,6 +53,7 @@ final class AppMenusReveal: ObservableObject {
     /// the other as they swap, and for a moment neither reports it, so a hide
     /// waits briefly instead of firing into that gap and flickering.
     func setHovered(_ hovered: Bool, from source: Source) {
+        guard !(hovered && isSuppressed) else { return }
         let key = String(describing: source)
         if hovered { sources.insert(key) } else { sources.remove(key) }
         pendingHide?.cancel()
@@ -60,6 +64,39 @@ final class AppMenusReveal: ObservableObject {
             return
         }
         scheduleHide()
+    }
+
+    /// Holds the reveal off until the pointer has left and come back.
+    ///
+    /// Clicking a window in another workspace focuses it, which makes its pill
+    /// the new trigger, and that pill is already under the pointer because it
+    /// is what was just clicked. A tracking area reports the pointer as inside
+    /// the moment it is installed, so the menus opened straight away on top of
+    /// the workspaces, as if the click had asked for them. It had not: it asked
+    /// to switch windows. Hovering is what asks for the menus, so the next
+    /// hover has to be a real one.
+    func suppressUntilPointerLeaves() {
+        isSuppressed = true
+        setRevealed(false)
+        startSuppressionWatch()
+    }
+
+    /// The pointer leaving cannot be waited for as an event. The view carrying
+    /// the tracking area is rebuilt by the focus change itself, so the exit
+    /// that would clear this is exactly the one that never arrives.
+    private func startSuppressionWatch() {
+        suppression?.invalidate()
+        suppression = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true)
+        { [weak self] timer in
+            guard let self else {
+                timer.invalidate()
+                return
+            }
+            guard !self.isPointerInHoldRegion else { return }
+            self.isSuppressed = false
+            timer.invalidate()
+            self.suppression = nil
+        }
     }
 
     /// Forgets a trigger that is no longer on screen.
