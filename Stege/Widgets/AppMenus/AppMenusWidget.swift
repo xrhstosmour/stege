@@ -24,13 +24,21 @@ struct AppMenusWidget: View {
 
     /// When the menu titles past the application's own name are drawn.
     ///
-    /// `always` is the default and matches macOS. `hover` and `modifier` keep
-    /// the bar quiet until asked, which suits a narrow display or a menu bar
-    /// already carrying a lot of workspaces.
+    /// `always` is the default and matches macOS. The other three keep the bar
+    /// quiet until asked, which suits a narrow display or a menu bar already
+    /// carrying a lot of workspaces.
+    ///
+    /// `hover` is the one to avoid on a bar that also shows workspaces: the
+    /// menus take the workspaces' place, and the pointer has to cross the
+    /// workspaces to reach anything, so they vanish on the way and there is no
+    /// way to click another window with the mouse. `click` is the same swap
+    /// asked for deliberately, by clicking the pill of the window that is
+    /// already focused, and the workspaces stay put until then.
     enum Visibility: String {
         case always
         case hover
         case modifier
+        case click
     }
 
     var visibility: Visibility {
@@ -122,16 +130,22 @@ struct AppMenusWidget: View {
         // Told here rather than computed by the spaces widget, because a bar
         // with no app menus widget in it must never see its pills disappear.
         reveal.swapsSpaces = visibility != .always
+        reveal.togglesOnClick = visibility == .click
     }
 
     private func releaseMonitors(for visibility: Visibility) {
         if visibility == .modifier { modifiers.release() }
         reveal.swapsSpaces = false
+        reveal.togglesOnClick = false
         reveal.setRevealed(false)
     }
 
     /// The frontmost application's icon, ahead of its name, so the swapped-in
     /// row is recognisable at a glance rather than a wall of words.
+    ///
+    /// Under `click` it is also the way back. The workspaces are what was
+    /// clicked to get here and they are no longer on screen, so without this
+    /// the swap would be one-way.
     @ViewBuilder
     private var applicationIcon: some View {
         if let icon = NSWorkspace.shared.frontmostApplication?.icon {
@@ -139,6 +153,15 @@ struct AppMenusWidget: View {
                 .resizable()
                 .frame(width: 15, height: 15)
                 .padding(.leading, 4)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    guard visibility == .click else { return }
+                    reveal.setRevealed(false)
+                }
+                .help(
+                    visibility == .click
+                        ? "Show the workspaces again"
+                        : manager.applicationName)
         }
     }
 

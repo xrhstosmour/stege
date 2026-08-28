@@ -114,6 +114,11 @@ private struct WindowView: View {
     var maxLength: Int { titleConfig["max-length"]?.intValue ?? 50 }
     var alwaysDisplayAppTitleFor: [String] { titleConfig["always-display-app-name-for"]?.arrayValue?.filter({ $0.stringValue != nil }).map { $0.stringValue! } ?? [] }
 
+    /// Under `visibility = "click"` on the app menus widget, clicking the
+    /// window that is already focused swaps the workspaces for that
+    /// application's menus rather than focusing what is already focused.
+    @ObservedObject private var reveal = AppMenusReveal.shared
+
     let window: AnyWindow
     let space: AnySpace
 
@@ -167,10 +172,17 @@ private struct WindowView: View {
         .frame(height: 30)
         .contentShape(Rectangle())
         .onTapGesture {
+            if reveal.togglesOnClick, window.isFocused {
+                reveal.toggleRevealed()
+                return
+            }
             viewModel.switchToSpaceAndWindow(space, window: window)
         }
         .onHover { value in
             isHovered = value
         }
+        .help(
+            reveal.togglesOnClick && window.isFocused
+                ? "Show this application's menus" : "")
     }
 }
