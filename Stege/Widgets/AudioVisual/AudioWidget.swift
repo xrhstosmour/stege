@@ -10,9 +10,9 @@ struct AudioWidget: View {
     /// Off by default. The icon already conveys the level, and a percentage
     /// that changes width makes the whole right side of the bar shift.
     var showPercentage: Bool { config["show-percentage"]?.boolValue ?? false }
-    /// Badge the speaker when the microphone is muted. The microphone is not
-    /// drawn as a second icon: two glyphs side by side read as two separate
-    /// widgets, and output is what the control is mostly used for.
+    /// Draw the microphone half of the glyph. Off leaves the speaker on its
+    /// own, for a bar that has no room or a machine with no input device worth
+    /// showing.
     var showMicrophone: Bool { config["show-microphone"]?.boolValue ?? true }
 
     @StateObject private var manager = AudioManager()
@@ -20,19 +20,11 @@ struct AudioWidget: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            // One icon, not two. A muted microphone is worth surfacing, so it
-            // rides as a small badge on the speaker rather than claiming its
-            // own slot in the bar.
-            ZStack(alignment: .bottomTrailing) {
-                Image(systemName: speakerSymbol).font(.system(size: 12))
-
-                if showMicrophone, manager.hasInput, manager.isInputMuted {
-                    Image(systemName: "mic.slash.fill")
-                        .font(.system(size: 7, weight: .bold))
-                        .foregroundStyle(.red)
-                        .offset(x: 4, y: 3)
-                }
-            }
+            SoundGlyph(
+                level: manager.volume,
+                isOutputMuted: manager.isOutputMuted,
+                isInputMuted: manager.isInputMuted,
+                hasInput: showMicrophone && manager.hasInput)
 
             if showPercentage {
                 Text("\(Int((manager.volume * 100).rounded()))%")
@@ -58,16 +50,6 @@ struct AudioWidget: View {
         }
     }
 
-    private var speakerSymbol: String {
-        if manager.isOutputMuted || manager.volume == 0 {
-            return "speaker.slash.fill"
-        }
-        switch manager.volume {
-        case ..<0.33: return "speaker.wave.1.fill"
-        case ..<0.66: return "speaker.wave.2.fill"
-        default: return "speaker.wave.3.fill"
-        }
-    }
 }
 
 struct AudioPopup: View {
@@ -75,7 +57,7 @@ struct AudioPopup: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: PopupStyle.spacing) {
-            PopupHeader(symbol: outputSymbol, title: "Sound")
+            header
 
             HStack(spacing: 10) {
                 Image(systemName: "speaker.fill").font(.system(size: 10))
@@ -104,9 +86,21 @@ struct AudioPopup: View {
         .popupContainer(wide: true)
     }
 
-    private var outputSymbol: String {
-        manager.volume <= 0.001
-            ? "speaker.slash.fill" : "speaker.wave.2.fill"
+    /// `PopupHeader` takes one symbol name, and this header is one mark drawn
+    /// from two, so the row is laid out here with the same metrics rather than
+    /// widening that type for the only popup that needs it.
+    private var header: some View {
+        HStack(spacing: 8) {
+            SoundGlyph(
+                level: manager.volume,
+                isOutputMuted: manager.isOutputMuted,
+                isInputMuted: manager.isInputMuted,
+                hasInput: manager.hasInput,
+                size: PopupStyle.titleSize)
+            Text("Sound")
+                .font(.system(size: PopupStyle.titleSize, weight: .semibold))
+            Spacer(minLength: 8)
+        }
     }
 
     /// A level slider rather than an on/off row, so the microphone reads the

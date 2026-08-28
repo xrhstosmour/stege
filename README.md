@@ -146,7 +146,7 @@ modifier-key = "option"             # option, command, control, shift, function
 
 [widgets.default.audio]
 show-percentage = false             # the icon already conveys the level
-show-microphone = true              # badge the speaker when the microphone is muted
+show-microphone = true              # draw the microphone half of the sound glyph
 
 [widgets.default.network]
 show-name = false                   # showing the name asks for Location
