@@ -304,8 +304,9 @@ report a level. Clicking a device connects or disconnects it. `Scan` looks for d
 not paired yet and offers to pair them, and stops as soon as the popup closes, because an
 inquiry keeps the radio busy and degrades whatever is already connected.
 
-There is no power switch. macOS has no public API for turning the Bluetooth controller on and
-off, so the popup links to Bluetooth Settings for that.
+The switch in the header turns the controller on and off. macOS has no public API for that, so
+it presses the switch in Control Center's own Bluetooth panel, the same route Low Power Mode
+and Focus take.
 
 ![The Bluetooth popup](.github/assets/bluetooth.png)
 

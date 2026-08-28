@@ -40,6 +40,10 @@ final class BluetoothManager: NSObject, ObservableObject {
     /// off, so the widget cannot tell the user which one it is.
     @Published private(set) var isAuthorized = true
 
+    /// Set while the Control Center switch is being pressed, so the popup can
+    /// show that something is happening rather than looking unresponsive.
+    @Published private(set) var isSwitchingPower = false
+
     private var timer: Timer?
     /// Serialises reads so a slow one cannot overlap the next tick.
     private let queue = DispatchQueue(label: "stege.bluetooth", qos: .utility)
@@ -169,6 +173,47 @@ final class BluetoothManager: NSObject, ObservableObject {
                 self.isPoweredOn = powered
                 self.devices = connected
             }
+        }
+    }
+
+    /// Turns the radio on or off.
+    ///
+    /// There is no public API for this. `IOBluetoothPreferenceSetControllerPowerState`
+    /// is not in any published header, and the same reasoning that applies to
+    /// Low Power Mode and Focus applies here, so this presses the switch in
+    /// Control Center's own Bluetooth panel instead. `bluetooth-header` names
+    /// both that switch and the heading beside it, which is why `MenuExtra`
+    /// only ever presses an element that answers to a press.
+    ///
+    /// The press toggles rather than sets, so a request for the state the radio
+    /// is already in does nothing at all.
+    func setPower(_ on: Bool) {
+        guard !isSwitchingPower, on != isPoweredOn else { return }
+        isSwitchingPower = true
+        failure = nil
+        MenuExtra.press(.bluetooth, path: ["bluetooth-header"]) {
+            [weak self] pressed in
+            guard let self else { return }
+            self.isSwitchingPower = false
+            if !pressed {
+                self.failure = "Could not reach the Bluetooth switch"
+                return
+            }
+            self.readBackPower(until: !on, attempt: 0)
+        }
+    }
+
+    /// The radio takes a moment to come up, and the only thing watching it
+    /// otherwise is a thirty second timer, so the popup would sit on the old
+    /// answer until long after the switch had moved.
+    private func readBackPower(until previous: Bool, attempt: Int) {
+        guard attempt < 12 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            [weak self] in
+            guard let self else { return }
+            self.refresh()
+            guard self.isPoweredOn == previous else { return }
+            self.readBackPower(until: previous, attempt: attempt + 1)
         }
     }
 

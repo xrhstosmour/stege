@@ -154,6 +154,14 @@ struct BluetoothPopup: View {
             .font(.system(size: PopupStyle.titleSize, weight: .semibold))
 
             Spacer(minLength: 8)
+
+            if manager.isSwitchingPower {
+                ProgressView().controlSize(.mini)
+            } else if manager.isAuthorized {
+                PopupSwitch(isOn: manager.isPoweredOn) {
+                    manager.setPower(!manager.isPoweredOn)
+                }
+            }
         }
     }
 
