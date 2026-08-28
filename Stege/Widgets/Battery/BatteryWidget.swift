@@ -60,7 +60,29 @@ struct BatteryWidget: View {
                 BatteryPopup(manager: batteryManager)
             }
         }
+        .help(tooltip)
 
+    }
+
+    /// The charge is already on the icon, so the useful part on hover is how
+    /// long it lasts, which is the one thing the bar has no room for.
+    private var tooltip: String {
+        var parts = ["\(level)%"]
+        if isCharging {
+            parts.append("charging")
+        } else if isPluggedIn {
+            parts.append("plugged in")
+        }
+        if let minutes = batteryManager.minutesRemaining, minutes > 0 {
+            let hours = minutes / 60
+            let rest = minutes % 60
+            let time = hours > 0 ? "\(hours)h \(rest)m" : "\(rest)m"
+            parts.append(isCharging ? "\(time) until full" : "\(time) left")
+        }
+        if batteryManager.isLowPowerMode {
+            parts.append("Low Power Mode")
+        }
+        return parts.joined(separator: ", ")
     }
 
     private var batteryTextColor: Color {

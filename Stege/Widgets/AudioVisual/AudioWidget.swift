@@ -43,11 +43,32 @@ struct AudioWidget: View {
                     }
             }
         )
-        .onTapGesture {
-            MenuBarPopup.show(rect: rect, id: "audio") {
-                AudioPopup(manager: manager)
-            }
-        }
+        // Scroll and right click are the two things a sound control in a menu
+        // bar is expected to do without opening anything. All three buttons go
+        // through here rather than leaving the left one to SwiftUI, because a
+        // view sitting over a tap gesture swallows it.
+        .overlay(
+            PointerInput(
+                onClick: {
+                    MenuBarPopup.show(rect: rect, id: "audio") {
+                        AudioPopup(manager: manager)
+                    }
+                },
+                onScroll: { manager.nudgeVolume(by: Double($0) * 0.05) },
+                onRightClick: { manager.toggleOutputMute() })
+        )
+        .help(tooltip)
+    }
+
+    private var tooltip: String {
+        let level = Int((manager.volume * 100).rounded())
+        let output =
+            manager.isOutputMuted || level == 0
+            ? "Muted" : "Playing at \(level)%"
+        guard manager.hasInput else { return output }
+        return output
+            + (manager.isInputMuted
+                ? ", microphone muted" : ", microphone on")
     }
 
 }

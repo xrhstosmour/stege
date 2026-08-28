@@ -23,6 +23,18 @@ struct BluetoothWidget: View {
         }
     }
 
+    /// Which devices are on, on hover. A bare "Bluetooth" said nothing the
+    /// glyph had not already said.
+    private var tooltip: String {
+        guard manager.isAuthorized else {
+            return "Stege needs Bluetooth permission"
+        }
+        guard manager.isPoweredOn else { return "Bluetooth off" }
+        let connected = manager.devices.filter(\.isConnected)
+        guard !connected.isEmpty else { return "Bluetooth on, nothing connected" }
+        return connected.map(\.name).joined(separator: ", ")
+    }
+
     private var content: some View {
         HStack(spacing: 4) {
             // A bare lock is unidentifiable: it says something is locked but
@@ -58,10 +70,7 @@ struct BluetoothWidget: View {
                     }
             }
         )
-        .help(
-            manager.isAuthorized
-                ? "Bluetooth" : "Stege needs Bluetooth permission"
-        )
+        .help(tooltip)
         .onTapGesture {
             guard manager.isAuthorized else {
                 NSWorkspace.shared.open(

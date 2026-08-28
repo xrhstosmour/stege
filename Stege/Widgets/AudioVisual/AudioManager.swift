@@ -274,6 +274,16 @@ final class AudioManager: ObservableObject {
         return wrote ? Double(value) : nil
     }
 
+    /// Moves the level by `delta`, clamped, and unmutes on the way up.
+    ///
+    /// Scrolling a muted control up and hearing nothing would look broken, and
+    /// scrolling down to zero is the same thing the mute button does.
+    func nudgeVolume(by delta: Double) {
+        let target = min(1, max(0, volume + delta))
+        if target > 0.001, isOutputMuted { toggleOutputMute() }
+        setVolume(target)
+    }
+
     func toggleInputMute() {
         toggleMute(input: true)
     }

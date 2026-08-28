@@ -58,6 +58,30 @@ struct NetworkWidget: View {
                 NetworkPopup(viewModel: viewModel)
             }
         }
+        .help(tooltip)
+    }
+
+    /// What the icon cannot say on its own, on hover: which network, and on
+    /// which band. The name is not put in the bar by default because reading
+    /// it needs Location permission, so this is where it shows up for anyone
+    /// who has granted it.
+    private var tooltip: String {
+        if viewModel.ethernetState == .connected,
+            viewModel.wifiState != .connected
+        {
+            return "Ethernet, connected"
+        }
+        switch viewModel.wifiState {
+        case .connected:
+            return viewModel.channel == "N/A"
+                ? viewModel.ssid : "\(viewModel.ssid) · \(viewModel.channel)"
+        case .connectedWithoutInternet:
+            return "\(viewModel.ssid), no internet"
+        case .connecting: return "Connecting…"
+        case .disconnected: return "Not connected"
+        case .disabled: return "Wi-Fi off"
+        case .notSupported: return "No Wi-Fi"
+        }
     }
 
     private var wifiIcon: some View {
