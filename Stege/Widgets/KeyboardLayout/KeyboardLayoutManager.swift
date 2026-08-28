@@ -13,7 +13,9 @@ struct KeyboardInputSource: Identifiable {
 /// The current keyboard input source, and the ones that can be switched to.
 ///
 /// Event-driven: the text input system posts a distributed notification when the
-/// selected source changes, which is the only moment this value can move.
+/// selected source changes, which is the only moment this value can move. The
+/// notification is early rather than late, though, so every read it triggers is
+/// followed up until the new source actually appears. See `readBack`.
 final class KeyboardLayoutManager: ObservableObject {
     @Published private(set) var abbreviation: String = ""
     @Published private(set) var name: String = ""
@@ -31,7 +33,14 @@ final class KeyboardLayoutManager: ObservableObject {
                 kTISNotifySelectedKeyboardInputSourceChanged as String),
             object: nil, queue: .main
         ) { [weak self] _ in
-            self?.refresh()
+            guard let self else { return }
+            // Same race as a switch made from the popup, and for the same
+            // reason: the notification runs ahead of this process's own copy
+            // of the answer. Pressing caps lock or the shortcut left the bar
+            // showing the source that had just been replaced.
+            let previous = self.currentID
+            self.refresh()
+            self.readBack(until: previous, attempt: 0)
         }
     }
 
@@ -43,6 +52,15 @@ final class KeyboardLayoutManager: ObservableObject {
 
     private func refresh() {
         sources = Self.selectableSources()
+        refreshCurrent()
+    }
+
+    /// Only which source is selected, not the whole enabled list.
+    ///
+    /// `readBack` calls this repeatedly, and re-enumerating every input source
+    /// each time would republish a list that cannot have changed and redraw
+    /// the popup along with it.
+    private func refreshCurrent() {
         guard let source = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue()
         else { return }
         name = Self.string(from: source, key: kTISPropertyLocalizedName) ?? ""
@@ -58,18 +76,28 @@ final class KeyboardLayoutManager: ObservableObject {
     /// triggers returns the source that was just replaced and the bar goes on
     /// showing it. Switching to `ABC` from the popup left the bar reading `EL`
     /// indefinitely while the system was already on `ABC`. So the change is
-    /// also read back a few times afterwards, stopping as soon as it lands.
+    /// also read back afterwards, stopping as soon as it lands.
     func select(_ source: KeyboardInputSource) {
         let previous = currentID
         TISSelectInputSource(source.source)
         readBack(until: previous, attempt: 0)
     }
 
+    /// Re-reads the current source until it stops being `previous`.
+    ///
+    /// Twenty attempts a tenth of a second apart, so two seconds. Six was
+    /// enough for a switch made from the popup, where this process is the one
+    /// doing the switching, and not for one made with the keyboard while
+    /// another application is frontmost: the cache is invalidated on that
+    /// application's schedule, not on ours, and the bar was left stale for the
+    /// rest of the session. Each attempt is one `TISCopyCurrentKeyboardInputSource`
+    /// call, and the chain stops the moment the answer changes, so the usual
+    /// cost is one or two.
     private func readBack(until previous: String, attempt: Int) {
-        guard attempt < 6 else { return }
+        guard attempt < 20 else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
             guard let self else { return }
-            self.refresh()
+            self.refreshCurrent()
             guard self.currentID == previous else { return }
             self.readBack(until: previous, attempt: attempt + 1)
         }
