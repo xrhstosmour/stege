@@ -116,7 +116,7 @@ Every widget, and what it shows:
 | `default.monitor` | CPU, memory, and optionally network throughput |
 | `default.privacy` | Microphone and camera in-use indicators |
 | `default.stayawake` | A cup, while something is keeping the display awake |
-| `default.notifications` | A bell opening macOS's own Notification Center |
+| `default.notifications` | A bell listing the Focus modes and switching between them |
 | `default.audio` | Output volume, with a microphone badge when muted |
 | `default.keyboardlayout` | The current input source, with a popup for switching between the enabled ones |
 | `default.bluetooth` | Bluetooth state and connected device battery |
@@ -267,14 +267,18 @@ it, and the next connection to that network needs no password at all.
 
 ### Notifications
 
-A bell that opens macOS's own Notification Center, with its list, its per-notification dismiss
-and its Clear All. Stege does not redraw any of it: there is no public API for the notification
-list, and the private database behind it would mean holding Full Disk Access, which also grants
-read access to Mail, Messages and browser data. `show-control-centre` adds a second control for
-Control Center.
+A bell whose popup lists every Focus, including any you have made yourself, and switches
+between them.
 
-The popup does list every Focus, including any you have made yourself, and switches between
-them, both through Control Center's own controls. `~/Library/DoNotDisturb/DB`, where macOS
+It does not show the notifications and it does not open Notification Center. There is no public
+API for the notification list, and the private database behind it would mean holding Full Disk
+Access, which also grants read access to Mail, Messages and browser data. Handing off to
+Notification Center is no better: it slides over the screen and takes the popup with it, so the
+two are never usefully on screen together, and the trackpad gesture and the shortcut in
+Keyboard settings already do it without a row here. `show-control-centre` adds a second control
+for Control Center.
+
+The Focus list and the switching both go through Control Center's own controls. `~/Library/DoNotDisturb/DB`, where macOS
 keeps the state, turns out to need Full Disk Access, and the private `DoNotDisturb` framework
 answers only callers holding an Apple-issued entitlement, so Control Center is the only route
 left.
