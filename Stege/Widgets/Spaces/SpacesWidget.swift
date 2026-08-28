@@ -79,6 +79,9 @@ private struct SpaceView: View {
         .shadow(color: .shadow, radius: foregroundHeight < 30 ? 0 : 2)
         .transition(.blurReplace)
         .onTapGesture {
+            // Switching is what was asked for, not the menus of whatever ends
+            // up focused underneath the pointer afterwards.
+            AppMenusReveal.shared.suppressUntilPointerLeaves()
             viewModel.switchToSpace(space, needWindowFocus: true)
         }
         .animation(.smooth, value: isHovered)
@@ -198,6 +201,7 @@ private struct WindowView: View {
                 reveal.toggleRevealed()
                 return
             }
+            reveal.suppressUntilPointerLeaves()
             viewModel.switchToSpaceAndWindow(space, window: window)
         }
         .onHover { value in
