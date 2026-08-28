@@ -55,40 +55,51 @@ struct AudioWidget: View {
 struct AudioPopup: View {
     @ObservedObject var manager: AudioManager
 
+    /// Output and input as two matching blocks, rather than one slider, two
+    /// device lists and then a second slider stranded at the bottom under a
+    /// divider. Each block is the same three things in the same order: what it
+    /// is, how loud it is, and which device it is using. The two halves of the
+    /// widget then read the same way as the one glyph that stands for them.
     var body: some View {
         VStack(alignment: .leading, spacing: PopupStyle.spacing) {
             header
 
-            HStack(spacing: 10) {
-                Image(systemName: "speaker.fill").font(.system(size: 10))
-                Slider(
-                    value: Binding(
-                        get: { manager.volume },
-                        set: { manager.setVolume($0) }
-                    ), in: 0...1)
-                Image(systemName: "speaker.wave.3.fill").font(.system(size: 10))
+            section(
+                title: "Output",
+                symbol: manager.isOutputMuted || manager.volume <= 0.001
+                    ? "speaker.slash.fill" : "speaker.wave.2.fill",
+                isMuted: manager.isOutputMuted,
+                level: manager.volume,
+                setLevel: { manager.setVolume($0) },
+                toggleMute: { manager.toggleOutputMute() },
+                devices: manager.outputDevices,
+                selected: manager.currentOutputID,
+                input: false)
+
+            if manager.hasInput {
+                section(
+                    title: "Input",
+                    symbol: manager.isInputMuted ? "mic.slash.fill" : "mic.fill",
+                    isMuted: manager.isInputMuted,
+                    level: manager.inputVolume,
+                    setLevel: { manager.setInputVolume($0) },
+                    toggleMute: { manager.toggleInputMute() },
+                    devices: manager.inputDevices,
+                    selected: manager.currentInputID,
+                    input: true)
             }
-            .popupStaticRow()
 
-            deviceSection(
-                title: "Output", devices: manager.outputDevices,
-                selected: manager.currentOutputID, input: false)
+            Divider()
 
-            if !manager.inputDevices.isEmpty {
-                deviceSection(
-                    title: "Input", devices: manager.inputDevices,
-                    selected: manager.currentInputID, input: true)
-
-                Divider()
-                microphoneLevel
+            PopupSettingsRow(title: "Sound Settings") {
+                openSettings(
+                    "x-apple.systempreferences:com.apple.Sound-Settings.extension"
+                )
             }
         }
         .popupContainer(wide: true)
     }
 
-    /// `PopupHeader` takes one symbol name, and this header is one mark drawn
-    /// from two, so the row is laid out here with the same metrics rather than
-    /// widening that type for the only popup that needs it.
     private var header: some View {
         HStack(spacing: 8) {
             SoundGlyph(
@@ -103,69 +114,74 @@ struct AudioPopup: View {
         }
     }
 
-    /// A level slider rather than an on/off row, so the microphone reads the
-    /// same way as output. Devices that expose no settable gain, most USB and
-    /// Bluetooth microphones, fall back to the mute toggle, since a slider that
-    /// cannot move is worse than no slider.
+    /// One half of the popup.
+    ///
+    /// `level` is optional because an input device need not expose a settable
+    /// gain, which is true of most USB and Bluetooth microphones. Those get a
+    /// muted or not line in the slider's place, since a slider that cannot move
+    /// is worse than no slider.
     @ViewBuilder
-    private var microphoneLevel: some View {
-        if let level = manager.inputVolume {
-            HStack(spacing: 10) {
-                microphoneGlyph
-                Slider(
-                    value: Binding(
-                        get: { level },
-                        set: { manager.setInputVolume($0) }
-                    ), in: 0...1
-                )
-                .disabled(manager.isInputMuted)
-                .opacity(manager.isInputMuted ? 0.4 : 1)
-            }
-            .popupStaticRow()
-        } else {
-            HStack(spacing: 10) {
-                microphoneGlyph
-                Text(
-                    manager.isInputMuted
-                        ? "Microphone muted" : "Microphone on"
-                )
-                .font(.system(size: PopupStyle.bodySize))
-                Spacer(minLength: 12)
-            }
-            .popupRow { manager.toggleInputMute() }
-        }
-    }
-
-    private var microphoneGlyph: some View {
-        Image(systemName: manager.isInputMuted ? "mic.slash.fill" : "mic.fill")
-            .font(.system(size: PopupStyle.captionSize))
-            .foregroundStyle(manager.isInputMuted ? .red : .primary)
-            .frame(width: 14)
-            .contentShape(Rectangle())
-            .onTapGesture { manager.toggleInputMute() }
-    }
-
-    @ViewBuilder
-    private func deviceSection(
-        title: String, devices: [AudioDevice], selected: AudioObjectID,
-        input: Bool
+    private func section(
+        title: String, symbol: String, isMuted: Bool, level: Double?,
+        setLevel: @escaping (Double) -> Void, toggleMute: @escaping () -> Void,
+        devices: [AudioDevice], selected: AudioObjectID, input: Bool
     ) -> some View {
         VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
             PopupSectionTitle(title).popupStaticRow()
-            ForEach(devices) { device in
-                HStack(spacing: 10) {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 10, weight: .semibold))
-                        .opacity(device.id == selected ? 1 : 0)
-                        .frame(width: PopupStyle.iconColumn)
-                    Text(device.name)
+
+            HStack(spacing: 10) {
+                // The glyph is the mute button. macOS puts mute on the same
+                // icon, and a separate switch for it would be a fourth control
+                // in a row that already has three.
+                Image(systemName: symbol)
+                    .font(.system(size: PopupStyle.bodySize))
+                    .foregroundStyle(isMuted ? Color.red : Color.primary)
+                    .frame(width: PopupStyle.iconColumn)
+                    .contentShape(Rectangle())
+                    .onTapGesture(perform: toggleMute)
+                    .help(isMuted ? "Unmute" : "Mute")
+
+                if let level {
+                    Slider(
+                        value: Binding(get: { level }, set: setLevel), in: 0...1
+                    )
+                    .disabled(isMuted)
+                    .opacity(isMuted ? 0.4 : 1)
+
+                    Text("\(Int((level * 100).rounded()))%")
+                        .font(.system(size: PopupStyle.captionSize))
+                        .monospacedDigit()
+                        .opacity(0.6)
+                        .frame(width: 32, alignment: .trailing)
+                } else {
+                    Text(isMuted ? "Muted" : "On")
                         .font(.system(size: PopupStyle.bodySize))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                        .opacity(0.7)
                     Spacer(minLength: 8)
                 }
-                .popupRow { manager.selectDevice(device, input: input) }
+            }
+            .popupStaticRow()
+
+            ForEach(devices) { device in
+                deviceRow(device, selected: selected, input: input)
             }
         }
+    }
+
+    private func deviceRow(
+        _ device: AudioDevice, selected: AudioObjectID, input: Bool
+    ) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "checkmark")
+                .font(.system(size: 10, weight: .semibold))
+                .opacity(device.id == selected ? 1 : 0)
+                .frame(width: PopupStyle.iconColumn)
+            Text(device.name)
+                .font(.system(size: PopupStyle.bodySize))
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Spacer(minLength: 8)
+        }
+        .popupRow { manager.selectDevice(device, input: input) }
     }
 }
