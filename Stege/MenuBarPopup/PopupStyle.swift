@@ -20,12 +20,63 @@ enum PopupStyle {
     static let rowSpacing: CGFloat = 2
     static let rowRadius: CGFloat = 6
 
+    /// The corner radius of the popup pane itself.
+    ///
+    /// This was 40, on a pane 260 points wide, so the curve ate most of the
+    /// top and bottom edges and the first and last rows sat inside a lens
+    /// rather than a panel. macOS menus round to about this much.
+    static let cornerRadius: CGFloat = 13
+
     static let titleSize: CGFloat = 13
     static let bodySize: CGFloat = 12
     static let captionSize: CGFloat = 11
     /// Every row's leading icon is laid out in the same column, so the labels
     /// line up whether or not a given row has one.
     static let iconColumn: CGFloat = 16
+}
+
+/// The pane every popup is drawn on.
+///
+/// Flat black read as a hole punched in the desktop rather than a panel
+/// floating over it, which is the opposite of what the Dock and every system
+/// menu do. This is the same construction they use: the backdrop blurred by a
+/// material, darkened so text stays legible over a bright wallpaper, a sheen
+/// falling off from the top edge, and a hairline that catches light at the top
+/// and fades by the bottom.
+struct PopupSurface: View {
+    var cornerRadius: CGFloat = PopupStyle.cornerRadius
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+    }
+
+    var body: some View {
+        shape
+            .fill(.ultraThinMaterial)
+            // The material alone is far too light over a pale desktop, and the
+            // popups draw white text.
+            .overlay { shape.fill(Color.black.opacity(0.42)) }
+            .overlay {
+                shape.fill(
+                    LinearGradient(
+                        stops: [
+                            .init(color: .white.opacity(0.11), location: 0),
+                            .init(color: .white.opacity(0.03), location: 0.35),
+                            .init(color: .clear, location: 1),
+                        ],
+                        startPoint: .top, endPoint: .bottom))
+            }
+            .overlay {
+                shape.strokeBorder(
+                    LinearGradient(
+                        colors: [
+                            .white.opacity(0.24),
+                            .white.opacity(0.06),
+                        ],
+                        startPoint: .top, endPoint: .bottom),
+                    lineWidth: 1)
+            }
+    }
 }
 
 extension View {
