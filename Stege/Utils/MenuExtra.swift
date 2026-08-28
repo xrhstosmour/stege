@@ -40,6 +40,29 @@ enum MenuExtra {
             == .success
     }
 
+    /// Presses a status item belonging to some other application.
+    ///
+    /// Used by the row of menu bar extras, where the element comes from that
+    /// application's own `AXExtrasMenuBar` rather than from `Identifier`.
+    ///
+    /// Two differences from the presses above. The panel is left open, because
+    /// opening that application's menu is the whole point rather than a step on
+    /// the way to a control. And the pointer stays where the item is instead of
+    /// going back: the menu opens anchored to the item, so leaving the pointer
+    /// there puts it on the menu that just appeared, and on a menu bar set to
+    /// hide, moving away is what would send it back up underneath.
+    static func press(
+        element: AXUIElement, completion: @escaping (Bool) -> Void = { _ in }
+    ) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            _ = revealMenuBarIfHidden(for: element)
+            let pressed =
+                AXUIElementPerformAction(element, kAXPressAction as CFString)
+                == .success
+            DispatchQueue.main.async { completion(pressed) }
+        }
+    }
+
     /// Opens an extra's panel and presses a control inside it.
     ///
     /// `path` is a chain, because some controls sit behind another one: the

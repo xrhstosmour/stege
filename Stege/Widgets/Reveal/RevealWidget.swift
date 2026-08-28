@@ -1,21 +1,40 @@
 import SwiftUI
 
-/// A chevron that gets Stege out of the way so the real macOS menu bar, and
-/// every third-party status item on it, becomes reachable.
+/// A chevron that brings back what hiding the real menu bar took away.
 ///
-/// Two modes. `sticky`, the default, collapses the bar until it is expanded
-/// again, and leaves a small button at the corner of the screen to do that
-/// with. The bar staying put is what makes a status item usable: its menu opens
-/// below the menu bar, and a bar that came back on pointer movement would land
-/// on top of it. Setting `sticky = false` restores the older behaviour, where
-/// the bar returns once the pointer travels far enough down or a timeout
-/// expires.
+/// Two modes.
+///
+/// `extras`, the default, appends the other applications' status items to the
+/// bar: 1Password, Docker, Dropbox and the rest, drawn as their own icons and
+/// pressed for real when clicked. Nothing leaves the screen and Stege's own
+/// widgets stay where they are. See `MenuBarExtrasReader` for how the items are
+/// found without screenshotting them.
+///
+/// `collapse` is the older behaviour, where the bar gets out of the way so the
+/// real menu bar underneath becomes reachable. It is the fallback for anything
+/// the Accessibility route cannot reach. `sticky` keeps it out of the way until
+/// it is expanded again, leaving a small button in the middle of the menu bar
+/// to do that with, and `sticky = false` brings it back once the pointer
+/// travels far enough down or a timeout expires.
 struct RevealWidget: View {
     @EnvironmentObject var configProvider: ConfigProvider
     var config: ConfigData { configProvider.config }
 
+    enum Mode: String {
+        case extras
+        case collapse
+    }
+
+    var mode: Mode {
+        Mode(rawValue: config["mode"]?.stringValue ?? "extras") ?? .extras
+    }
+
+    var iconSize: CGFloat {
+        CGFloat(config["icon-size"]?.intValue ?? 15)
+    }
+
     /// Stay out of the way until pressed again, rather than coming back on
-    /// pointer movement.
+    /// pointer movement. `collapse` only.
     var sticky: Bool { config["sticky"]?.boolValue ?? true }
     /// How far the pointer must move down before the bar returns. Unused in
     /// sticky mode.
@@ -27,23 +46,98 @@ struct RevealWidget: View {
     var timeout: Double { Double(config["timeout"]?.intValue ?? 10) }
 
     private let visibility = BarVisibility.shared
+    @ObservedObject private var reader = MenuBarExtrasReader.shared
+    @State private var isShowingExtras = false
 
     var body: some View {
-        Image(systemName: sticky ? "chevron.left" : "chevron.right")
+        HStack(spacing: 6) {
+            chevron
+            if mode == .extras, isShowingExtras {
+                extras
+            }
+        }
+        .animation(.smooth(duration: 0.2), value: isShowingExtras)
+        .animation(.smooth(duration: 0.2), value: reader.items.count)
+    }
+
+    private var chevron: some View {
+        Image(systemName: chevronSymbol)
             .font(.system(size: 11, weight: .semibold))
-            .padding(.horizontal, 6)
+            .padding(.horizontal, 4)
             .frame(maxHeight: .infinity)
             .contentShape(Rectangle())
             .background(.black.opacity(0.001))
-            .onTapGesture {
-                if sticky {
-                    visibility.toggleCollapsed()
-                } else {
-                    visibility.hide(
-                        returnThreshold: returnThreshold, timeout: timeout)
+            .onTapGesture(perform: toggle)
+            .help(helpText)
+    }
+
+    private var chevronSymbol: String {
+        switch mode {
+        case .extras: return isShowingExtras ? "chevron.left" : "chevron.right"
+        case .collapse: return sticky ? "chevron.left" : "chevron.right"
+        }
+    }
+
+    private var helpText: String {
+        switch mode {
+        case .extras:
+            return isShowingExtras
+                ? "Hide the other menu bar items"
+                : "Show the other menu bar items"
+        case .collapse:
+            return "Show the system menu bar"
+        }
+    }
+
+    private func toggle() {
+        switch mode {
+        case .extras:
+            if !isShowingExtras {
+                reader.startWatching()
+                reader.refresh()
+            }
+            isShowingExtras.toggle()
+        case .collapse:
+            if sticky {
+                visibility.toggleCollapsed()
+            } else {
+                visibility.hide(
+                    returnThreshold: returnThreshold, timeout: timeout)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var extras: some View {
+        if !reader.isTrusted {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 10))
+                .help("Stege needs Accessibility permission to read these")
+        } else if reader.items.isEmpty {
+            Text("None")
+                .font(.system(size: 11))
+                .opacity(0.5)
+        } else {
+            HStack(spacing: 6) {
+                ForEach(reader.items) { item in
+                    extraIcon(item)
                 }
             }
-            .help("Show the system menu bar")
+        }
+    }
+
+    private func extraIcon(_ item: MenuBarExtraItem) -> some View {
+        Group {
+            if let icon = item.icon {
+                Image(nsImage: icon).resizable()
+            } else {
+                Image(systemName: "app.dashed").resizable()
+            }
+        }
+        .frame(width: iconSize, height: iconSize)
+        .contentShape(Rectangle())
+        .onTapGesture { reader.press(item) }
+        .help(item.name)
     }
 }
 

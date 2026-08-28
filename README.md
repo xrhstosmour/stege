@@ -112,7 +112,7 @@ Every widget, and what it shows:
 | `default.applemenu` | The Apple logo, opening the real Apple menu |
 | `default.spaces` | Window manager workspaces, with an icon per window |
 | `default.appmenus` | The frontmost app's menus |
-| `default.reveal` | A chevron that gets the bar out of the way of the real macOS menu bar |
+| `default.reveal` | A chevron that appends the other applications' menu bar items to the bar |
 | `default.monitor` | CPU, memory, and optionally network throughput |
 | `default.privacy` | Microphone and camera in-use indicators |
 | `default.stayawake` | A cup, while something is keeping the display awake |
@@ -177,19 +177,30 @@ view-variant = "vertical"
 every third-party status item on it reachable. The file is watched, so it takes effect as soon
 as you save, with no restart.
 
-The `default.reveal` chevron does the same thing from the bar. It collapses Stege and leaves a
-small button in the middle of the menu bar, just left of the notch on a display that has one,
-which expands it again. The middle because both ends are taken: the Apple menu is at one and
-the status items this just uncovered are at the other. Everything macOS
-puts on its own menu bar, including every status item Stege does not draw, is usable in
-between. It stays collapsed until that button is pressed, because a status item's menu opens
-below the menu bar and a bar that came back on its own would land on top of it.
+The `default.reveal` chevron works from the bar and has two modes.
+
+`extras`, the default, appends the other applications' status items to the bar: 1Password,
+Docker, Dropbox and whatever else is running, each as its own icon. Clicking one presses the
+real item, so that application opens its real menu. Nothing is screenshotted and no window is
+moved. Every application publishes its status item through the Accessibility API, under
+`AXExtrasMenuBar`, so the item can be found, ordered the way macOS orders it, and pressed,
+using the same permission the app menus already need. Bartender and Ice take a picture of each
+item instead, which costs a Screen Recording grant and a capture every time an icon changes.
+
+`collapse` is the older behaviour. It takes Stege away so the real menu bar underneath becomes
+reachable, and leaves a small button in the middle of the menu bar, just left of the notch on a
+display that has one, to bring it back. The middle because both ends are taken: the Apple menu
+is at one and the status items this just uncovered are at the other. It stays collapsed until
+that button is pressed, because a status item's menu opens below the menu bar and a bar that
+came back on its own would land on top of it.
 
 ```toml
 [widgets.default.reveal]
-sticky = true          # false: come back on pointer movement instead of on a second press
-return-threshold = 80  # `sticky = false` only: points the pointer must travel down
-timeout = 10           # `sticky = false` only: seconds before the bar returns anyway
+mode = "extras"        # or "collapse"
+icon-size = 15         # `extras` only: how big the appended icons are drawn
+sticky = true          # `collapse` only, false: come back on pointer movement
+return-threshold = 80  # `collapse` and `sticky = false` only: points the pointer must drop
+timeout = 10           # `collapse` and `sticky = false` only: seconds before it returns
 ```
 
 `toggle-shortcut` gives you the same switch from the keyboard, anywhere:
