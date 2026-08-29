@@ -25,7 +25,6 @@ enum MenuExtra {
         case notificationCentre = "com.apple.menuextra.clock"
         case controlCentre = "com.apple.menuextra.controlcenter"
         case battery = "com.apple.menuextra.battery"
-        case bluetooth = "com.apple.menuextra.bluetooth"
     }
 
     /// Whether the extra exists and can be pressed, so a widget can say the
