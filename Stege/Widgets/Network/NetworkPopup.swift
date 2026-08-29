@@ -21,12 +21,12 @@ struct NetworkPopup: View {
             if viewModel.wifiState != .notSupported {
                 current
                 details
-                Divider()
+                PopupSeparator()
                 nearby
             }
 
             if viewModel.ethernetState != .notSupported {
-                Divider()
+                PopupSeparator()
                 HStack(spacing: 10) {
                     Image(systemName: ethernetSymbol)
                         .font(.system(size: PopupStyle.bodySize))

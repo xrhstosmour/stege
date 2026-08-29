@@ -110,7 +110,7 @@ struct AudioPopup: View {
                     input: true)
             }
 
-            Divider()
+            PopupSeparator()
 
             PopupSettingsRow(title: "Sound Settings") {
                 openSettings(
@@ -133,6 +133,7 @@ struct AudioPopup: View {
                 .font(.system(size: PopupStyle.titleSize, weight: .semibold))
             Spacer(minLength: 8)
         }
+        .padding(.horizontal, PopupStyle.rowHorizontalPadding)
     }
 
     /// One half of the popup.
