@@ -116,7 +116,7 @@ Every widget, and what it shows:
 | `default.monitor` | CPU, memory, and optionally network throughput |
 | `default.privacy` | Microphone and camera in-use indicators |
 | `default.stayawake` | A cup, while something is keeping the display awake |
-| `default.notifications` | A bell listing the Focus modes and switching between them |
+| `default.notifications` | A bell listing recent notifications and the Focus modes |
 | `default.audio` | Output volume, with a microphone badge when muted |
 | `default.keyboardlayout` | The current input source, with a popup for switching between the enabled ones |
 | `default.bluetooth` | Bluetooth state and connected device battery |
@@ -314,8 +314,17 @@ it, and the next connection to that network needs no password at all.
 
 ### Notifications
 
-A bell whose popup lists every Focus, including any you have made yourself, and switches
-between them.
+A bell whose popup lists the notifications that have come in and every Focus, including any you
+have made yourself.
+
+The notification list is Stege's own. macOS's list is not readable: there is no public API, the
+database it used to live in is gone on macOS 26 and the group container that held it is empty,
+and the only place it appears is inside the Notification Center panel's accessibility tree,
+which exists only while that panel is on screen. Scraping it would mean throwing the real panel
+open over a third of the display on every refresh. What is readable is a notification
+*arriving*, because Notification Center draws each banner as a window in its own process, so the
+bar watches for those and keeps what it reads. Two limits follow, and the popup says both: the
+list starts when Stege starts, and Clear empties Stege's list rather than macOS's.
 
 It does not show the notifications and it does not open Notification Center. There is no public
 API for the notification list, and the private database behind it would mean holding Full Disk
