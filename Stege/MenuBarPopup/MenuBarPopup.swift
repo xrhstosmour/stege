@@ -22,6 +22,11 @@ class HidingPanel: NSPanel, NSWindowDelegate {
     }
 
     func windowDidResignKey(_ notification: Notification) {
+        // A popup that is in the middle of driving one of macOS's own panels
+        // is not being dismissed, it is waiting. Notification Center and
+        // Control Center both take key while they are open, so without this
+        // the popup that asked for the read is the thing the read closes.
+        guard !MenuBarPopup.isDrivingSystemPanel else { return }
         NotificationCenter.default.post(name: .willHideWindow, object: nil)
         hideTimer = Timer.scheduledTimer(
             withTimeInterval: TimeInterval(
@@ -35,6 +40,26 @@ class HidingPanel: NSPanel, NSWindowDelegate {
 
 class MenuBarPopup {
     static var lastContentIdentifier: String? = nil
+
+    /// Set while a popup is reading or pressing something inside one of
+    /// macOS's own panels. See `HidingPanel.windowDidResignKey`.
+    private(set) static var isDrivingSystemPanel = false
+
+    /// Wraps work that opens a system panel, so the popup behind it neither
+    /// disappears while it runs nor stays dead afterwards.
+    ///
+    /// `end` puts the popup back in front, because the panel it was waiting on
+    /// took key and giving it back is not automatic: without it the popup stays
+    /// on screen but stops responding to anything.
+    static func beginSystemPanelInteraction() {
+        isDrivingSystemPanel = true
+    }
+
+    static func endSystemPanelInteraction() {
+        isDrivingSystemPanel = false
+        guard let panel, panel.isVisible else { return }
+        panel.makeKeyAndOrderFront(nil)
+    }
 
     /// The screen the popup is currently being shown on. Read by
     /// `MenuBarPopupView` to keep the popup inside that display's edges rather
