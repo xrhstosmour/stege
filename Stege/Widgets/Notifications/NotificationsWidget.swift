@@ -3,22 +3,13 @@ import SwiftUI
 
 /// A bell opening a popup in the bar's own style.
 ///
-/// The popup does not list the notifications themselves. macOS has no public
-/// API for that, and the only source is a private SQLite database in a
-/// TCC-protected group container, which would mean holding Full Disk Access.
-/// That permission also grants read access to Mail, Messages and browser data,
-/// which is far more than a menu bar widget should ask for.
+/// It lists the notifications macOS is holding, and switches Focus. Both come
+/// out of the system's own accessibility tree rather than from a file or a
+/// picture of the screen. See `NotificationCenterReader` and `FocusReader`.
 ///
-/// It does not open Notification Center either. It used to, and a row whose
-/// whole job is to hand off to the panel the bar was meant to replace is not
-/// worth a row: pressing it slides Notification Center over the screen and the
-/// popup underneath it disappears, so the two are never usefully on screen
-/// together. The trackpad gesture and the shortcut in Keyboard settings both
-/// still open it, and neither goes through here.
-///
-/// What the popup does is list the Focus modes and switch between them,
-/// through Control Center's own controls. See `FocusReader` for why that is the
-/// only route.
+/// There is no row that opens Notification Center. There used to be, and a row
+/// whose whole job is to hand off to the panel the bar was meant to replace is
+/// not worth a row.
 struct NotificationsWidget: View {
     @EnvironmentObject var configProvider: ConfigProvider
     var config: ConfigData { configProvider.config }
@@ -31,7 +22,7 @@ struct NotificationsWidget: View {
     }
 
     @StateObject private var focus = FocusReader()
-    @ObservedObject private var log = NotificationLog.shared
+    @ObservedObject private var centre = NotificationCenterReader.shared
     @State private var rect: CGRect = .zero
 
     var body: some View {
@@ -43,7 +34,7 @@ struct NotificationsWidget: View {
             // A dot for anything unread, the way every notification icon
             // anywhere says there is something to look at.
             .overlay(alignment: .topTrailing) {
-                if !log.entries.isEmpty {
+                if centre.hasAny {
                     Circle()
                         .fill(Color.accentColor)
                         .frame(width: 5, height: 5)
@@ -58,8 +49,9 @@ struct NotificationsWidget: View {
                 // Control Center panel, which is not something to do every
                 // time the bell is clicked.
                 focus.refreshIfNeeded()
+                centre.refresh()
                 MenuBarPopup.show(rect: rect, id: "notifications") {
-                    NotificationsPopup(focus: focus, log: log)
+                    NotificationsPopup(focus: focus, centre: centre)
                 }
             }
 
@@ -80,16 +72,15 @@ struct NotificationsWidget: View {
                     }
             }
         )
-        .onAppear { log.start() }
+        .onAppear { centre.startWatching() }
     }
 
     private var helpText: String {
         if let focusName = focus.activeFocus { return focusName }
-        let count = log.entries.count
-        switch count {
-        case 0: return "Notifications"
+        switch centre.notifications.count {
+        case 0: return centre.hasAny ? "New notification" : "Notifications"
         case 1: return "1 notification"
-        default: return "\(count) notifications"
+        case let count: return "\(count) notifications"
         }
     }
 
@@ -108,7 +99,7 @@ struct NotificationsWidget: View {
 
 struct NotificationsPopup: View {
     @ObservedObject var focus: FocusReader
-    @ObservedObject var log: NotificationLog
+    @ObservedObject var centre: NotificationCenterReader
 
     var body: some View {
         VStack(alignment: .leading, spacing: PopupStyle.spacing) {
@@ -180,65 +171,83 @@ struct NotificationsPopup: View {
         .popupContainer()
     }
 
-    /// What has come in since Stege started.
+    /// The notifications macOS is holding, read out of Notification Center.
     ///
-    /// Not macOS's list, which cannot be read, and Clear empties this one
-    /// rather than macOS's, which cannot be written. Both of those are said on
-    /// screen rather than left to be discovered.
+    /// Clear and the per-row dismissal are Notification Center's own, so this
+    /// list and the system's cannot drift apart.
     @ViewBuilder
     private var notifications: some View {
         VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
-            PopupSectionTitle(title: "Recent") {
-                if !log.entries.isEmpty {
-                    Text("Clear")
+            PopupSectionTitle(title: "Notifications") {
+                if centre.isReading {
+                    ProgressView().controlSize(.mini)
+                } else if !centre.notifications.isEmpty {
+                    Text("Clear All")
                         .font(.system(size: PopupStyle.captionSize))
                         .opacity(0.6)
                         .contentShape(Rectangle())
-                        .onTapGesture { log.clear() }
-                        .help("Empties Stege's list, not Notification Center")
+                        .onTapGesture { centre.clearAll() }
                 }
             }
             .popupStaticRow()
 
-            if !log.isTrusted {
+            if !centre.isTrusted {
                 Text("Needs Accessibility permission")
                     .font(.system(size: PopupStyle.bodySize))
                     .opacity(0.6)
                     .popupStaticRow()
-            } else if log.entries.isEmpty {
-                Text("Nothing since Stege started")
+            } else if let failure = centre.failure {
+                Text(failure)
+                    .font(.system(size: PopupStyle.captionSize))
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .popupStaticRow()
+            } else if centre.notifications.isEmpty {
+                Text(centre.isReading ? "Reading\u{2026}" : "No notifications")
                     .font(.system(size: PopupStyle.bodySize))
                     .opacity(0.6)
                     .popupStaticRow()
             } else {
-                ForEach(log.entries.prefix(8)) { entry in
+                ForEach(centre.notifications.prefix(8)) { entry in
                     notificationRow(entry)
                 }
             }
         }
     }
 
-    private func notificationRow(_ entry: NotificationEntry) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(entry.title)
-                    .font(.system(size: PopupStyle.bodySize, weight: .medium))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                if !entry.body.isEmpty {
-                    Text(entry.body)
-                        .font(.system(size: PopupStyle.captionSize))
-                        .opacity(0.7)
-                        .lineLimit(2)
-                }
+    private func notificationRow(_ entry: SystemNotification) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            HStack(spacing: 6) {
+                Text(entry.application)
+                    .font(
+                        .system(size: PopupStyle.captionSize, weight: .semibold)
+                    )
+                    .opacity(0.6)
+                Spacer(minLength: 4)
+                Text(entry.time)
+                    .font(.system(size: PopupStyle.captionSize))
+                    .opacity(0.5)
             }
-            Spacer(minLength: 8)
-            Text(entry.date, style: .time)
-                .font(.system(size: PopupStyle.captionSize))
-                .monospacedDigit()
-                .opacity(0.5)
+            Text(entry.title)
+                .font(.system(size: PopupStyle.bodySize, weight: .medium))
+                .lineLimit(1)
+                .truncationMode(.tail)
+            if !detail(for: entry).isEmpty {
+                Text(detail(for: entry))
+                    .font(.system(size: PopupStyle.captionSize))
+                    .opacity(0.75)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+            }
         }
-        .popupRow { log.remove(entry) }
+        .popupRow { centre.dismiss(entry) }
+        .help("Dismiss")
+    }
+
+    private func detail(for entry: SystemNotification) -> String {
+        [entry.subtitle, entry.body]
+            .filter { !$0.isEmpty }
+            .joined(separator: " \u{00B7} ")
     }
 
     /// One row per Focus, switching it on or, when it is the one already on,
