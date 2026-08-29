@@ -7,6 +7,23 @@ struct BatteryWidget: View {
     var warningLevel: Int { config["warning-level"]?.intValue ?? 20 }
     var criticalLevel: Int { config["critical-level"]?.intValue ?? 10 }
 
+    /// How the charge is drawn.
+    ///
+    /// `symbol` is the default and is what macOS does: the battery outline as
+    /// an SF Symbol, at the same size and weight as every other glyph in the
+    /// bar, with the percentage as ordinary text beside it. `bar` is the
+    /// inherited drawing, a filled pill with the number inside it, which was
+    /// the brightest object in the bar and read as a different kind of thing
+    /// from everything next to it.
+    enum Style: String {
+        case symbol
+        case bar
+    }
+
+    var style: Style {
+        Style(rawValue: config["style"]?.stringValue ?? "symbol") ?? .symbol
+    }
+
     @StateObject private var batteryManager = BatteryManager()
     private var level: Int { batteryManager.batteryLevel }
     private var isCharging: Bool { batteryManager.isCharging }
@@ -15,6 +32,70 @@ struct BatteryWidget: View {
     @State private var rect: CGRect = CGRect()
 
     var body: some View {
+        Group {
+            if style == .symbol { symbolBody } else { barBody }
+        }
+        .background(
+            GeometryReader { geometry in
+                Color.clear
+                    .onAppear { rect = geometry.frame(in: .global) }
+                    .onChange(of: geometry.frame(in: .global)) { _, new in
+                        rect = new
+                    }
+            }
+        )
+        .experimentalConfiguration(cornerRadius: 15)
+        .frame(maxHeight: .infinity)
+        .background(.black.opacity(0.001))
+        .onTapGesture {
+            MenuBarPopup.show(rect: rect, id: "battery") {
+                BatteryPopup(manager: batteryManager)
+            }
+        }
+        .help(tooltip)
+    }
+
+    /// The charge as a glyph, and the number as text next to it.
+    private var symbolBody: some View {
+        HStack(spacing: 3) {
+            Image(systemName: symbolName)
+                .barGlyph()
+                .foregroundStyle(symbolTint)
+            if showPercentage {
+                Text("\(level)%")
+                    .font(BarStyle.labelFont)
+                    .monospacedDigit()
+                    .foregroundStyle(symbolTint)
+            }
+        }
+        .animation(.smooth(duration: 0.2), value: level)
+        .animation(.smooth(duration: 0.2), value: isCharging)
+    }
+
+    /// The five steps SF Symbols draws, picked so the glyph empties at roughly
+    /// the rate the battery does. Charging and plugged in have their own marks,
+    /// the way macOS shows them.
+    private var symbolName: String {
+        if isCharging { return "battery.100.bolt" }
+        switch level {
+        case ...5: return "battery.0"
+        case ...30: return "battery.25"
+        case ...60: return "battery.50"
+        case ...85: return "battery.75"
+        default: return "battery.100"
+        }
+    }
+
+    /// Colour says something is wrong and nothing else. A battery that is
+    /// simply not full is drawn like every other glyph in the bar.
+    private var symbolTint: Color {
+        if isCharging { return .green }
+        if level <= criticalLevel { return .red }
+        if level <= warningLevel { return .yellow }
+        return .foregroundOutside
+    }
+
+    private var barBody: some View {
         ZStack {
             ZStack(alignment: .leading) {
                 BatteryBodyView(mask: false)
@@ -39,29 +120,7 @@ struct BatteryWidget: View {
                 .foregroundStyle(batteryTextColor)
             }
             .frame(width: 30, height: 10)
-            .background(
-                GeometryReader { geometry in
-                    Color.clear
-                        .onAppear {
-                            rect = geometry.frame(in: .global)
-                        }
-                        .onChange(of: geometry.frame(in: .global)) {
-                            oldState, newState in
-                            rect = newState
-                        }
-                }
-            )
         }
-        .experimentalConfiguration(cornerRadius: 15)
-        .frame(maxHeight: .infinity)
-        .background(.black.opacity(0.001))
-        .onTapGesture {
-            MenuBarPopup.show(rect: rect, id: "battery") {
-                BatteryPopup(manager: batteryManager)
-            }
-        }
-        .help(tooltip)
-
     }
 
     /// The charge is already on the icon, so the useful part on hover is how
