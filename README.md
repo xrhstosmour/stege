@@ -189,6 +189,10 @@ Every application publishes its status item through the Accessibility API, under
 using the same permission the app menus already need. Nothing is screenshotted and no window is
 moved.
 
+The row shows what the menu bar shows and no more. A menu bar out of room does not drop items,
+it parks them under the notch, where they keep a window, a position and a real width and are
+simply never drawn, so those are left out.
+
 `always-show` keeps chosen applications in the bar permanently, outside the chevron, and
 `hidden` drops ones you never want to see. Both take bundle identifiers, which you can read off
 the row's tooltip target with `osascript -e 'id of app "1Password"'`. Three icons in the bar and

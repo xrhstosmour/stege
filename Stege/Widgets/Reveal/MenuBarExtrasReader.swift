@@ -126,6 +126,7 @@ final class MenuBarExtrasReader: ObservableObject {
                 // width, so it would otherwise appear in the row as an icon
                 // that does nothing.
                 guard size(of: item).width > 0 else { continue }
+                guard isShownInMenuBar(item) else { continue }
                 found.append(
                     MenuBarExtraItem(
                         id: "\(application.bundleIdentifier ?? "\(pid)")-\(index)",
@@ -144,6 +145,33 @@ final class MenuBarExtrasReader: ObservableObject {
 
     func press(_ item: MenuBarExtraItem) {
         MenuExtra.press(element: item.element)
+    }
+
+    /// Whether macOS is actually showing this item, as opposed to keeping it.
+    ///
+    /// A menu bar that has run out of room does not drop items, it parks them
+    /// under the notch, where they still have a window, a position and a real
+    /// width, and are simply never drawn. The row was listing those, so it
+    /// showed three more icons than the menu bar it stands in for.
+    ///
+    /// `auxiliaryTopLeftArea` and `auxiliaryTopRightArea` are the two strips
+    /// either side of the notch, so anything between them is in the part of the
+    /// bar that does not exist. A display without a notch publishes neither and
+    /// has no such gap, so everything on it counts as shown.
+    private static func isShownInMenuBar(_ item: AXUIElement) -> Bool {
+        let origin = position(of: item)
+        let width = size(of: item).width
+        guard
+            let screen = NSScreen.screens.first(where: {
+                $0.frame.minX <= origin.x && origin.x < $0.frame.maxX
+            }) ?? NSScreen.main,
+            let left = screen.auxiliaryTopLeftArea,
+            let right = screen.auxiliaryTopRightArea
+        else { return true }
+
+        let gap = left.maxX..<right.minX
+        // Either edge inside the gap is enough. An item is not half drawn.
+        return !gap.contains(origin.x) && !gap.contains(origin.x + width - 1)
     }
 
     // MARK: - Accessibility
