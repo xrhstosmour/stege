@@ -9,19 +9,23 @@ struct BatteryWidget: View {
 
     /// How the charge is drawn.
     ///
-    /// `symbol` is the default and is what macOS does: the battery outline as
-    /// an SF Symbol, at the same size and weight as every other glyph in the
-    /// bar, with the percentage as ordinary text beside it. `bar` is the
-    /// inherited drawing, a filled pill with the number inside it, which was
-    /// the brightest object in the bar and read as a different kind of thing
-    /// from everything next to it.
+    /// `inside` is the default: the battery outline with the level filled in
+    /// behind the number, which sits in the body of the battery. `plain` puts
+    /// the outline and the number side by side, which is what macOS itself
+    /// does. `bar` is accepted as the old name for `inside`.
+    ///
+    /// Neither of the first two is the filled white pill this started as. The
+    /// outline is drawn like every other glyph in the bar and the level behind
+    /// the number is dimmed, so the battery stops being the brightest object on
+    /// screen while still being the only one that carries a number.
     enum Style: String {
-        case symbol
+        case inside
+        case plain
         case bar
     }
 
     var style: Style {
-        Style(rawValue: config["style"]?.stringValue ?? "symbol") ?? .symbol
+        Style(rawValue: config["style"]?.stringValue ?? "inside") ?? .inside
     }
 
     @StateObject private var batteryManager = BatteryManager()
@@ -33,7 +37,7 @@ struct BatteryWidget: View {
 
     var body: some View {
         Group {
-            if style == .symbol { symbolBody } else { barBody }
+            if style == .plain { plainBody } else { insideBody }
         }
         .background(
             GeometryReader { geometry in
@@ -56,7 +60,7 @@ struct BatteryWidget: View {
     }
 
     /// The charge as a glyph, and the number as text next to it.
-    private var symbolBody: some View {
+    private var plainBody: some View {
         HStack(spacing: 3) {
             Image(systemName: symbolName)
                 .barGlyph()
@@ -95,7 +99,8 @@ struct BatteryWidget: View {
         return .foregroundOutside
     }
 
-    private var barBody: some View {
+    /// The outline, the level filled in behind it, and the number in the body.
+    private var insideBody: some View {
         ZStack {
             ZStack(alignment: .leading) {
                 BatteryBodyView(mask: false)
@@ -144,26 +149,22 @@ struct BatteryWidget: View {
         return parts.joined(separator: ", ")
     }
 
+    /// The number reads on the fill behind it in every state, so it is one
+    /// colour. It used to flip to black once the level dropped past the
+    /// warning, which meant the one moment the number mattered most was the one
+    /// moment it was drawn in the darkest colour available.
     private var batteryTextColor: Color {
-        if isCharging {
-            return .foregroundOutsideInvert
-        } else {
-            return level > warningLevel ? .foregroundOutsideInvert : .black
-        }
+        .foregroundOutside
     }
 
+    /// The level behind the number, dimmed so the battery is not the brightest
+    /// thing in the bar. Full brightness is kept for the states that are worth
+    /// interrupting for.
     private var batteryColor: Color {
-        if isCharging {
-            return .green
-        } else {
-            if level <= criticalLevel {
-                return .red
-            } else if level <= warningLevel {
-                return .yellow
-            } else {
-                return .icon
-            }
-        }
+        if isCharging { return .green }
+        if level <= criticalLevel { return .red }
+        if level <= warningLevel { return .yellow }
+        return Color.foregroundOutside.opacity(0.35)
     }
 }
 
