@@ -118,6 +118,7 @@ Every widget, and what it shows:
 | `default.stayawake` | A cup, while something is keeping the display awake |
 | `default.notifications` | A bell listing the notifications macOS is holding, and the Focus modes |
 | `default.audio` | Output volume, with a microphone badge when muted |
+| `default.microphone` | The microphone on its own, for a bar that wants input and output separately |
 | `default.keyboardlayout` | The current input source, with a popup for switching between the enabled ones |
 | `default.bluetooth` | Bluetooth state and connected device battery |
 | `default.network` | Wi-Fi and Ethernet state |
@@ -306,7 +307,9 @@ a level slider with its percentage, and the devices to choose between. Clicking 
 the left of either slider mutes that half.
 
 Scrolling on the icon changes the volume and right-clicking it mutes, so the popup is only
-needed for picking a device. Output devices that carry no mute property, the built-in speakers
+needed for picking a device. `default.microphone` puts the microphone in the bar as its own
+control, with the same scroll and right-click over the input level, and both open the same
+popup. Output devices that carry no mute property, the built-in speakers
 among them, are muted by dropping the level to zero and put back where they were on the way
 out. An input device that
 exposes no settable gain, which is most USB and Bluetooth microphones, shows muted or not in
