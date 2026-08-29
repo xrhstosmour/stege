@@ -37,12 +37,12 @@ struct AppleMenuPopup: View {
                 // The power items are set apart, so none of them is a
                 // neighbour of something harmless.
                 if row.identifier == "_sleepRequested:", index > 0 {
-                    Divider().padding(.vertical, 4)
+                    PopupSeparator()
                 }
                 menuRow(row)
             }
         }
-        .padding(10)
+        .padding(PopupStyle.padding)
         .frame(width: 210, alignment: .leading)
     }
 
@@ -72,19 +72,20 @@ struct AppleMenuPopup: View {
         }
     }
 
+    /// Laid out and lit like every other popup row, rather than as a bare
+    /// `HStack` with padding. Without the highlight there was no way to tell
+    /// which of Restart and Shut Down the pointer was on, which is not a thing
+    /// to be unsure about.
     private func menuRow(_ row: Row) -> some View {
         HStack(spacing: 10) {
             Image(systemName: row.symbol)
-                .font(.system(size: 11))
-                .frame(width: 16)
+                .font(.system(size: PopupStyle.captionSize))
+                .frame(width: PopupStyle.iconColumn)
             Text(row.title)
-                .font(.system(size: 12))
+                .font(.system(size: PopupStyle.bodySize))
             Spacer(minLength: 8)
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 5)
-        .contentShape(Rectangle())
-        .onTapGesture {
+        .popupRow {
             MenuBarPopup.hide()
             // After the popup is gone, so the confirmation macOS raises is not
             // covered by a panel that is on its way out.
