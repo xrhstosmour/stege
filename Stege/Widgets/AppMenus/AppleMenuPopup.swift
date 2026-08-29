@@ -16,21 +16,27 @@ import SwiftUI
 struct AppleMenuPopup: View {
     @ObservedObject var manager: AppMenusManager
 
-    /// In the order macOS lists them, with the two power items last.
+    /// In the order macOS lists them, with the power items last.
+    ///
+    /// `_sleepRequested:` is the one macOS puts first of those, and it is the
+    /// one of the group reached for daily, so leaving it out meant the shortcut
+    /// was there for restarting and shutting down but not for the thing done
+    /// every time you close the lid on purpose.
     private static let wanted: [(identifier: String, title: String, symbol: String)] = [
         ("_aboutThisMacRequested:", "About This Mac", "desktopcomputer"),
         ("_systemInformationRequested:", "System Information", "info.circle"),
-        ("_logOutRequested:", "Log Out", "rectangle.portrait.and.arrow.right"),
+        ("_sleepRequested:", "Sleep", "moon.fill"),
         ("_restartRequested:", "Restart", "arrow.clockwise"),
         ("_shutDownRequested:", "Shut Down", "power"),
+        ("_logOutRequested:", "Log Out", "rectangle.portrait.and.arrow.right"),
     ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
-                // The two that end the session are set apart, so neither is a
+                // The power items are set apart, so none of them is a
                 // neighbour of something harmless.
-                if row.identifier == "_logOutRequested:", index > 0 {
+                if row.identifier == "_sleepRequested:", index > 0 {
                     Divider().padding(.vertical, 4)
                 }
                 menuRow(row)
