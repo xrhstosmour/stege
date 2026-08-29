@@ -124,7 +124,7 @@ show-name = false
 hide-when-disconnected = false
 
 [widgets.default.battery]
-style = "symbol"               # the battery outline, or "bar" for the filled pill
+style = "inside"               # number in the battery, or "plain" for beside it
 show-percentage = true
 warning-level = 30
 critical-level = 10
