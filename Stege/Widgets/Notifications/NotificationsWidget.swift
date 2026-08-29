@@ -31,6 +31,7 @@ struct NotificationsWidget: View {
     }
 
     @StateObject private var focus = FocusReader()
+    @ObservedObject private var log = NotificationLog.shared
     @State private var rect: CGRect = .zero
 
     var body: some View {
@@ -39,16 +40,26 @@ struct NotificationsWidget: View {
                 systemName: focus.activeFocus == nil ? "bell" : "bell.slash"
             )
             .barGlyph()
+            // A dot for anything unread, the way every notification icon
+            // anywhere says there is something to look at.
+            .overlay(alignment: .topTrailing) {
+                if !log.entries.isEmpty {
+                    Circle()
+                        .fill(Color.accentColor)
+                        .frame(width: 5, height: 5)
+                        .offset(x: 3, y: -1)
+                }
+            }
             .contentShape(Rectangle())
             .background(.black.opacity(0.001))
-            .help(focus.activeFocus ?? "Notifications")
+            .help(helpText)
             .onTapGesture {
                 // Only when there is nothing to show yet. A read opens a
                 // Control Center panel, which is not something to do every
                 // time the bell is clicked.
                 focus.refreshIfNeeded()
                 MenuBarPopup.show(rect: rect, id: "notifications") {
-                    NotificationsPopup(focus: focus)
+                    NotificationsPopup(focus: focus, log: log)
                 }
             }
 
@@ -69,6 +80,17 @@ struct NotificationsWidget: View {
                     }
             }
         )
+        .onAppear { log.start() }
+    }
+
+    private var helpText: String {
+        if let focusName = focus.activeFocus { return focusName }
+        let count = log.entries.count
+        switch count {
+        case 0: return "Notifications"
+        case 1: return "1 notification"
+        default: return "\(count) notifications"
+        }
     }
 
     @ViewBuilder
@@ -86,6 +108,7 @@ struct NotificationsWidget: View {
 
 struct NotificationsPopup: View {
     @ObservedObject var focus: FocusReader
+    @ObservedObject var log: NotificationLog
 
     var body: some View {
         VStack(alignment: .leading, spacing: PopupStyle.spacing) {
@@ -94,6 +117,10 @@ struct NotificationsPopup: View {
                     ? "bell.fill" : "bell.slash.fill",
                 title: focus.activeFocus ?? "Notifications",
                 tint: focus.activeFocus == nil ? .primary : .purple)
+
+            notifications
+
+            PopupSeparator()
 
             VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
                 PopupSectionTitle(title: "Focus") {
@@ -151,6 +178,67 @@ struct NotificationsPopup: View {
             }
         }
         .popupContainer()
+    }
+
+    /// What has come in since Stege started.
+    ///
+    /// Not macOS's list, which cannot be read, and Clear empties this one
+    /// rather than macOS's, which cannot be written. Both of those are said on
+    /// screen rather than left to be discovered.
+    @ViewBuilder
+    private var notifications: some View {
+        VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
+            PopupSectionTitle(title: "Recent") {
+                if !log.entries.isEmpty {
+                    Text("Clear")
+                        .font(.system(size: PopupStyle.captionSize))
+                        .opacity(0.6)
+                        .contentShape(Rectangle())
+                        .onTapGesture { log.clear() }
+                        .help("Empties Stege's list, not Notification Center")
+                }
+            }
+            .popupStaticRow()
+
+            if !log.isTrusted {
+                Text("Needs Accessibility permission")
+                    .font(.system(size: PopupStyle.bodySize))
+                    .opacity(0.6)
+                    .popupStaticRow()
+            } else if log.entries.isEmpty {
+                Text("Nothing since Stege started")
+                    .font(.system(size: PopupStyle.bodySize))
+                    .opacity(0.6)
+                    .popupStaticRow()
+            } else {
+                ForEach(log.entries.prefix(8)) { entry in
+                    notificationRow(entry)
+                }
+            }
+        }
+    }
+
+    private func notificationRow(_ entry: NotificationEntry) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(entry.title)
+                    .font(.system(size: PopupStyle.bodySize, weight: .medium))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                if !entry.body.isEmpty {
+                    Text(entry.body)
+                        .font(.system(size: PopupStyle.captionSize))
+                        .opacity(0.7)
+                        .lineLimit(2)
+                }
+            }
+            Spacer(minLength: 8)
+            Text(entry.date, style: .time)
+                .font(.system(size: PopupStyle.captionSize))
+                .monospacedDigit()
+                .opacity(0.5)
+        }
+        .popupRow { log.remove(entry) }
     }
 
     /// One row per Focus, switching it on or, when it is the one already on,
