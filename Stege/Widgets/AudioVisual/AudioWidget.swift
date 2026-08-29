@@ -20,7 +20,7 @@ struct AudioWidget: View {
     /// with a microphone half to leave out.
     var showMicrophone: Bool { config["show-microphone"]?.boolValue ?? true }
 
-    @StateObject private var manager = AudioManager()
+    @ObservedObject private var manager = AudioManager.shared
     @State private var rect: CGRect = .zero
 
     var body: some View {

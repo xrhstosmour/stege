@@ -14,6 +14,11 @@ struct AudioDevice: Identifiable, Equatable {
 /// a callback whenever volume, mute or the default device changes, which is
 /// every moment either value can move.
 final class AudioManager: ObservableObject {
+    /// One per process. The sound and microphone widgets are separate entries
+    /// in the bar but the same devices underneath, and two managers would mean
+    /// two sets of `CoreAudio` listeners reporting the same changes.
+    static let shared = AudioManager()
+
     @Published private(set) var volume: Double = 0
     @Published private(set) var isOutputMuted = false
     @Published private(set) var isInputMuted = false
@@ -286,6 +291,15 @@ final class AudioManager: ObservableObject {
 
     func toggleInputMute() {
         toggleMute(input: true)
+    }
+
+    /// The input equivalent of `nudgeVolume`, for the microphone widget's
+    /// scroll wheel. Devices with no settable gain have nothing to nudge.
+    func nudgeInputVolume(by delta: Double) {
+        guard let current = inputVolume else { return }
+        let target = min(1, max(0, current + delta))
+        if target > 0.001, isInputMuted { toggleInputMute() }
+        setInputVolume(target)
     }
 
     /// Not every output device carries a mute property, the built-in speakers

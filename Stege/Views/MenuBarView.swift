@@ -57,6 +57,9 @@ struct MenuBarView: View {
         case "default.audio":
             AudioWidget().environmentObject(config)
 
+        case "default.microphone":
+            MicrophoneWidget().environmentObject(config)
+
         case "default.bluetooth":
             BluetoothWidget().environmentObject(config)
 
