@@ -110,9 +110,11 @@ final class NotificationCenterReader: ObservableObject {
         guard !isReading, isTrusted else { return }
         isReading = true
         failure = nil
+        MenuBarPopup.beginSystemPanelInteraction()
         DispatchQueue.global(qos: .userInitiated).async {
             let found = Self.readSynchronously()
             DispatchQueue.main.async {
+                MenuBarPopup.endSystemPanelInteraction()
                 self.isReading = false
                 guard let found else {
                     self.failure = "Could not open Notification Center"
@@ -148,6 +150,7 @@ final class NotificationCenterReader: ObservableObject {
     private func act(_ body: @escaping (AXUIElement) -> Void) {
         guard !isReading, isTrusted else { return }
         isReading = true
+        MenuBarPopup.beginSystemPanelInteraction()
         DispatchQueue.global(qos: .userInitiated).async {
             var found: [SystemNotification] = []
             Self.withPanel { panel in
@@ -158,6 +161,7 @@ final class NotificationCenterReader: ObservableObject {
                 found = Self.parse(panel)
             }
             DispatchQueue.main.async {
+                MenuBarPopup.endSystemPanelInteraction()
                 self.isReading = false
                 self.notifications = found
             }

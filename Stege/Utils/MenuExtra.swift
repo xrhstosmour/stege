@@ -79,9 +79,16 @@ enum MenuExtra {
         _ identifier: Identifier, path: [String],
         completion: @escaping (Bool) -> Void = { _ in }
     ) {
+        // The panel that is about to open takes key, and a popup that loses key
+        // hides itself. Flipping Low Power Mode or a Focus used to take the
+        // popup that asked for it off the screen.
+        MenuBarPopup.beginSystemPanelInteraction()
         DispatchQueue.global(qos: .userInitiated).async {
             let result = pressSynchronously(identifier, path: path)
-            DispatchQueue.main.async { completion(result) }
+            DispatchQueue.main.async {
+                MenuBarPopup.endSystemPanelInteraction()
+                completion(result)
+            }
         }
     }
 
@@ -130,10 +137,14 @@ enum MenuExtra {
         _ identifier: Identifier, path: [String], matching prefix: String,
         completion: @escaping ([PanelControl]) -> Void
     ) {
+        MenuBarPopup.beginSystemPanelInteraction()
         DispatchQueue.global(qos: .userInitiated).async {
             let controls = readSynchronously(
                 identifier, path: path, matching: prefix)
-            DispatchQueue.main.async { completion(controls) }
+            DispatchQueue.main.async {
+                MenuBarPopup.endSystemPanelInteraction()
+                completion(controls)
+            }
         }
     }
 
