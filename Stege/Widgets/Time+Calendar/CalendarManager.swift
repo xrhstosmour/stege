@@ -31,8 +31,12 @@ class CalendarManager: ObservableObject {
 
     init(configProvider: ConfigProvider) {
         self.configProvider = configProvider
-        requestAccess()
         startMonitoring()
+    }
+
+    /// Whether the store can be read without asking for anything.
+    var isAuthorized: Bool {
+        EKEventStore.authorizationStatus(for: .event) == .fullAccess
     }
 
     deinit {
@@ -78,14 +82,23 @@ class CalendarManager: ObservableObject {
         storeObserver = nil
     }
 
-    private func requestAccess() {
+    /// Asks for calendar access, but only the first time and only when
+    /// something is actually about to read events.
+    ///
+    /// This used to run from `init`, so a fresh install put a calendar prompt
+    /// on screen the moment the bar appeared, whether or not the events were
+    /// ever going to be looked at. The prompt now comes from the two places
+    /// that need the answer: the next event line in the bar, when it is turned
+    /// on, and the popup being opened.
+    ///
+    /// Called more than once, because both of those can happen repeatedly.
+    /// `notDetermined` is the only state that asks, so the rest are no-ops.
+    func requestAccessIfNeeded() {
+        guard EKEventStore.authorizationStatus(for: .event) == .notDetermined
+        else { return }
         eventStore.requestFullAccessToEvents { [weak self] granted, error in
-            if granted && error == nil {
-                DispatchQueue.main.async { self?.refresh() }
-            } else {
-                print(
-                    "Calendar access not granted: \(String(describing: error))")
-            }
+            guard granted, error == nil else { return }
+            DispatchQueue.main.async { self?.refresh() }
         }
     }
 

@@ -25,6 +25,9 @@ struct CalendarPopup: View {
             horizontal: { CalendarHorizontalPopup(calendarManager) }
         )
         .onAppear {
+            // Opening the calendar is an unambiguous request to see events, so
+            // this is where a first-run install is asked.
+            calendarManager.requestAccessIfNeeded()
             if let variantString = configProvider.config["popup"]?
                 .dictionaryValue?["view-variant"]?.stringValue,
                 let variant = MenuBarPopupVariant(rawValue: variantString)
