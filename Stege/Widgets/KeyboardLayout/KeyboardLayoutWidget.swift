@@ -54,7 +54,7 @@ struct KeyboardLayoutPopup: View {
                 }
             }
 
-            Divider()
+            PopupSeparator()
 
             // Adding and removing input sources belongs to the system, and this
             // popup only switches between the ones already enabled.

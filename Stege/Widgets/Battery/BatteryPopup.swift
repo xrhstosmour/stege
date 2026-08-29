@@ -26,7 +26,7 @@ struct BatteryPopup: View {
                 }
             }
 
-            Divider()
+            PopupSeparator()
 
             VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
                 lowPowerRow

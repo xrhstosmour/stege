@@ -10,15 +10,25 @@ enum PopupStyle {
     /// Wide enough for a network name or a device name next to its trailing
     /// control, and narrow enough that a popup opened at the edge of the
     /// screen still fits.
-    static let width: CGFloat = 260
-    /// Wider, for the popups laying out a slider and a label on one line.
-    static let wideWidth: CGFloat = 280
-    static let padding: CGFloat = 14
+    static let width: CGFloat = 280
+    /// Kept so the call sites still read, but the same as `width` now. Two
+    /// widths meant opening the sound popup and then the Wi-Fi one visibly
+    /// resized the panel between them.
+    static let wideWidth: CGFloat = width
+    /// The margin the rows are inset from, which their highlight bleeds to.
+    /// macOS menus keep this tight and put the air inside the rows instead.
+    static let padding: CGFloat = 6
     /// Between the sections of a popup, not between the rows of one section.
-    static let spacing: CGFloat = 12
+    static let spacing: CGFloat = 8
     /// Between rows inside a section, which sit closer together than sections.
-    static let rowSpacing: CGFloat = 2
-    static let rowRadius: CGFloat = 6
+    static let rowSpacing: CGFloat = 1
+    static let rowRadius: CGFloat = 5
+
+    /// Inside a row. Five points above and below a twelve point line gives the
+    /// twenty two point row macOS uses, which is a lot more air than the four
+    /// this had.
+    static let rowHorizontalPadding: CGFloat = 8
+    static let rowVerticalPadding: CGFloat = 5
 
     /// The corner radius of the popup pane. macOS menus round to about this
     /// much.
@@ -78,9 +88,25 @@ extension View {
     /// report something, so a list of both keeps one rhythm.
     func popupStaticRow() -> some View {
         self
-            .padding(.horizontal, 6)
-            .padding(.vertical, 4)
+            .padding(.horizontal, PopupStyle.rowHorizontalPadding)
+            .padding(.vertical, PopupStyle.rowVerticalPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// The line between two sections of a popup.
+///
+/// Not `Divider`, for two reasons. It reports an ideal width of infinity, which
+/// is what forced every popup to a fixed width in the first place. And macOS
+/// insets its menu separators from the menu's edges rather than running them
+/// wall to wall.
+struct PopupSeparator: View {
+    var body: some View {
+        Rectangle()
+            .fill(.white.opacity(0.12))
+            .frame(height: 1)
+            .padding(.horizontal, PopupStyle.rowHorizontalPadding)
+            .padding(.vertical, 2)
     }
 }
 
@@ -90,13 +116,20 @@ private struct PopupRow: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .padding(.horizontal, 6)
-            .padding(.vertical, 4)
+            .padding(.horizontal, PopupStyle.rowHorizontalPadding)
+            .padding(.vertical, PopupStyle.rowVerticalPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
+            // The accent colour, not a wash of white. A menu row under the
+            // pointer in macOS is selected, and says so in the colour the user
+            // picked; nine percent white read as a hint that something might
+            // happen rather than as the selection it is.
             .background(
-                RoundedRectangle(cornerRadius: PopupStyle.rowRadius)
-                    .fill(.primary.opacity(isHovered ? 0.09 : 0))
+                RoundedRectangle(
+                    cornerRadius: PopupStyle.rowRadius, style: .continuous
+                )
+                .fill(isHovered ? Color.accentColor : .clear)
             )
+            .foregroundStyle(isHovered ? Color.white : Color.primary)
             .contentShape(Rectangle())
             .onHover { isHovered = $0 }
             .onTapGesture(perform: action)
@@ -159,6 +192,9 @@ struct PopupHeader<Trailing: View>: View {
             Spacer(minLength: 8)
             trailing
         }
+        // The same inset as a row, so the title lines up with the list under
+        // it rather than sitting eight points to its left.
+        .padding(.horizontal, PopupStyle.rowHorizontalPadding)
     }
 }
 

@@ -134,7 +134,7 @@ struct NotificationsPopup: View {
                 }
             }
 
-            Divider()
+            PopupSeparator()
 
             VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
                 PopupSettingsRow(title: "Notification Settings") {

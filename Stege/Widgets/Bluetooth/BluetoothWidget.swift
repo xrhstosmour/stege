@@ -120,11 +120,11 @@ struct BluetoothPopup: View {
             }
 
             if manager.isPoweredOn, manager.isAuthorized {
-                Divider()
+                PopupSeparator()
                 nearby
             }
 
-            Divider()
+            PopupSeparator()
 
             PopupSettingsRow(
                 title: manager.isAuthorized
@@ -172,6 +172,7 @@ struct BluetoothPopup: View {
                 }
             }
         }
+        .padding(.horizontal, PopupStyle.rowHorizontalPadding)
     }
 
     private func note(_ text: String) -> some View {
