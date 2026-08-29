@@ -42,12 +42,12 @@ struct BluetoothWidget: View {
             // lock says which permission is missing, which is the whole point.
             ZStack(alignment: .bottomTrailing) {
                 BluetoothGlyph(
-                    height: 13,
+                    height: BarStyle.glyphSize,
                     slashed: !(manager.isPoweredOn && manager.isAuthorized))
 
                 if !manager.isAuthorized {
                     Image(systemName: "lock.fill")
-                        .font(.system(size: 7, weight: .bold))
+                        .font(.system(size: BarStyle.badgeSize, weight: .bold))
                         .offset(x: 4, y: 2)
                 }
             }

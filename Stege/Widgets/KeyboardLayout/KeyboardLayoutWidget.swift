@@ -14,7 +14,7 @@ struct KeyboardLayoutWidget: View {
 
     var body: some View {
         Text(showFullName ? manager.name : manager.abbreviation)
-            .font(.system(size: 12, weight: .medium))
+            .font(BarStyle.labelFont)
             .padding(.horizontal, 4)
             .frame(maxHeight: .infinity)
             .contentShape(Rectangle())

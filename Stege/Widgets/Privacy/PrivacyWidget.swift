@@ -45,7 +45,7 @@ struct PrivacyWidget: View {
             Circle().fill(color).frame(width: 8, height: 8)
         } else {
             Image(systemName: symbol)
-                .font(.system(size: 11))
+                .barGlyph()
                 .foregroundStyle(color)
         }
     }

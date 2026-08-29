@@ -38,7 +38,7 @@ struct NotificationsWidget: View {
             Image(
                 systemName: focus.activeFocus == nil ? "bell" : "bell.slash"
             )
-            .font(.system(size: 12))
+            .barGlyph()
             .contentShape(Rectangle())
             .background(.black.opacity(0.001))
             .help(focus.activeFocus ?? "Notifications")
@@ -76,7 +76,7 @@ struct NotificationsWidget: View {
         symbol: String, extra: MenuExtra.Identifier, help: String
     ) -> some View {
         Image(systemName: symbol)
-            .font(.system(size: 12))
+            .barGlyph()
             .contentShape(Rectangle())
             .background(.black.opacity(0.001))
             .help(help)

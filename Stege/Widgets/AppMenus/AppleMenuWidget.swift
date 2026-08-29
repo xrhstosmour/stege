@@ -9,7 +9,9 @@ import SwiftUI
 struct AppleMenuWidget: View {
     @EnvironmentObject var configProvider: ConfigProvider
     var config: ConfigData { configProvider.config }
-    var iconSize: Double { Double(config["icon-size"]?.intValue ?? 14) }
+    var iconSize: Double {
+        Double(config["icon-size"]?.intValue ?? Int(BarStyle.glyphSize))
+    }
     /// Draw the short menu in the bar's own style, rather than handing over
     /// to the full system one.
     var useShortMenu: Bool { config["short-menu"]?.boolValue ?? true }

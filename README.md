@@ -153,6 +153,7 @@ show-name = false                   # showing the name asks for Location
 hide-when-disconnected = false
 
 [widgets.default.battery]
+style = "symbol"                    # or "bar" for the filled pill
 show-percentage = true
 warning-level = 30
 critical-level = 10
@@ -342,6 +343,11 @@ and Focus take.
 ### Battery
 
 Charge, time estimate, health and cycles, and a switch for Low Power Mode.
+
+The charge is drawn as the battery outline, at the same size and weight as
+every other glyph in the bar, with the percentage as ordinary text beside it,
+and colour only when the level is low or it is charging. `style = "bar"`
+restores the inherited drawing, a filled pill with the number inside it.
 
 The switch is the one macOS puts in the battery menu extra's own panel, pressed through the
 Accessibility API. Nothing else can write that setting: `pmset` needs root, and the private

@@ -43,7 +43,7 @@ struct NetworkWidget: View {
             }
         )
         .contentShape(Rectangle())
-        .font(.system(size: 15))
+        .barGlyph()
         .experimentalConfiguration(cornerRadius: 15)
         .frame(maxHeight: .infinity)
         .background(.black.opacity(0.001))
