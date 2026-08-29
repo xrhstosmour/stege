@@ -6,6 +6,10 @@ import Combine
 struct MenuBarExtraItem: Identifiable {
     let id: String
     let name: String
+    /// What the pinning and hiding lists are keyed by, because it is the one
+    /// thing about an application that does not change with its language or
+    /// its version.
+    let bundleIdentifier: String?
     let icon: NSImage?
     /// Where the real item sits in the real menu bar, used only to put the row
     /// in the same order macOS has it in.
@@ -126,6 +130,7 @@ final class MenuBarExtrasReader: ObservableObject {
                     MenuBarExtraItem(
                         id: "\(application.bundleIdentifier ?? "\(pid)")-\(index)",
                         name: application.localizedName ?? "",
+                        bundleIdentifier: application.bundleIdentifier,
                         icon: application.icon,
                         position: position(of: item).x,
                         element: item))
