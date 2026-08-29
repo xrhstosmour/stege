@@ -146,7 +146,8 @@ modifier-key = "option"             # option, command, control, shift, function
 
 [widgets.default.audio]
 show-percentage = false             # the icon already conveys the level
-show-microphone = true              # draw the microphone half of the sound glyph
+glyph = "speaker"                   # or "waveform", or "speaker-and-microphone"
+show-microphone = true              # `speaker-and-microphone` only
 
 [widgets.default.network]
 show-name = false                   # showing the name asks for Location
@@ -286,8 +287,12 @@ and no window in it could be clicked at all.
 
 ### Sound
 
-One icon in the bar rather than a separate speaker and microphone, and a popup built as two
-matching blocks. Output and input each get the same three things in the same order: what it is,
+One icon in the bar, the speaker, whose arcs say the level the way macOS's own does. `glyph =
+"waveform"` is the neutral alternative, and `"speaker-and-microphone"` restores the pair. The
+microphone lives in the popup either way, and the privacy widget is what says when something is
+listening.
+
+The popup is built as two matching blocks. Output and input each get the same three things in the same order: what it is,
 a level slider with its percentage, and the devices to choose between. Clicking the glyph at
 the left of either slider mutes that half.
 
