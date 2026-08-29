@@ -1,5 +1,6 @@
 import Combine
 import CoreBluetooth
+import Darwin
 import Foundation
 import IOBluetooth
 
@@ -178,30 +179,43 @@ final class BluetoothManager: NSObject, ObservableObject {
 
     /// Turns the radio on or off.
     ///
-    /// There is no public API for this. `IOBluetoothPreferenceSetControllerPowerState`
-    /// is not in any published header, and the same reasoning that applies to
-    /// Low Power Mode and Focus applies here, so this presses the switch in
-    /// Control Center's own Bluetooth panel instead. `bluetooth-header` names
-    /// both that switch and the heading beside it, which is why `MenuExtra`
-    /// only ever presses an element that answers to a press.
+    /// `IOBluetoothPreferenceSetControllerPowerState` is not in any published
+    /// header, but it is a plain C function exported by `IOBluetooth` and it is
+    /// what `blueutil` has always used. It sets the state directly and returns
+    /// immediately.
     ///
-    /// The press toggles rather than sets, so a request for the state the radio
-    /// is already in does nothing at all.
+    /// This used to press the switch in Control Center's own Bluetooth panel,
+    /// which meant the panel visibly opened and closed every time. Nothing
+    /// about the bar should look like it is operating the menu bar it replaced,
+    /// so where a real call exists it is used, and the panel is left for the
+    /// two settings that have no call at all.
     func setPower(_ on: Bool) {
         guard !isSwitchingPower, on != isPoweredOn else { return }
+        guard let set = Self.setControllerPowerState else {
+            failure = "Bluetooth cannot be switched on this system"
+            return
+        }
         isSwitchingPower = true
         failure = nil
-        MenuExtra.press(.bluetooth, path: ["bluetooth-header"]) {
-            [weak self] pressed in
-            guard let self else { return }
-            self.isSwitchingPower = false
-            if !pressed {
-                self.failure = "Could not reach the Bluetooth switch"
-                return
-            }
-            self.readBackPower(until: !on, attempt: 0)
-        }
+        _ = set(on ? 1 : 0)
+        isSwitchingPower = false
+        readBackPower(until: !on, attempt: 0)
     }
+
+    private typealias SetPowerState = @convention(c) (Int32) -> Int32
+
+    /// Looked up once. `IOBluetooth` is already linked, but the symbol is not
+    /// declared anywhere, so it is reached by name rather than called directly.
+    private static let setControllerPowerState: SetPowerState? = {
+        guard
+            let handle = dlopen(
+                "/System/Library/Frameworks/IOBluetooth.framework/IOBluetooth",
+                RTLD_LAZY),
+            let symbol = dlsym(
+                handle, "IOBluetoothPreferenceSetControllerPowerState")
+        else { return nil }
+        return unsafeBitCast(symbol, to: SetPowerState.self)
+    }()
 
     /// The radio takes a moment to come up, and the only thing watching it
     /// otherwise is a thirty second timer, so the popup would sit on the old

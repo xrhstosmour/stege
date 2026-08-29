@@ -369,9 +369,9 @@ report a level. Clicking a device connects or disconnects it. `Scan` looks for d
 not paired yet and offers to pair them, and stops as soon as the popup closes, because an
 inquiry keeps the radio busy and degrades whatever is already connected.
 
-The switch in the header turns the controller on and off. macOS has no public API for that, so
-it presses the switch in Control Center's own Bluetooth panel, the same route Low Power Mode
-and Focus take.
+The switch in the header turns the controller on and off, directly, with nothing appearing on
+screen. `IOBluetoothPreferenceSetControllerPowerState` is not in any published header but it is
+a plain C function `IOBluetooth` exports, and it is what `blueutil` has always used.
 
 ![The Bluetooth popup](.github/assets/bluetooth.png)
 
