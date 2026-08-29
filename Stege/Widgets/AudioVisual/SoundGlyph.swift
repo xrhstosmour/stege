@@ -1,39 +1,60 @@
 import SwiftUI
 
-/// Output and input as one mark.
+/// The mark that stands for sound in the bar.
 ///
-/// The widget covers both, so it drew a speaker with a microphone tacked on as
-/// a badge, and only when that microphone was muted. That reads as a speaker
-/// most of the time and as a speaker with a warning on it the rest, never as
-/// one control that owns both halves of the machine's sound.
+/// One glyph, not two. This was a speaker and a microphone kerned together,
+/// which is one mark by construction but reads as two things stuck side by
+/// side, and it is twice as wide as everything around it.
 ///
-/// This is one glyph instead: the speaker on the left, the microphone on the
-/// right, kerned tight enough that the pair has a single silhouette. The
-/// speaker keeps its wave arcs, so the level is still legible at a glance,
-/// which a genuinely single SF Symbol could not do, and either half can carry
-/// its own slash when it is muted.
+/// `speaker` is the default and is what macOS puts in its own menu bar: the
+/// arcs say the level, so the icon is worth looking at rather than only worth
+/// clicking. `waveform` is the neutral alternative for anyone who wants one
+/// mark for sound in general rather than output in particular. The microphone
+/// lives in the popup either way, and the privacy widget is what says when
+/// something is listening.
+enum SoundGlyphStyle: String {
+    case speaker
+    case waveform
+    /// The old pair, for anyone who preferred it.
+    case speakerAndMicrophone = "speaker-and-microphone"
+}
+
 struct SoundGlyph: View {
     /// Output volume, 0 to 1.
     var level: Double
     var isOutputMuted: Bool
     var isInputMuted: Bool
-    /// Drawn only when the machine has an input device at all.
+    /// Only drawn by the pair style, and only when there is an input device.
     var hasInput: Bool = true
+    var style: SoundGlyphStyle = .speaker
     var size: CGFloat = BarStyle.glyphSize
 
     var body: some View {
-        HStack(spacing: size * 0.08) {
+        switch style {
+        case .speaker:
             Image(systemName: speakerSymbol)
                 .font(.system(size: size))
-            if hasInput {
-                Image(systemName: isInputMuted ? "mic.slash.fill" : "mic.fill")
+                .accessibilityLabel("Sound")
+        case .waveform:
+            Image(systemName: isOutputMuted || level <= 0.001
+                ? "waveform.slash" : "waveform")
+                .font(.system(size: size))
+                .accessibilityLabel("Sound")
+        case .speakerAndMicrophone:
+            HStack(spacing: size * 0.08) {
+                Image(systemName: speakerSymbol)
+                    .font(.system(size: size))
+                if hasInput {
+                    Image(
+                        systemName: isInputMuted ? "mic.slash.fill" : "mic.fill"
+                    )
                     .font(.system(size: size * 0.8))
                     .foregroundStyle(isInputMuted ? Color.red : Color.primary)
+                }
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Sound")
         }
-        // One accessibility element, because it is one control.
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Sound")
     }
 
     /// Muted and silent are drawn the same way, because they sound the same.

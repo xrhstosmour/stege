@@ -10,9 +10,14 @@ struct AudioWidget: View {
     /// Off by default. The icon already conveys the level, and a percentage
     /// that changes width makes the whole right side of the bar shift.
     var showPercentage: Bool { config["show-percentage"]?.boolValue ?? false }
-    /// Draw the microphone half of the glyph. Off leaves the speaker on its
-    /// own, for a bar that has no room or a machine with no input device worth
-    /// showing.
+    /// Which mark stands for sound in the bar. See `SoundGlyphStyle`.
+    var glyphStyle: SoundGlyphStyle {
+        SoundGlyphStyle(rawValue: config["glyph"]?.stringValue ?? "speaker")
+            ?? .speaker
+    }
+
+    /// Only read by the `speaker-and-microphone` style, which is the only one
+    /// with a microphone half to leave out.
     var showMicrophone: Bool { config["show-microphone"]?.boolValue ?? true }
 
     @StateObject private var manager = AudioManager()
@@ -24,7 +29,8 @@ struct AudioWidget: View {
                 level: manager.volume,
                 isOutputMuted: manager.isOutputMuted,
                 isInputMuted: manager.isInputMuted,
-                hasInput: showMicrophone && manager.hasInput)
+                hasInput: showMicrophone && manager.hasInput,
+                style: glyphStyle)
 
             if showPercentage {
                 Text("\(Int((manager.volume * 100).rounded()))%")
@@ -128,6 +134,7 @@ struct AudioPopup: View {
                 isOutputMuted: manager.isOutputMuted,
                 isInputMuted: manager.isInputMuted,
                 hasInput: manager.hasInput,
+                style: .speaker,
                 size: PopupStyle.titleSize)
             Text("Sound")
                 .font(.system(size: PopupStyle.titleSize, weight: .semibold))
