@@ -287,6 +287,11 @@ and no window in it could be clicked at all.
 
 ### Apple menu
 
+About This Mac, System Information, then Sleep, Restart, Shut Down and Log Out. Each row presses
+the real menu item, so the confirmations macOS raises are its own. The system menu carries
+fifteen entries, several duplicated because macOS keeps the option-key alternates in the same
+list, and `short-menu = false` opens that one instead.
+
 ![The Apple menu open](.github/assets/applemenu.png)
 
 ### Sound
