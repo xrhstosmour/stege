@@ -216,7 +216,7 @@ enum MenuExtra {
     /// Returns nil when the bar was already on screen, which is the common case
     /// for anyone who has not set it to hide, and then nothing touches the
     /// pointer at all.
-    private static func revealMenuBarIfHidden(for extra: AXUIElement)
+    static func revealMenuBarIfHidden(for extra: AXUIElement)
         -> CGPoint?
     {
         guard isOffScreen(extra) else { return nil }
@@ -239,7 +239,7 @@ enum MenuExtra {
     /// menu bar set to hide only goes back up on a real movement. Warping left
     /// it down, on top of Stege's own bar, swallowing the next click meant for
     /// a widget, until the user happened to move the mouse.
-    private static func restorePointer(to origin: CGPoint) {
+    static func restorePointer(to origin: CGPoint) {
         movePointer(to: origin)
     }
 
@@ -390,7 +390,7 @@ enum MenuExtra {
         return AXUIElementCreateApplication(controlCentre.processIdentifier)
     }
 
-    private static func element(for identifier: Identifier) -> AXUIElement? {
+    static func element(for identifier: Identifier) -> AXUIElement? {
         guard let application = controlCentreApplication() else { return nil }
         // Menu bar extras hang off `AXExtrasMenuBar`, not `AXMenuBar`. The
         // latter is the application's own menus, which Control Center does not
