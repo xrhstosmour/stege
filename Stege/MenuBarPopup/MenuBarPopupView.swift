@@ -39,9 +39,13 @@ struct MenuBarPopupView<Content: View>: View {
                         style: .continuous))
                 .padding(.top, foregroundHeight + 5)
                 .offset(x: computedOffset, y: computedYOffset)
-                .shadow(radius: 30)
-                .blur(radius: (1.0 - (0.1 + 0.9 * animationValue)) * 20)
-                .scaleEffect(x: 0.2 + 0.8 * animationValue, y: animationValue)
+                .shadow(radius: 12, y: 4)
+                // Grows a little out of its top edge and fades, which is what
+                // Control Center and the menu bar extras do. It used to blur
+                // by twenty points, squash to a fifth of its width and spring
+                // past its final size, none of which any panel macOS opens
+                // does, and all of which read as a third-party animation.
+                .scaleEffect(0.94 + 0.06 * animationValue, anchor: .top)
                 .opacity(animationValue)
                 .transaction { transaction in
                     if isHideAnimation {
@@ -51,11 +55,11 @@ struct MenuBarPopupView<Content: View>: View {
                 .onReceive(willShowWindow) { _ in
                     isShowAnimation = true
                     withAnimation(
-                        .smooth(
+                        .easeOut(
                             duration: Double(
                                 Constants
                                     .menuBarPopupAnimationDurationInMilliseconds
-                            ) / 1000.0, extraBounce: 0.3)
+                            ) / 1000.0)
                     ) {
                         animationValue = 1.0
                     }
@@ -72,7 +76,7 @@ struct MenuBarPopupView<Content: View>: View {
                 .onReceive(willHideWindow) { _ in
                     isHideAnimation = true
                     withAnimation(
-                        .interactiveSpring(
+                        .easeIn(
                             duration: Double(
                                 Constants
                                     .menuBarPopupAnimationDurationInMilliseconds
@@ -93,7 +97,7 @@ struct MenuBarPopupView<Content: View>: View {
                 .onReceive(willChangeContent) { _ in
                     isHideAnimation = true
                     withAnimation(
-                        .spring(
+                        .easeIn(
                             duration: Double(
                                 Constants
                                     .menuBarPopupAnimationDurationInMilliseconds

@@ -105,14 +105,20 @@ private struct PopupRow: ViewModifier {
 
 /// An on/off switch, drawn rather than taken from `Toggle`.
 ///
-/// `Toggle(.switch)` renders nothing inside these popups. The popup's content
-/// is wrapped in `blur`, `scaleEffect` and `opacity` for its open and close
-/// animation, and the AppKit-backed switch behind that toggle style does not
-/// survive being composited through them, while `Slider` in the same popups
-/// does. The row simply came out with an empty space where the switch should
-/// be, in both the Wi-Fi and battery popups.
+/// `Toggle(.switch)` came out looking like empty space in the Wi-Fi and battery
+/// popups. The open and close animation was blamed for it at the time, on the
+/// theory that the AppKit-backed switch could not survive being composited
+/// through `blur` and `scaleEffect`. That was wrong: a switch drawn under
+/// exactly that modifier chain renders fine.
 ///
-/// Shapes always draw, so this is built from two of them.
+/// The real reason is the panel. The bar is a non-activating panel and is
+/// almost never the key window, and AppKit draws a switch in its inactive
+/// style whenever the window it is in is not key: a dark grey capsule with no
+/// accent colour. At `mini` size against a black popup that is very close to
+/// nothing at all, and it stays grey even while it is on, so it cannot say
+/// which way it is set.
+///
+/// Shapes carry no such state, so this is built from two of them.
 struct PopupSwitch: View {
     let isOn: Bool
     let action: () -> Void
