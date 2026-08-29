@@ -58,6 +58,38 @@ struct RevealWidget: View {
 
     private var isMonochrome: Bool { iconStyle == .monochrome }
 
+    /// Bundle identifiers that sit in the bar permanently, outside the
+    /// chevron.
+    ///
+    /// This is what a tray manager is actually for. Fidelity to the system's
+    /// own glyphs is not what makes Bartender worth running, having three
+    /// icons in the bar instead of eleven is, and that needs no permission at
+    /// all.
+    var pinned: [String] { identifiers("always-show") }
+    /// Bundle identifiers that never appear, behind the chevron or otherwise.
+    var hidden: [String] { identifiers("hidden") }
+
+    private func identifiers(_ key: String) -> [String] {
+        config[key]?.arrayValue?.compactMap { $0.stringValue } ?? []
+    }
+
+    private func matches(_ item: MenuBarExtraItem, _ list: [String]) -> Bool {
+        guard let bundle = item.bundleIdentifier else { return false }
+        return list.contains(bundle)
+    }
+
+    private var visibleItems: [MenuBarExtraItem] {
+        reader.items.filter { !matches($0, hidden) }
+    }
+
+    private var pinnedItems: [MenuBarExtraItem] {
+        visibleItems.filter { matches($0, pinned) }
+    }
+
+    private var collapsedItems: [MenuBarExtraItem] {
+        visibleItems.filter { !matches($0, pinned) }
+    }
+
     /// Stay out of the way until pressed again, rather than coming back on
     /// pointer movement. `collapse` only.
     var sticky: Bool { config["sticky"]?.boolValue ?? true }
@@ -76,13 +108,26 @@ struct RevealWidget: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            chevron
-            if mode == .extras, isShowingExtras {
-                extras
+            // The chevron only when there is something behind it. With
+            // everything pinned or hidden it would open onto nothing.
+            if mode == .collapse || !collapsedItems.isEmpty || !reader.isTrusted
+            {
+                chevron
+            }
+            if mode == .extras {
+                if isShowingExtras { extras(collapsedItems) }
+                extras(pinnedItems)
             }
         }
         .animation(.smooth(duration: 0.2), value: isShowingExtras)
         .animation(.smooth(duration: 0.2), value: reader.items.count)
+        .onAppear {
+            // At launch, not on the first press. Pinned items have to be in
+            // the bar before anything is pressed.
+            guard mode == .extras else { return }
+            reader.startWatching()
+            reader.refresh()
+        }
     }
 
     private var chevron: some View {
@@ -119,10 +164,7 @@ struct RevealWidget: View {
     private func toggle() {
         switch mode {
         case .extras:
-            if !isShowingExtras {
-                reader.startWatching()
-                reader.refresh()
-            }
+            if !isShowingExtras { reader.refresh() }
             isShowingExtras.toggle()
         case .collapse:
             if sticky {
@@ -135,18 +177,14 @@ struct RevealWidget: View {
     }
 
     @ViewBuilder
-    private var extras: some View {
+    private func extras(_ items: [MenuBarExtraItem]) -> some View {
         if !reader.isTrusted {
             Image(systemName: "lock.fill")
                 .font(.system(size: 10))
                 .help("Stege needs Accessibility permission to read these")
-        } else if reader.items.isEmpty {
-            Text("None")
-                .font(.system(size: 11))
-                .opacity(0.5)
         } else {
             HStack(spacing: 6) {
-                ForEach(reader.items) { item in
+                ForEach(items) { item in
                     extraIcon(item)
                 }
             }

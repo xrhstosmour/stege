@@ -188,6 +188,12 @@ Every application publishes its status item through the Accessibility API, under
 using the same permission the app menus already need. Nothing is screenshotted and no window is
 moved.
 
+`always-show` keeps chosen applications in the bar permanently, outside the chevron, and
+`hidden` drops ones you never want to see. Both take bundle identifiers, which you can read off
+the row's tooltip target with `osascript -e 'id of app "1Password"'`. Three icons in the bar and
+the rest behind the chevron is the point of a tray manager, more than matching the system's own
+glyphs is, and it needs no permission.
+
 The icon drawn is the application's own, in one colour by default, because a row of full-colour
 icons beside Stege's single-weight glyphs looks like two bars stapled together. It is not the
 glyph the application actually puts in the menu bar. Reading that means photographing the item,
@@ -207,6 +213,8 @@ came back on its own would land on top of it.
 mode = "extras"        # or "collapse"
 icon-size = 15         # `extras` only: how big the appended icons are drawn
 icon-style = "monochrome"  # `extras` only: or "colour" to leave them as they ship
+always-show = []       # `extras` only: bundle ids that sit in the bar permanently
+hidden = []            # `extras` only: bundle ids that never appear at all
 sticky = true          # `collapse` only, false: come back on pointer movement
 return-threshold = 80  # `collapse` and `sticky = false` only: points the pointer must drop
 timeout = 10           # `collapse` and `sticky = false` only: seconds before it returns
