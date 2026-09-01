@@ -28,6 +28,9 @@ struct MenuBarView: View {
         .frame(height: max(configManager.config.experimental.foreground.resolveHeight(), 1.0))
         .frame(maxWidth: .infinity)
         .padding(.horizontal, configManager.config.experimental.foreground.horizontalPadding)
+        // Extra on the right only. macOS draws its recording dot in the corner
+        // above every window, so without this the clock is drawn through it.
+        .padding(.trailing, configManager.config.experimental.foreground.trailingPadding)
         .background(.black.opacity(0.001))
         .preferredColorScheme(theme)
     }

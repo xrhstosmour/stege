@@ -9,5 +9,14 @@ struct Constants {
     /// roughly 150, and a bar that is meant to pass for the system's own
     /// should not be visibly slower than it.
     static let menuBarPopupAnimationDurationInMilliseconds = 150
+    /// Kept clear at the right edge for the dot macOS draws while the
+    /// microphone, the camera or the screen is being read.
+    ///
+    /// The system draws it above everything, in the corner, whatever is
+    /// underneath. Hiding the real menu bar does not take it away, and nothing
+    /// can: it is the one mark macOS will not let an application cover. So the
+    /// bar stops short of it rather than having the clock drawn through.
+    static let privacyIndicatorClearance = CGFloat(26)
+
     static let menuBarHorizontalPadding = CGFloat(25)
 }

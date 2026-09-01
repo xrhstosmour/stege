@@ -299,12 +299,16 @@ struct ExperimentalConfig: Decodable {
 struct ForegroundConfig: Decodable {
     let height: BackgroundForegroundHeight
     let horizontalPadding: CGFloat
+    /// Extra clearance at the right edge only, on top of `horizontalPadding`.
+    /// Defaults to enough room for the recording dot macOS draws in the corner.
+    let trailingPadding: CGFloat
     let widgetsBackground: WidgetBackgroundConfig
     let spacing: CGFloat
-    
+
     init() {
         self.height = .stegeDefault
         self.horizontalPadding = Constants.menuBarHorizontalPadding
+        self.trailingPadding = Constants.privacyIndicatorClearance
         self.widgetsBackground = WidgetBackgroundConfig()
         self.spacing = 15
     }
@@ -313,6 +317,7 @@ struct ForegroundConfig: Decodable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         height = try container.decodeIfPresent(BackgroundForegroundHeight.self, forKey: .height) ?? .stegeDefault
         horizontalPadding = try container.decodeIfPresent(CGFloat.self, forKey: .horizontalPadding) ?? Constants.menuBarHorizontalPadding
+        trailingPadding = try container.decodeIfPresent(CGFloat.self, forKey: .trailingPadding) ?? Constants.privacyIndicatorClearance
         widgetsBackground = try container.decodeIfPresent(WidgetBackgroundConfig.self, forKey: .widgetsBackground) ?? WidgetBackgroundConfig()
         spacing = try container.decodeIfPresent(CGFloat.self, forKey: .spacing) ?? 15
     }
@@ -320,6 +325,7 @@ struct ForegroundConfig: Decodable {
     enum CodingKeys: String, CodingKey {
         case height
         case horizontalPadding = "horizontal-padding"
+        case trailingPadding = "trailing-padding"
         case widgetsBackground = "widgets-background"
         case spacing
     }

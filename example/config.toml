@@ -165,4 +165,9 @@ height = "menu-bar"            # menu-bar, default, or a number of points
 [experimental.foreground]
 height = "menu-bar"
 horizontal-padding = 12
+# Extra clearance on the right only. macOS draws its recording dot in the top
+# corner above every window, including this one, and nothing can cover it, so
+# the bar stops short of it rather than having the clock drawn through. Set to
+# 0 to reclaim the space.
+trailing-padding = 26
 spacing = 10
