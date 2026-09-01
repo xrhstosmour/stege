@@ -99,12 +99,13 @@ displayed = [
 | `default.spaces` | Window manager workspaces, with an icon per window |
 | `default.appmenus` | The frontmost app's menus |
 | `default.reveal` | A chevron that appends the other applications' menu bar items to the bar |
-| `default.monitor` | CPU, memory, and optionally network throughput |
+| `default.monitor` | CPU and memory, with disk and throughput in the popup |
 | `default.privacy` | Microphone and camera in-use indicators |
 | `default.stayawake` | A cup, while something is keeping the display awake |
 | `default.notifications` | A bell listing the notifications macOS is holding, and the Focus modes |
 | `default.audio` | Output volume |
 | `default.display` | Screen brightness, with Night Shift and True Tone in the popup |
+| `default.updates` | A mark while macOS or Homebrew has something waiting |
 | `default.microphone` | The microphone on its own |
 | `default.keyboardlayout` | The current input source, with a popup for switching |
 | `default.bluetooth` | Bluetooth state and connected device battery |
@@ -138,6 +139,12 @@ glyph = "speaker"                   # or "waveform"
 
 [widgets.default.display]
 show-percentage = false             # the glyph already fills with the level
+
+[widgets.default.updates]
+always-show = false                 # hidden while there is nothing waiting
+macos = true
+homebrew = true
+refresh-interval = 30               # minutes
 
 [widgets.default.network]
 show-name = false                   # showing the name asks for Location
@@ -274,10 +281,27 @@ and Night Shift and True Tone are `CBBlueLightClient` and `CBTrueToneClient` in
 monitor whose backlight is not ours to set is still listed, saying so, rather
 than being dropped.
 
+### Updates
+
+A mark while macOS or Homebrew has something waiting, hidden the rest of the time. The popup lists
+what, and hands off rather than acting: Software Update opens the settings pane, and Homebrew
+copies `brew upgrade` to the clipboard, because upgrading can restart services and ask for a
+password and a menu bar is not where that should start on one click.
+
+Neither half checks anything. Stege makes no outbound network requests, so the macOS side reads
+the result of the system's own last check out of `com.apple.SoftwareUpdate` and says how old that
+answer is, and the Homebrew side runs `brew outdated`, which compares what is installed against
+the tap data already on disk.
+
 ### Wi-Fi
 
 The current connection and its signal, then the networks in range, with a switch for the radio
-itself. Clicking a network you have joined before, or an open one, connects straight away. A
+itself. A VPN carrying traffic is named in the popup and badges the bar mark with a small lock,
+and the popup carries the throughput going through it.
+
+Whether a VPN is up is read from the system configuration store rather than from the interface
+list: macOS keeps four `utun` interfaces up with no VPN connected at all, so their presence says
+nothing. What says something is a network service with an address whose interface is a tunnel. Clicking a network you have joined before, or an open one, connects straight away. A
 secured network you have not saved opens a password field under its row.
 
 The password is handed to CoreWLAN and dropped. `associate` writes the successful one to the
@@ -293,6 +317,12 @@ between three symbols of three different widths, which is what used to shove the
 sideways when the volume crossed a third of the way up.
 
 ![The Wi-Fi popup](.github/assets/wifi.png)
+
+### System monitor
+
+Processor and memory in the bar, and in the popup those two drawn as meters alongside disk space
+and the current throughput. Disk uses the figure Finder shows, which counts what macOS would evict
+if it needed the room, rather than the raw free figure that reads far lower.
 
 ### Notifications
 

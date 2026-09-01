@@ -28,6 +28,7 @@ displayed = [
     "default.monitor",
     "default.privacy",
     "default.stayawake",
+    "default.updates",
     "default.keyboardlayout",
     "default.display",
     "default.audio",
@@ -112,6 +113,17 @@ always-show = false
 # framework needs an Apple-issued entitlement.
 # Adds a second control opening Control Center beside the bell.
 show-control-centre = false
+
+[widgets.default.updates]
+# Hidden while there is nothing waiting, which is most of the time.
+always-show = false
+show-count = false             # the popup says what, the bar says whether
+macos = true                   # what macOS found the last time it looked
+homebrew = true                # `brew outdated`, which reads local data only
+refresh-interval = 30          # minutes; reading Homebrew forks a process
+# Neither source checks anything: Stege makes no outbound network requests, so
+# the macOS half reads the result of the system's own last check and says how
+# old it is.
 
 [widgets.default.display]
 # Brightness in the bar, with Night Shift and True Tone in the popup. All three
