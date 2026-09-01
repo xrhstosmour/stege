@@ -128,6 +128,34 @@ struct AudioPopup: View {
                 }
             }
 
+            if scope == .output, !manager.sources.isEmpty {
+                PopupSeparator()
+                VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
+                    PopupSectionTitle("Playing").popupStaticRow()
+                    ForEach(manager.sources) { source in
+                        HStack(spacing: 10) {
+                            Group {
+                                if let icon = source.icon {
+                                    Image(nsImage: icon).resizable()
+                                } else {
+                                    Image(systemName: "app.dashed")
+                                        .resizable()
+                                        .scaledToFit()
+                                }
+                            }
+                            .frame(
+                                width: PopupStyle.iconColumn,
+                                height: PopupStyle.iconColumn)
+                            Text(source.name)
+                                .font(.system(size: PopupStyle.bodySize))
+                                .lineLimit(1)
+                            Spacer(minLength: 8)
+                        }
+                        .popupStaticRow()
+                    }
+                }
+            }
+
             PopupSeparator()
 
             PopupSettingsRow(title: "Sound Settings") {
@@ -137,6 +165,8 @@ struct AudioPopup: View {
             }
         }
         .popupContainer()
+        .onAppear { if scope == .output { manager.startWatchingSources() } }
+        .onDisappear { manager.stopWatchingSources() }
     }
 
     @ViewBuilder

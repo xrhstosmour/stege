@@ -145,6 +145,10 @@ show-percentage = false        # the icon already conveys the level
 show-full-name = false         # "Greek" rather than "GR"
 
 [widgets.default.bluetooth]
+# The battery of the connected device with least left, beside the mark.
+# Connected only: a headset left in a drawer reporting its last known charge is
+# worse than saying nothing.
+show-battery = true
 hide-when-off = false
 
 [widgets.default.network]
@@ -166,6 +170,9 @@ format = "E d MMM  HH:mm"
 # time-zone = "America/Los_Angeles"
 calendar.format = "HH:mm"
 calendar.show-events = true
+# "Dinner (in 25m)" rather than "Dinner (20:30)". The useful question from a bar
+# is how long you have, not what the clock will read when it starts.
+calendar.countdown = true
 # calendar.allow-list = ["Home", "Personal"]
 # calendar.deny-list = ["Work"]
 
