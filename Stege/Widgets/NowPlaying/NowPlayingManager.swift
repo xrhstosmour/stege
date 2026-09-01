@@ -237,6 +237,13 @@ final class NowPlayingManager: ObservableObject {
     static let shared = NowPlayingManager()
 
     @Published private(set) var nowPlaying: NowPlayingSong?
+    /// Whether artwork may be fetched over the network.
+    ///
+    /// The only outbound request this application makes. `MediaRemote` hands
+    /// artwork over as bytes, but the AppleScript path returns a link to the
+    /// player's own servers, and following it tells them the track is being
+    /// looked at from this machine. Set by the widget from the file.
+    var fetchesArtwork = true
     private var cancellable: AnyCancellable?
 
     private init() {
@@ -264,7 +271,17 @@ final class NowPlayingManager: ObservableObject {
                 return
             }
             DispatchQueue.global(qos: .background).async {
-                let song = NowPlayingProvider.fetchNowPlaying()
+                var song = NowPlayingProvider.fetchNowPlaying()
+                // The link points at the player's own servers, so following it
+                // is a request that says what is being played and from where.
+                if !self.fetchesArtwork, var stripped = song {
+                    stripped = NowPlayingSong(
+                        appName: stripped.appName, state: stripped.state,
+                        title: stripped.title, artist: stripped.artist,
+                        albumArtURL: nil, position: stripped.position,
+                        duration: stripped.duration)
+                    song = stripped
+                }
                 DispatchQueue.main.async { [weak self] in
                     self?.nowPlaying = song
                 }

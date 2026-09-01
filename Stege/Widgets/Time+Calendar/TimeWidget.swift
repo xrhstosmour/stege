@@ -50,7 +50,7 @@ struct TimeWidget: View {
         }
         .font(.headline)
         .foregroundStyle(Color("Foreground Outside"))
-        .shadow(color: .foregroundShadowOutside, radius: 3)
+        .shadow(color: Color("Foreground Shadow Outside"), radius: 3)
         .onReceive(timer) { date in
             currentTime = date
         }
