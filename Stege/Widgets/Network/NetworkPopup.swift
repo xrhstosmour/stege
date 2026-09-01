@@ -6,6 +6,9 @@ import SwiftUI
 /// 25 point padding and black background, which made it visibly wider and
 /// looser than the ones either side of it.
 struct NetworkPopup: View {
+    /// Throughput is already measured for the monitor widget, so the popup
+    /// borrows that rather than counting the same interfaces a second time.
+    @StateObject private var traffic = SystemMonitorManager()
     @ObservedObject var viewModel: NetworkStatusViewModel
 
     /// The network whose password is being typed, and the password itself.
@@ -72,8 +75,23 @@ struct NetworkPopup: View {
                 detailRow("RSSI", "\(viewModel.rssi) dBm")
                 detailRow("Noise", "\(viewModel.noise) dBm")
                 detailRow("Channel", viewModel.channel)
+                if let vpn = viewModel.vpnName {
+                    detailRow("VPN", vpn)
+                }
+                detailRow("Down", Self.rate(traffic.bytesReceivedPerSecond))
+                detailRow("Up", Self.rate(traffic.bytesSentPerSecond))
             }
         }
+    }
+
+    /// Compact, the way macOS abbreviates a rate.
+    private static func rate(_ bytesPerSecond: Double) -> String {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useKB, .useMB, .useGB]
+        formatter.countStyle = .binary
+        formatter.allowsNonnumericFormatting = false
+        return formatter.string(fromByteCount: Int64(max(0, bytesPerSecond)))
+            + "/s"
     }
 
     private func detailRow(_ label: String, _ value: String) -> some View {
