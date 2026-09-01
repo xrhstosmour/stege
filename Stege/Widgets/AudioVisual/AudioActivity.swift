@@ -52,18 +52,73 @@ enum AudioActivity {
             guard let pid = processIdentifier(of: object), pid > 0 else {
                 continue
             }
-            // Helper processes make sound on an application's behalf, and a
-            // row naming one of those is worse than no row, so anything
-            // without a name of its own is left out.
-            guard
-                let application = NSRunningApplication(processIdentifier: pid),
-                let name = application.localizedName
-            else { continue }
-            guard !found.contains(where: { $0.id == pid }) else { continue }
-            found.append(
-                AudioSource(id: pid, name: name, icon: application.icon))
+            guard let source = describe(pid: pid, object: object) else {
+                continue
+            }
+            // One row per application, not per process. A browser plays through
+            // an audio helper and can have several.
+            guard !found.contains(where: { $0.name == source.name }) else {
+                continue
+            }
+            found.append(source)
         }
         return found
+    }
+
+    /// The application behind a process making sound.
+    ///
+    /// A process identifier is not enough on its own. Browsers and several
+    /// media applications play through a helper process, which has no
+    /// `NSRunningApplication` of its own, so asking for one and giving up drops
+    /// exactly the applications most worth naming. The bundle identifier the
+    /// process object carries resolves back to the application itself, and its
+    /// helpers carry a bundle identifier derived from it.
+    private static func describe(pid: pid_t, object: AudioObjectID)
+        -> AudioSource?
+    {
+        if let application = NSRunningApplication(processIdentifier: pid),
+            let name = application.localizedName
+        {
+            return AudioSource(id: pid, name: name, icon: application.icon)
+        }
+
+        guard let bundle = bundleIdentifier(of: object), !bundle.isEmpty
+        else { return nil }
+        let workspace = NSWorkspace.shared
+        // A helper is named for its parent, `com.google.Chrome.helper`, so
+        // trimming components back finds the application it belongs to.
+        var candidate = bundle
+        while !candidate.isEmpty {
+            if let url = workspace.urlForApplication(
+                withBundleIdentifier: candidate)
+            {
+                let name =
+                    FileManager.default.displayName(atPath: url.path)
+                    .replacingOccurrences(of: ".app", with: "")
+                return AudioSource(
+                    id: pid, name: name,
+                    icon: workspace.icon(forFile: url.path))
+            }
+            guard let dot = candidate.lastIndex(of: ".") else { break }
+            candidate = String(candidate[..<dot])
+        }
+        return nil
+    }
+
+    private static func bundleIdentifier(of object: AudioObjectID) -> String? {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioProcessPropertyBundleID,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain)
+        guard AudioObjectHasProperty(object, &address) else { return nil }
+        var value: CFString?
+        var size = UInt32(MemoryLayout<CFString?>.size)
+        let status = withUnsafeMutablePointer(to: &value) { pointer in
+            AudioObjectGetPropertyData(
+                object, &address, 0, nil, &size, pointer)
+        }
+        guard status == noErr else { return nil }
+        return value as String?
     }
 
     private static func isRunningOutput(_ object: AudioObjectID) -> Bool {
