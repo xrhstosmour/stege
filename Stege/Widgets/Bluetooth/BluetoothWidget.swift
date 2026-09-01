@@ -155,12 +155,11 @@ struct BluetoothPopup: View {
             )
             .frame(width: 18)
 
-            Text(
-                !manager.isAuthorized
-                    ? "Bluetooth unavailable"
-                    : (manager.isPoweredOn ? "Bluetooth on" : "Bluetooth off")
-            )
-            .font(.system(size: PopupStyle.titleSize, weight: .semibold))
+            // Not "Bluetooth on" or "Bluetooth off". The switch beside it
+            // already says which, and a header that repeats the control next
+            // to it is a header saying nothing.
+            Text(manager.isAuthorized ? "Bluetooth" : "Bluetooth unavailable")
+                .font(.system(size: PopupStyle.titleSize, weight: .semibold))
 
             Spacer(minLength: 8)
 
