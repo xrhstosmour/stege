@@ -13,6 +13,9 @@ final class SystemMonitorManager: ObservableObject {
     /// Bytes per second since the previous sample.
     @Published private(set) var bytesReceivedPerSecond: Double = 0
     @Published private(set) var bytesSentPerSecond: Double = 0
+    /// Free and total bytes on the boot volume, or nil when it cannot be read.
+    @Published private(set) var diskFree: Int64?
+    @Published private(set) var diskTotal: Int64?
 
     private var timer: Timer?
     private var previousTicks: (idle: UInt64, total: UInt64)?
@@ -36,6 +39,24 @@ final class SystemMonitorManager: ObservableObject {
         if let cpu = Self.cpuUsage(previous: &previousTicks) { cpuUsage = cpu }
         if let memory = Self.memoryUsage() { memoryUsage = memory }
         refreshTraffic()
+    }
+
+    /// Space on the boot volume.
+    ///
+    /// `volumeAvailableCapacityForImportantUsage` rather than the raw free
+    /// figure, because macOS will evict purgeable space to make room and the
+    /// raw number reads far lower than what is actually usable. This is the
+    /// number Finder shows.
+    func updateDisk() {
+        let url = URL(fileURLWithPath: "/")
+        guard
+            let values = try? url.resourceValues(forKeys: [
+                .volumeTotalCapacityKey,
+                .volumeAvailableCapacityForImportantUsageKey,
+            ])
+        else { return }
+        diskTotal = values.volumeTotalCapacity.map(Int64.init)
+        diskFree = values.volumeAvailableCapacityForImportantUsage
     }
 
     /// Interface counters are cumulative, so throughput is the delta over the
