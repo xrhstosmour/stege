@@ -9,6 +9,20 @@ struct BluetoothWidget: View {
     /// Hide the widget entirely while Bluetooth is off, the way macOS hides a
     /// menu extra that has nothing to report.
     var hideWhenOff: Bool { config["hide-when-off"]?.boolValue ?? false }
+    /// The battery of the connected device that has least left, beside the
+    /// mark. On by default, because a headset running out is the one thing
+    /// about Bluetooth worth interrupting for.
+    var showBattery: Bool { config["show-battery"]?.boolValue ?? true }
+
+    /// Connected devices only. It used to be every paired device, so a headset
+    /// left in a drawer reported its last known charge as though it were on
+    /// your head.
+    private var lowestConnectedBattery: Double? {
+        manager.devices
+            .filter(\.isConnected)
+            .compactMap(\.batteryLevel)
+            .min()
+    }
 
     @StateObject private var manager = BluetoothManager()
     @State private var rect: CGRect = .zero
@@ -51,11 +65,14 @@ struct BluetoothWidget: View {
                         .offset(x: 4, y: 2)
                 }
             }
-            if let lowest = manager.devices.compactMap(\.batteryLevel).min() {
+            if showBattery, let lowest = lowestConnectedBattery {
                 Text("\(Int((lowest * 100).rounded()))%")
-                    .font(.system(size: 11))
+                    .font(BarStyle.labelFont)
                     .monospacedDigit()
-                    .opacity(0.8)
+                    // Three characters wide whatever the number, so the row
+                    // does not shift as a headset drains.
+                    .frame(width: 30, alignment: .trailing)
+                    .foregroundStyle(lowest <= 0.2 ? Color.red : .primary)
             }
         }
         .opacity(manager.isAuthorized && !manager.isPoweredOn ? 0.45 : 1)
