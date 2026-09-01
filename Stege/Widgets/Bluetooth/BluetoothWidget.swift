@@ -141,6 +141,10 @@ struct BluetoothPopup: View {
             }
         }
         .popupContainer()
+        // Scanning on open, the way the Wi-Fi popup already lists what is in
+        // range without being asked. The inquiry keeps the radio busy, so it
+        // still stops the moment the popup goes away.
+        .onAppear { if manager.isPoweredOn { manager.startScan() } }
         .onDisappear { manager.stopScan() }
     }
 
@@ -247,11 +251,18 @@ struct BluetoothPopup: View {
     /// A bare percentage was easy to miss next to a long device name.
     @ViewBuilder
     private func deviceRow(_ device: BluetoothDevice) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        let isBusy = manager.busy == device.id
+        let isBlocked = manager.busy != nil && !isBusy
+
+        return VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 10) {
-                Image(systemName: "circle.fill")
-                    .font(.system(size: 6))
-                    .foregroundStyle(device.isConnected ? Color.blue : .clear)
+                // What the device is, not a bare dot. A dot said only that
+                // something was connected; the symbol says what.
+                Image(systemName: Self.symbol(for: device.name))
+                    .font(.system(size: PopupStyle.bodySize))
+                    .foregroundStyle(
+                        device.isConnected ? Color.blue : .secondary
+                    )
                     .frame(width: PopupStyle.iconColumn)
                 // Names are user-set and can be long, and the popup is a fixed
                 // width.
@@ -260,7 +271,15 @@ struct BluetoothPopup: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
                 Spacer(minLength: 16)
-                if manager.busy == device.id {
+                // Unconditional, unlike the battery percentage it used to hide
+                // behind: a device that reports no level showed nothing at all
+                // while it connected.
+                if isBusy {
+                    if let activity = manager.activity {
+                        Text(activity.label)
+                            .font(.system(size: PopupStyle.captionSize))
+                            .opacity(0.6)
+                    }
                     ProgressView().controlSize(.mini)
                 } else if let level = device.batteryLevel {
                     Text("\(Int((level * 100).rounded()))%")
@@ -283,7 +302,38 @@ struct BluetoothPopup: View {
                 .padding(.leading, PopupStyle.iconColumn + 10)
             }
         }
-        .popupRow { manager.toggleConnection(device) }
+        .opacity(isBlocked ? 0.4 : 1)
+        .popupRow {
+            // One action at a time, the way Wi-Fi refuses a second join.
+            guard !isBlocked, !isBusy else { return }
+            manager.toggleConnection(device)
+        }
         .help(device.isConnected ? "Disconnect" : "Connect")
+    }
+
+    /// A guess from the name, which is all there is without reading the
+    /// device's class of device record. Wrong guesses fall back to a shape that
+    /// says "device" rather than to nothing.
+    private static func symbol(for name: String) -> String {
+        let lowered = name.lowercased()
+        if lowered.contains("keyboard") { return "keyboard" }
+        if lowered.contains("mouse") || lowered.contains("trackpad") {
+            return "magicmouse"
+        }
+        if lowered.contains("airpod") || lowered.contains("headphone")
+            || lowered.contains("buds") || lowered.contains("headset")
+        {
+            return "headphones"
+        }
+        if lowered.contains("speaker") || lowered.contains("flip")
+            || lowered.contains("boom")
+        {
+            return "hifispeaker"
+        }
+        if lowered.contains("watch") { return "applewatch" }
+        if lowered.contains("iphone") || lowered.contains("phone") {
+            return "iphone"
+        }
+        return "dot.radiowaves.left.and.right"
     }
 }

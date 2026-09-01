@@ -29,7 +29,25 @@ final class BluetoothManager: NSObject, ObservableObject {
     @Published private(set) var discovered: [BluetoothDevice] = []
     @Published private(set) var isScanning = false
     /// The address a connect, disconnect or pair is in flight for.
+    /// The device an action is in flight for, and which action it is, so a row
+    /// can say `Connecting…` rather than only spinning. Wi-Fi keeps its scan
+    /// and its join apart for the same reason.
+    enum Activity {
+        case connecting
+        case disconnecting
+        case pairing
+
+        var label: String {
+            switch self {
+            case .connecting: return "Connecting…"
+            case .disconnecting: return "Disconnecting…"
+            case .pairing: return "Pairing…"
+            }
+        }
+    }
+
     @Published private(set) var busy: String?
+    @Published private(set) var activity: Activity?
     /// Set when an action did not take, so the popup can say so.
     @Published private(set) var failure: String?
     /// Whether the app is allowed to read Bluetooth at all.
@@ -293,15 +311,18 @@ final class BluetoothManager: NSObject, ObservableObject {
     /// profiles on top of it, which is what makes a headset audible again
     /// without this having to know anything about audio.
     func toggleConnection(_ device: BluetoothDevice) {
+        guard busy == nil else { return }
         busy = device.id
         failure = nil
         let address = device.id
         let shouldConnect = !device.isConnected
+        activity = shouldConnect ? .connecting : .disconnecting
 
         queue.async { [weak self] in
             guard let target = Self.device(withAddress: address) else {
                 DispatchQueue.main.async {
                     self?.busy = nil
+                    self?.activity = nil
                     self?.failure = "\(device.name) is not reachable"
                 }
                 return
@@ -311,6 +332,7 @@ final class BluetoothManager: NSObject, ObservableObject {
                 ? target.openConnection() : target.closeConnection()
             DispatchQueue.main.async {
                 self?.busy = nil
+                self?.activity = nil
                 if result != kIOReturnSuccess {
                     self?.failure =
                         shouldConnect
@@ -328,8 +350,10 @@ final class BluetoothManager: NSObject, ObservableObject {
     /// screen itself. A device that wants a typed PIN is left to the system,
     /// which has the UI for it, and reports back as a failure here.
     func pair(_ device: BluetoothDevice) {
+        guard busy == nil else { return }
         guard let target = Self.device(withAddress: device.id) else { return }
         busy = device.id
+        activity = .pairing
         failure = nil
         // Built and set by selector rather than through `pairWithDevice:` or
         // `device`. Each macOS SDK imports those differently, a factory
@@ -342,6 +366,7 @@ final class BluetoothManager: NSObject, ObservableObject {
         activePairing = pairing
         if pairing.start() != kIOReturnSuccess {
             busy = nil
+            activity = nil
             failure = "Could not start pairing \(device.name)"
             activePairing = nil
         }
@@ -460,6 +485,7 @@ extension BluetoothManager: IOBluetoothDevicePairDelegate {
 
     func devicePairingFinished(_ sender: Any!, error: IOReturn) {
         busy = nil
+        activity = nil
         activePairing = nil
         if error != kIOReturnSuccess {
             failure = "Pairing did not complete"
