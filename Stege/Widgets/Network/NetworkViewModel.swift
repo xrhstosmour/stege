@@ -112,6 +112,12 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
                         // If the Wi‑Fi interface is available but not in use – consider it enabled but not connected.
                         self.wifiState = .disconnected
                     }
+                } else if CWWiFiClient.shared().interface() != nil {
+                    // A radio that is switched off drops out of the path's
+                    // interface list entirely, which used to read as no Wi-Fi
+                    // hardware at all and hid the icon, leaving nothing in the
+                    // bar to switch it back on with.
+                    self.wifiState = .disabled
                 } else {
                     self.wifiState = .notSupported
                 }
