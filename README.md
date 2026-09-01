@@ -267,14 +267,23 @@ reachable. `hide-when-disconnected = true` takes it away instead.
 ### Notifications
 
 A bell whose popup lists the notifications that have come in and every Focus, including any you
-have made yourself. Clicking a row dismisses that notification and Clear All presses the real
-button, so this list and the system's cannot drift apart.
+have made yourself. Clicking a row dismisses that notification and Clear All clears the lot.
 
 The list is macOS's own. There is no public API for it and no file to read, so it comes from
 Notification Center's own accessibility tree, which publishes one element per notification with
-the application name, the title, subtitle and body as separately labelled text, the timestamp,
-and the actions that dismiss it. The panel has to exist to be read, so opening the popup opens
-Notification Center, takes what it needs and closes it again.
+the application name, the title, subtitle and body as separately labelled text, the timestamp, and
+the actions that dismiss it.
+
+Opening the bell opens nothing. The panel has to exist to be read, so it is read once a few
+seconds after launch, and every banner macOS draws afterwards goes straight into the list, because
+a banner publishes the same identifier and the same text a row in the panel does. Opening
+Notification Center by hand is read too, so a list gone stale corrects itself, and the circular
+arrow next to the `Notifications` heading asks macOS again.
+
+Dismissals are queued rather than pressed as you click: the row leaves the list at once, and the
+real close button, or Clear All, is pressed in one visit after the popup has gone. So the panel
+macOS insists on drawing is never on screen at the same time as the popup, and the list still
+cannot drift apart from the system's.
 
 The Focus list and the switching go through Control Center's own controls, for the same reason:
 `~/Library/DoNotDisturb/DB` needs Full Disk Access and the private `DoNotDisturb` framework
@@ -322,10 +331,12 @@ that event. The plus adds an event to whichever calendar you choose.
 held. The Accessibility API exposes no attribute that tells an alternate from an ordinary item, so
 Stege shows both at once.
 
-**Low Power Mode flashes the system panel.** The switch is the one macOS puts in the battery menu
-extra's own panel, pressed through the Accessibility API. Nothing else can write that setting:
-`pmset` needs root and the private `LowPowerMode` framework needs an Apple-issued entitlement. The
-same is true of reading the notification list and the Focus modes.
+**Low Power Mode and Focus flash the system panel.** Both switches are the ones macOS puts in its
+own panels, pressed through the Accessibility API, because nothing else can write those settings:
+`pmset` needs root, `~/Library/DoNotDisturb/DB` needs Full Disk Access, and the private
+`LowPowerMode` and `DoNotDisturb` frameworks answer only callers holding an Apple-issued
+entitlement. Notification Center is the same, which is why the list is read once at launch rather
+than on every click.
 
 **No screen recording indicator.** There is no public API to detect another app capturing the
 screen, so the privacy widget covers the microphone and camera only.
