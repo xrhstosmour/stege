@@ -24,7 +24,18 @@ struct NetworkWidget: View {
             {
                 EmptyView()
             } else if viewModel.wifiState != .notSupported {
-                wifiIcon.frame(width: BarStyle.glyphWidth)
+                wifiIcon
+                    .frame(width: BarStyle.glyphWidth)
+                    // A VPN is a property of the connection, not a second
+                    // thing in the bar, so it rides on the mark that already
+                    // stands for the connection.
+                    .overlay(alignment: .bottomTrailing) {
+                        if viewModel.vpnName != nil {
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: BarStyle.badgeSize))
+                                .offset(x: 3, y: 2)
+                        }
+                    }
             }
             if viewModel.ethernetState != .notSupported {
                 ethernetIcon.frame(width: BarStyle.glyphWidth)
@@ -73,8 +84,11 @@ struct NetworkWidget: View {
         }
         switch viewModel.wifiState {
         case .connected:
-            return viewModel.channel == "N/A"
+            let base =
+                viewModel.channel == "N/A"
                 ? viewModel.ssid : "\(viewModel.ssid) · \(viewModel.channel)"
+            guard let vpn = viewModel.vpnName else { return base }
+            return "\(base) · \(vpn)"
         case .connectedWithoutInternet:
             return "\(viewModel.ssid), no internet"
         case .connecting: return "Connecting…"

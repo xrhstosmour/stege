@@ -3,6 +3,7 @@ import CoreLocation
 import CoreWLAN
 import Network
 import SwiftUI
+import SystemConfiguration
 
 enum NetworkState: String {
     case connected = "Connected"
@@ -56,6 +57,8 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
     @Published var joinFailure: String?
     /// The network a join is currently in flight for, so its row can say so.
     @Published var joining: String?
+    /// The name of the VPN carrying traffic, or nil when none is.
+    @Published var vpnName: String?
 
     /// Computed property for signal strength.
     var wifiSignalStrength: WifiSignalStrength {
@@ -209,6 +212,7 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
     }
 
     func updateWiFiInfo() {
+        vpnName = Self.activeVPN()
         let client = CWWiFiClient.shared()
         if let interface = client.interface() {
             // A nil SSID means "not readable", which is not the same as "not
@@ -373,6 +377,53 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
                 string:
                     "x-apple.systempreferences:com.apple.wifi-settings-extension"
             )!)
+    }
+
+    // MARK: - VPN
+
+    /// The VPN service carrying traffic, by name, or nil.
+    ///
+    /// Not "is there a tunnel interface": macOS keeps four `utun` interfaces up
+    /// with no VPN connected at all, for its own services, so the presence of
+    /// one says nothing. What does say something is the configuration store:
+    /// each network service that currently has an address publishes
+    /// `State:/Network/Service/<id>/IPv4` naming the interface it runs over. A
+    /// service running over a tunnel is a VPN, and the matching `Setup:` key
+    /// carries the name the user gave it.
+    private static func activeVPN() -> String? {
+        guard
+            let store = SCDynamicStoreCreate(
+                nil, "stege.network" as CFString, nil, nil),
+            let keys = SCDynamicStoreCopyKeyList(
+                store, "State:/Network/Service/.*/IPv4" as CFString)
+                as? [String]
+        else { return nil }
+
+        for key in keys {
+            guard
+                let value = SCDynamicStoreCopyValue(store, key as CFString)
+                    as? [String: Any],
+                let interface = value["InterfaceName"] as? String,
+                isTunnel(interface)
+            else { continue }
+
+            // "State:/Network/Service/<id>/IPv4" -> the service identifier.
+            let parts = key.split(separator: "/")
+            guard parts.count >= 4 else { return interface }
+            let identifier = String(parts[parts.count - 2])
+            let setup =
+                SCDynamicStoreCopyValue(
+                    store, "Setup:/Network/Service/\(identifier)" as CFString)
+                as? [String: Any]
+            return (setup?["UserDefinedName"] as? String) ?? interface
+        }
+        return nil
+    }
+
+    private static func isTunnel(_ interface: String) -> Bool {
+        ["utun", "ipsec", "ppp", "tun", "tap"].contains {
+            interface.hasPrefix($0)
+        }
     }
 
     // MARK: — CLLocationManagerDelegate.
