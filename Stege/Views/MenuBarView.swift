@@ -21,9 +21,12 @@ struct MenuBarView: View {
                 ForEach(0..<items.count, id: \.self) { index in
                     let item = items[index]
                     buildView(for: item)
-                        // So a widget can tell whether the keyboard ring is on
-                        // it without the bar having to know what each one does.
+                        // So a widget can tell whether an activation was meant
+                        // for it without the bar knowing what each one does.
                         .environment(\.barItemIndex, index)
+                        // The ring is the bar's, not each widget's, so every
+                        // item shows where the keyboard is.
+                        .barFocusRing()
                 }
             }
         }

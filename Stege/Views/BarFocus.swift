@@ -117,39 +117,49 @@ extension EnvironmentValues {
 }
 
 extension View {
-    /// Draws the ring when the keyboard is on this item, and runs `action` when
-    /// it is opened from the keyboard. Everything a widget needs to join in.
+    /// What a widget does when the keyboard opens it. Usually the same closure
+    /// its click already runs.
+    ///
+    /// Only the action. The ring is drawn by the bar around every item, so a
+    /// widget that has not adopted this still shows where the keyboard is, it
+    /// just does nothing when opened.
     func barFocusable(action: @escaping () -> Void) -> some View {
         modifier(BarFocusable(action: action))
+    }
+
+    /// The ring itself, applied by the bar to every item it lays out.
+    func barFocusRing() -> some View {
+        modifier(BarFocusRing())
+    }
+}
+
+private struct BarFocusRing: ViewModifier {
+    @Environment(\.barItemIndex) private var index
+    @ObservedObject private var focus = BarFocus.shared
+
+    func body(content: Content) -> some View {
+        content.overlay {
+            if let index, focus.focused == index {
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .stroke(Color.accentColor, lineWidth: 2)
+                    .padding(-2)
+            }
+        }
     }
 }
 
 private struct BarFocusable: ViewModifier {
     @Environment(\.barItemIndex) private var index
-    @ObservedObject private var focus = BarFocus.shared
     let action: () -> Void
 
-    private var isFocused: Bool {
-        guard let index else { return false }
-        return focus.focused == index
-    }
-
     func body(content: Content) -> some View {
-        content
-            .overlay {
-                if isFocused {
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .stroke(Color.accentColor, lineWidth: 2)
-                        .padding(-2)
-                }
-            }
-            .onReceive(
-                NotificationCenter.default.publisher(for: .barItemActivated)
-            ) { notification in
-                guard let index,
-                    notification.userInfo?["index"] as? Int == index
-                else { return }
-                action()
-            }
+        content.onReceive(
+            NotificationCenter.default.publisher(for: .barItemActivated)
+        ) { notification in
+            guard let index,
+                notification.userInfo?["index"] as? Int == index
+            else { return }
+            action()
+        }
     }
 }
