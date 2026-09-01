@@ -10,7 +10,7 @@ struct SystemMonitorWidget: View {
         Double(config["warning-level"]?.intValue ?? 80) / 100
     }
 
-    @StateObject private var manager = SystemMonitorManager()
+    @ObservedObject private var manager = SystemMonitorManager.shared
     @State private var rect: CGRect = .zero
 
     var body: some View {

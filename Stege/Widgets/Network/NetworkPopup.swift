@@ -8,7 +8,7 @@ import SwiftUI
 struct NetworkPopup: View {
     /// Throughput is already measured for the monitor widget, so the popup
     /// borrows that rather than counting the same interfaces a second time.
-    @StateObject private var traffic = SystemMonitorManager()
+    @ObservedObject private var traffic = SystemMonitorManager.shared
     @ObservedObject var viewModel: NetworkStatusViewModel
 
     /// The network whose password is being typed, and the password itself.
