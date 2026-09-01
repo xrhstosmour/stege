@@ -88,12 +88,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Registers the shortcut from the config file, now and on every reload,
     /// so changing it takes effect without a restart.
     private func observeToggleShortcut() {
+        observeRunningApplications()
         applyShortcuts(ConfigManager.shared.config)
         shortcutObserver = ConfigManager.shared.$config
             .receive(on: DispatchQueue.main)
             .sink { [weak self] configuration in
                 self?.applyShortcuts(configuration)
             }
+    }
+
+    /// An application that was not running when its icon was asked for may be
+    /// running now, so the record of what failed is dropped when the set
+    /// changes rather than being kept for the life of the process.
+    private func observeRunningApplications() {
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didLaunchApplicationNotification,
+            object: nil, queue: .main
+        ) { _ in IconCache.shared.forgetMisses() }
     }
 
     private func applyShortcuts(_ configuration: Config) {
