@@ -152,6 +152,7 @@ hide-when-disconnected = false
 
 [widgets.default.bluetooth]
 hide-when-off = false
+show-battery = true                 # the connected device with least left
 
 [widgets.default.battery]
 style = "inside"                    # number in the battery, or "plain" for beside it
@@ -162,6 +163,7 @@ critical-level = 10
 [widgets.default.time]
 format = "E d MMM  HH:mm"
 calendar.show-events = true
+calendar.countdown = true           # "in 25m" rather than the start time
 # calendar.allow-list = ["Home", "Personal"]
 
 [widgets.default.time.popup]
@@ -252,6 +254,12 @@ full system menu instead, all fifteen entries including the option-key alternate
 The speaker's arcs fill by level the way macOS's own does. `glyph = "waveform"` is the neutral
 alternative. Scrolling on the icon changes the volume and right-clicking mutes, so the popup is
 only needed for picking a device.
+
+The sound popup lists what is making noise while the popup is open. Not a level per application,
+which macOS does not offer: the audio process objects added in macOS 14.4 carry a process
+identifier and whether it is running output, but no volume and no mute. Setting a level per
+application means installing a virtual audio device that becomes the default output, which is a
+system driver and an administrator prompt, and is not what this is.
 
 `default.microphone` puts the microphone in the bar as its own icon, with the same scroll and
 right-click over the input level.

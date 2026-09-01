@@ -12,6 +12,10 @@ struct TimeWidget: View {
     var calendarFormat: String {
         calendarConfig?["format"]?.stringValue ?? "J:mm"
     }
+    /// Count down to the next event rather than naming its start time.
+    var calendarCountdown: Bool {
+        calendarConfig?["countdown"]?.boolValue ?? true
+    }
     var calendarShowEvents: Bool {
         calendarConfig?["show-events"]?.boolValue ?? true
     }
@@ -108,16 +112,35 @@ struct TimeWidget: View {
         return formatter.string(from: time)
     }
 
-    // Create text for the calendar event.
+    /// The next event, and how long until it.
+    ///
+    /// A countdown rather than a start time, because the useful question is
+    /// "how long have I got", and answering it from a clock face is work the
+    /// bar can do for you. Past the start it counts up as `now`, so a meeting
+    /// you are late for says so. `countdown = false` goes back to the time.
     private func eventText(for event: EKEvent) -> String {
-        var text = event.title ?? ""
-        if !event.isAllDay {
-            text += " ("
-            text += formattedTime(
-                pattern: calendarFormat, from: event.startDate)
-            text += ")"
+        let title = event.title ?? ""
+        guard !event.isAllDay, let start = event.startDate else { return title }
+        guard calendarCountdown else {
+            return "\(title) (\(formattedTime(pattern: calendarFormat, from: start)))"
         }
-        return text
+        return "\(title) (\(Self.countdown(to: start)))"
+    }
+
+    /// Rounded to the unit that matters: minutes inside an hour, hours and
+    /// minutes inside a day, days beyond that.
+    private static func countdown(to start: Date) -> String {
+        let seconds = start.timeIntervalSinceNow
+        if seconds <= 0 { return "now" }
+        let minutes = Int(seconds / 60)
+        if minutes < 1 { return "now" }
+        if minutes < 60 { return "in \(minutes)m" }
+        let hours = minutes / 60
+        if hours < 24 {
+            let remainder = minutes % 60
+            return remainder == 0 ? "in \(hours)h" : "in \(hours)h \(remainder)m"
+        }
+        return "in \(hours / 24)d"
     }
 }
 

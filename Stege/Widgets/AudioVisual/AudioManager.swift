@@ -30,6 +30,8 @@ final class AudioManager: ObservableObject {
     @Published private(set) var inputDevices: [AudioDevice] = []
     @Published private(set) var currentOutputID: AudioObjectID = 0
     @Published private(set) var currentInputID: AudioObjectID = 0
+    /// Applications making sound right now. Only read while a popup is open.
+    @Published private(set) var sources: [AudioSource] = []
 
     /// The registered block is kept alongside the address because
     /// `AudioObjectRemovePropertyListenerBlock` only removes the exact block it
@@ -37,6 +39,7 @@ final class AudioManager: ObservableObject {
     /// Where the level was before a mute that had to be done by turning it
     /// down, so unmuting can put it back rather than guessing.
     private var volumeBeforeMute: Double = 0
+    private var sourcesTimer: Timer?
 
     private struct Listener {
         let device: AudioObjectID
@@ -232,6 +235,28 @@ final class AudioManager: ObservableObject {
         refresh()
         removeDeviceListeners()
         observeCurrentDevices()
+    }
+
+    /// Started and stopped by the popup. The HAL has no notification for a
+    /// process starting output, so this polls, and there is no reason to poll
+    /// while nothing is on screen to show it.
+    func startWatchingSources() {
+        guard sourcesTimer == nil else { return }
+        refreshSources()
+        sourcesTimer = Timer.scheduledTimer(
+            withTimeInterval: 2, repeats: true
+        ) { [weak self] _ in self?.refreshSources() }
+    }
+
+    func stopWatchingSources() {
+        sourcesTimer?.invalidate()
+        sourcesTimer = nil
+        sources = []
+    }
+
+    private func refreshSources() {
+        let found = AudioActivity.current()
+        if found != sources { sources = found }
     }
 
     // MARK: - Writing
