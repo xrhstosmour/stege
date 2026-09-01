@@ -117,6 +117,14 @@ class SpacesViewModel: ObservableObject {
 class IconCache {
     static let shared = IconCache()
     private let cache = NSCache<NSString, NSImage>()
+    /// Keys that resolved to nothing.
+    ///
+    /// A miss costs a scan of every running application, and nothing was
+    /// remembering that it had already failed. The notification popup asks for
+    /// an icon by application name while it draws each row, so an application
+    /// that is not running was rescanned for on every render of every row it
+    /// appeared in.
+    private var misses: Set<String> = []
     private init() {}
 
     /// Resolved by bundle identifier where possible. `NSWorkspace` can map a
@@ -127,6 +135,7 @@ class IconCache {
         let key = (bundleID ?? appName ?? "") as NSString
         guard key.length > 0 else { return nil }
         if let cached = cache.object(forKey: key) { return cached }
+        if misses.contains(key as String) { return nil }
 
         let workspace = NSWorkspace.shared
         var url: URL?
@@ -138,7 +147,10 @@ class IconCache {
                 .first { $0.localizedName == appName }?
                 .bundleURL
         }
-        guard let url else { return nil }
+        guard let url else {
+            misses.insert(key as String)
+            return nil
+        }
 
         let icon = workspace.icon(forFile: url.path)
         cache.setObject(icon, forKey: key)
@@ -147,5 +159,11 @@ class IconCache {
 
     func icon(for appName: String) -> NSImage? {
         icon(bundleID: nil, appName: appName)
+    }
+
+    /// Applications come and go, so a name that failed once may resolve later.
+    /// Called when the set of running applications changes.
+    func forgetMisses() {
+        misses.removeAll()
     }
 }
