@@ -106,12 +106,10 @@ final class NotificationCenterReader: ObservableObject {
 
     private func windowAppeared(_ window: AXUIElement) {
         // A banner and the panel are both titled `Notification Center`, so the
-        // list is what tells them apart. The panel is the one carrying it, and
-        // when it is opened by hand its list is right there to be taken rather
-        // than asked for again.
-        if Self.descendant(of: window, identifiedBy: Self.listIdentifier, depth: 0)
-            != nil
-        {
+        // size is what tells them apart. See `isPanel`. When the panel is
+        // opened by hand its list is right there to be taken rather than asked
+        // for again.
+        if Self.isPanel(window) {
             let found = Self.parse(window)
             DispatchQueue.main.async {
                 self.notifications = found
@@ -327,14 +325,48 @@ final class NotificationCenterReader: ObservableObject {
                 == .success,
             let windows = value as? [AXUIElement]
         else { return nil }
-        // A banner on screen is a window with the same title, so matching on
-        // the title alone can hand back a banner and then wait for a panel that
-        // is already open. The list is what only the panel has.
-        return windows.first {
-            string($0, kAXTitleAttribute as String) == panelTitle
-                && descendant(of: $0, identifiedBy: listIdentifier, depth: 0)
-                    != nil
-        }
+        return windows.first(where: isPanel)
+    }
+
+    /// Whether a window is the panel rather than a banner.
+    ///
+    /// They come out of the same process with the same `Notification Center`
+    /// title and the same `AXSystemDialog` subrole, so neither tells them
+    /// apart. What does is size: the panel covers a whole display, measured at
+    /// `1470x956` on this one, and a banner is a small window in the corner.
+    ///
+    /// Not the notification list, which was the first attempt: a panel holding
+    /// nothing does not publish one, so an empty Notification Center looked
+    /// like no panel at all and was left open on screen.
+    private static func isPanel(_ window: AXUIElement) -> Bool {
+        guard string(window, kAXTitleAttribute as String) == panelTitle,
+            let height = size(of: window)?.height
+        else { return false }
+        return height >= Self.tallestDisplayHeight / 2
+    }
+
+    /// Read through `CoreGraphics` rather than `NSScreen`, because the panel is
+    /// looked for on a background queue and `NSScreen` belongs to the main one.
+    private static var tallestDisplayHeight: CGFloat {
+        var count: UInt32 = 0
+        guard CGGetActiveDisplayList(0, nil, &count) == .success, count > 0
+        else { return 0 }
+        var displays = [CGDirectDisplayID](repeating: 0, count: Int(count))
+        guard CGGetActiveDisplayList(count, &displays, &count) == .success
+        else { return 0 }
+        return displays.map { CGDisplayBounds($0).height }.max() ?? 0
+    }
+
+    private static func size(of element: AXUIElement) -> CGSize? {
+        var value: CFTypeRef?
+        guard
+            AXUIElementCopyAttributeValue(
+                element, kAXSizeAttribute as CFString, &value) == .success,
+            let value, CFGetTypeID(value) == AXValueGetTypeID()
+        else { return nil }
+        var size = CGSize.zero
+        AXValueGetValue(value as! AXValue, .cgSize, &size)
+        return size
     }
 
     // MARK: - Parsing
