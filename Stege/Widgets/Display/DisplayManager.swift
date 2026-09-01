@@ -166,13 +166,33 @@ final class DisplayManager: ObservableObject {
 
     // MARK: - Night Shift
 
+    /// Called through a typed function pointer rather than `perform(_:with:)`.
+    ///
+    /// `setEnabled:` takes a `BOOL`, a primitive, and `perform(_:with:)` passes
+    /// an object. The method then reads the pointer as its boolean, and a
+    /// non-nil pointer is always true, so the switch turned Night Shift on and
+    /// could never turn it off again.
     func setNightShift(_ on: Bool) {
-        guard let client = Self.blueLightClient else {
+        guard let client = Self.blueLightClient,
+            let method = class_getInstanceMethod(
+                type(of: client), Selector(("setEnabled:")))
+        else {
             failure = "Night Shift is not available on this system"
             return
         }
-        _ = client.perform(Selector(("setEnabled:")), with: on as NSNumber)
-        isNightShiftOn = Self.readNightShift()
+        typealias SetEnabled = @convention(c) (AnyObject, Selector, Bool) -> Bool
+        let implementation = unsafeBitCast(
+            method_getImplementation(method), to: SetEnabled.self)
+        _ = implementation(client, Selector(("setEnabled:")), on)
+        // Believed straight away so the switch moves under the pointer, then
+        // read back once the change has settled. Reading immediately catches
+        // the old value.
+        isNightShiftOn = on
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+            guard let self else { return }
+            self.isNightShiftOn = Self.readNightShift()
+            self.nightShiftStrength = Self.readNightShiftStrength()
+        }
     }
 
     func setNightShiftStrength(_ value: Float) {
@@ -246,7 +266,10 @@ final class DisplayManager: ObservableObject {
     func setTrueTone(_ on: Bool) {
         guard let client = Self.trueToneClient else { return }
         client.setValue(on, forKey: "enabled")
-        isTrueToneOn = Self.readTrueTone()
+        isTrueToneOn = on
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+            self?.isTrueToneOn = Self.readTrueTone()
+        }
     }
 
     private static func readTrueTone() -> Bool {
