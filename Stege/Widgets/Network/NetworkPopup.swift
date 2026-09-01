@@ -52,7 +52,10 @@ struct NetworkPopup: View {
     private var current: some View {
         PopupHeader(
             symbol: wifiSymbol,
-            title: viewModel.isPoweredOn ? viewModel.ssid : "Wi-Fi Off",
+            // The switch says whether the radio is on, so the header says
+            // which network instead, or nothing more than the name of the
+            // thing when there is no network to name.
+            title: viewModel.isPoweredOn ? viewModel.ssid : "Wi-Fi",
             tint: isConnected ? .blue : .secondary
         ) {
             PopupSwitch(isOn: viewModel.isPoweredOn) {
