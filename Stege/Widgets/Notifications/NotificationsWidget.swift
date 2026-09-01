@@ -16,6 +16,12 @@ struct NotificationsWidget: View {
 
     /// Also draw a second control opening Control Center, which is the other
     /// panel replacing the menu bar takes away.
+    /// Keep the list across restarts. Off by default: remembering writes every
+    /// notification's text to the preferences file in plaintext.
+    var remembersBetweenLaunches: Bool {
+        config["remember-between-launches"]?.boolValue ?? false
+    }
+
     var showControlCentre: Bool {
         config["show-control-centre"]?.boolValue
             ?? config["show-control-center"]?.boolValue ?? false
@@ -72,7 +78,10 @@ struct NotificationsWidget: View {
                     }
             }
         )
-        .onAppear { centre.startWatching() }
+        .onAppear {
+            centre.remembersBetweenLaunches = remembersBetweenLaunches
+            centre.startWatching()
+        }
     }
 
     private var helpText: String {

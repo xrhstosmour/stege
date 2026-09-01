@@ -335,13 +335,18 @@ the application name, the title, subtitle and body as separately labelled text, 
 the actions that dismiss it.
 
 Nothing here opens Notification Center on its own. The panel has to exist to be read, so instead
-the list is kept between launches, and every banner macOS draws goes straight into it, because a
+every banner macOS draws goes straight into the list, because a
 banner publishes the same identifier and the same text a row in the panel does. Opening
 Notification Center by hand is read too, so a list gone stale corrects itself, and the circular
 arrow next to the `Notifications` heading asks macOS outright. A notification that arrived before
 Stege started, one delivered without a banner, an application whose alert style is `None`, or
 anything that arrives under a Focus, is not in the list until one of those reads, which is what
 the arrow is for. Each row carries the posting application's icon.
+
+The list does not survive a restart unless `remember-between-launches = true`. Remembering means
+writing every notification's title, subtitle and body to `~/Library/Preferences` in plaintext,
+where anything running as you can read them, and message previews are the kind of thing this app
+refuses Full Disk Access to avoid reading in the first place.
 
 Dismissals are queued rather than pressed as you click: the row leaves the list at once, and the
 real close button, or Clear All, is pressed in one visit after the popup has gone. So the panel
