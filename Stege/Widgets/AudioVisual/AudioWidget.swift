@@ -61,7 +61,7 @@ struct AudioWidget: View {
             PointerInput(
                 onClick: {
                     MenuBarPopup.show(rect: rect, id: "audio") {
-                        AudioPopup(manager: manager)
+                        AudioPopup(manager: manager, scope: .output)
                     }
                 },
                 onScroll: { manager.nudgeVolume(by: Double($0) * 0.05) },
@@ -83,41 +83,55 @@ struct AudioWidget: View {
 
 }
 
+/// Which half of the sound hardware a popup is for.
+///
+/// The speaker and the microphone are separate entries in the bar, so they get
+/// separate popups. One popup listing both meant clicking either icon opened
+/// the same thing, and the icon you clicked said nothing about what you got.
+enum AudioScope {
+    case output
+    case input
+}
+
 struct AudioPopup: View {
     @ObservedObject var manager: AudioManager
+    let scope: AudioScope
 
-    /// Output and input as two matching blocks, rather than one slider, two
-    /// device lists and then a second slider stranded at the bottom under a
-    /// divider. Each block is the same three things in the same order: what it
-    /// is, how loud it is, and which device it is using. The two halves of the
-    /// widget then read the same way as the one glyph that stands for them.
+    /// One block: what it is, how loud it is, and which device it is using.
     var body: some View {
         VStack(alignment: .leading, spacing: PopupStyle.spacing) {
             header
 
-            section(
-                title: "Output",
-                symbol: manager.isOutputMuted || manager.volume <= 0.001
-                    ? "speaker.slash.fill" : "speaker.wave.2.fill",
-                isMuted: manager.isOutputMuted,
-                level: manager.volume,
-                setLevel: { manager.setVolume($0) },
-                toggleMute: { manager.toggleOutputMute() },
-                devices: manager.outputDevices,
-                selected: manager.currentOutputID,
-                input: false)
-
-            if manager.hasInput {
+            switch scope {
+            case .output:
                 section(
-                    title: "Input",
-                    symbol: manager.isInputMuted ? "mic.slash.fill" : "mic.fill",
-                    isMuted: manager.isInputMuted,
-                    level: manager.inputVolume,
-                    setLevel: { manager.setInputVolume($0) },
-                    toggleMute: { manager.toggleInputMute() },
-                    devices: manager.inputDevices,
-                    selected: manager.currentInputID,
-                    input: true)
+                    symbol: manager.isOutputMuted || manager.volume <= 0.001
+                        ? "speaker.slash.fill" : "speaker.wave.2.fill",
+                    isMuted: manager.isOutputMuted,
+                    level: manager.volume,
+                    setLevel: { manager.setVolume($0) },
+                    toggleMute: { manager.toggleOutputMute() },
+                    devices: manager.outputDevices,
+                    selected: manager.currentOutputID,
+                    input: false)
+            case .input:
+                if manager.hasInput {
+                    section(
+                        symbol: manager.isInputMuted
+                            ? "mic.slash.fill" : "mic.fill",
+                        isMuted: manager.isInputMuted,
+                        level: manager.inputVolume,
+                        setLevel: { manager.setInputVolume($0) },
+                        toggleMute: { manager.toggleInputMute() },
+                        devices: manager.inputDevices,
+                        selected: manager.currentInputID,
+                        input: true)
+                } else {
+                    Text("No microphone")
+                        .font(.system(size: PopupStyle.bodySize))
+                        .opacity(0.6)
+                        .popupStaticRow()
+                }
             }
 
             PopupSeparator()
@@ -131,17 +145,32 @@ struct AudioPopup: View {
         .popupContainer(wide: true)
     }
 
+    @ViewBuilder
     private var header: some View {
         HStack(spacing: 8) {
-            SoundGlyph(
-                level: manager.volume,
-                isOutputMuted: manager.isOutputMuted,
-                isInputMuted: manager.isInputMuted,
-                hasInput: manager.hasInput,
-                style: .speaker,
-                size: PopupStyle.titleSize)
-            Text("Sound")
-                .font(.system(size: PopupStyle.titleSize, weight: .semibold))
+            switch scope {
+            case .output:
+                SoundGlyph(
+                    level: manager.volume,
+                    isOutputMuted: manager.isOutputMuted,
+                    isInputMuted: manager.isInputMuted,
+                    hasInput: false,
+                    style: .speaker,
+                    size: PopupStyle.titleSize)
+                Text("Sound")
+                    .font(
+                        .system(size: PopupStyle.titleSize, weight: .semibold))
+            case .input:
+                Image(
+                    systemName: manager.isInputMuted
+                        ? "mic.slash.fill" : "mic.fill"
+                )
+                .font(.system(size: PopupStyle.titleSize))
+                .foregroundStyle(manager.isInputMuted ? Color.red : .primary)
+                Text("Microphone")
+                    .font(
+                        .system(size: PopupStyle.titleSize, weight: .semibold))
+            }
             Spacer(minLength: 8)
         }
         .padding(.horizontal, PopupStyle.rowHorizontalPadding)
@@ -155,13 +184,11 @@ struct AudioPopup: View {
     /// is worse than no slider.
     @ViewBuilder
     private func section(
-        title: String, symbol: String, isMuted: Bool, level: Double?,
+        symbol: String, isMuted: Bool, level: Double?,
         setLevel: @escaping (Double) -> Void, toggleMute: @escaping () -> Void,
         devices: [AudioDevice], selected: AudioObjectID, input: Bool
     ) -> some View {
         VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
-            PopupSectionTitle(title).popupStaticRow()
-
             HStack(spacing: 10) {
                 // The glyph is the mute button. macOS puts mute on the same
                 // icon, and a separate switch for it would be a fourth control
