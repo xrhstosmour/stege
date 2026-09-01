@@ -45,8 +45,8 @@ struct MicrophoneWidget: View {
         .overlay(
             PointerInput(
                 onClick: {
-                    MenuBarPopup.show(rect: rect, id: "audio") {
-                        AudioPopup(manager: manager)
+                    MenuBarPopup.show(rect: rect, id: "microphone") {
+                        AudioPopup(manager: manager, scope: .input)
                     }
                 },
                 onScroll: { manager.nudgeInputVolume(by: Double($0) * 0.05) },
