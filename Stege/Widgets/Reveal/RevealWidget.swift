@@ -29,8 +29,12 @@ struct RevealWidget: View {
         Mode(rawValue: config["mode"]?.stringValue ?? "extras") ?? .extras
     }
 
+    /// Defaults to the size every other mark in the bar is drawn at. At 15,
+    /// which is what this used to be, the appended icons stood a third taller
+    /// than the glyphs beside them and read as a second row of icons rather
+    /// than part of the same one.
     var iconSize: CGFloat {
-        CGFloat(config["icon-size"]?.intValue ?? 15)
+        CGFloat(config["icon-size"]?.intValue ?? Int(BarStyle.glyphSize))
     }
 
     /// How the appended icons are drawn.
@@ -40,11 +44,18 @@ struct RevealWidget: View {
     /// stapled together, and macOS draws its own menu bar in one colour for the
     /// same reason. `colour` leaves them as the applications ship them.
     ///
-    /// Neither is the glyph the application actually puts in the menu bar.
-    /// Reading that means photographing the item, which needs Screen Recording
-    /// and, because a hidden status item is parked off screen where
-    /// `ScreenCaptureKit` refuses to capture it, the menu bar pulled down for
-    /// every refresh.
+    /// Neither is the glyph the application actually puts in the menu bar, and
+    /// there is no way to be. Dumping every accessibility attribute of a
+    /// third-party status item returns a frame, a role and sometimes a name,
+    /// and no image: `Maccy` and `SwipeAeroSpace` publish nothing to draw with.
+    /// Apple's own extras do, `AXPath` on the battery hands back the shape it
+    /// drew, but those are the ones Stege replaces with its own widgets.
+    ///
+    /// So the only route to the real glyph is photographing the item, which
+    /// needs Screen Recording and, because a hidden status item is parked off
+    /// screen where `ScreenCaptureKit` refuses to capture it, the menu bar
+    /// pulled down for every refresh. What is left is to draw the application
+    /// icon at the bar's own size and let the glyphs stay the brighter mark.
     enum IconStyle: String {
         case monochrome
         case colour
@@ -201,11 +212,12 @@ struct RevealWidget: View {
         }
         .frame(width: iconSize, height: iconSize)
         .grayscale(isMonochrome ? 1 : 0)
-        // Grey alone leaves an icon designed for a bright background looking
-        // muddy against a black bar, so the contrast is opened up and the
-        // whole thing lifted towards white.
-        .contrast(isMonochrome ? 1.35 : 1)
-        .brightness(isMonochrome ? 0.12 : 0)
+        // Enough contrast to read against black, but no longer lifted towards
+        // white. These are filled application icons sitting next to
+        // single-weight line glyphs, and brightening them made the borrowed
+        // half of the row the brightest thing in it.
+        .contrast(isMonochrome ? 1.2 : 1)
+        .opacity(isMonochrome ? 0.85 : 1)
         .contentShape(Rectangle())
         .onTapGesture { reader.press(item) }
         .help(item.name)
