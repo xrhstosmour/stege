@@ -22,9 +22,13 @@ struct MicrophoneWidget: View {
                 .foregroundStyle(manager.isInputMuted ? Color.red : Color.primary)
 
             if showPercentage, let level = manager.inputVolume {
-                Text("\(Int((level * 100).rounded()))%")
-                    .font(BarStyle.labelFont)
-                    .monospacedDigit()
+                Text(
+                    manager.isInputMuted
+                        ? "Muted"
+                        : "\(Int((level * 100).rounded()))%"
+                )
+                .font(BarStyle.labelFont)
+                .monospacedDigit()
             }
         }
         .frame(maxHeight: .infinity)
