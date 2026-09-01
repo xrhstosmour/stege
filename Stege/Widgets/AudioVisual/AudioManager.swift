@@ -350,47 +350,93 @@ final class AudioManager: ObservableObject {
         ] {
             addListener(
                 to: AudioObjectID(kAudioObjectSystemObject),
-                selector: selector, scope: kAudioObjectPropertyScopeGlobal)
+                selector: selector, scope: kAudioObjectPropertyScopeGlobal
+            ) { [weak self] in
+                // The one change that really does invalidate everything: the
+                // per-device listeners are attached to a device that is no
+                // longer the default, so they come down and go back up.
+                guard let self else { return }
+                self.removeDeviceListeners()
+                self.refresh()
+                self.observeCurrentDevices()
+            }
         }
     }
 
     /// Listeners are attached to the devices themselves, so they have to be
     /// torn down and rebuilt whenever the default device changes.
+    ///
+    /// Each one reads back only the property it watches. They used to share a
+    /// block that rebuilt every listener and re-enumerated every device, which
+    /// meant a slider drag did that on the main thread for every step of the
+    /// drag, and the popup moved in steps behind the pointer.
     private func observeCurrentDevices() {
         if let output = Self.defaultDevice(input: false) {
             addListener(
                 to: output, selector: kAudioDevicePropertyVolumeScalar,
-                scope: kAudioDevicePropertyScopeOutput)
+                scope: kAudioDevicePropertyScopeOutput
+            ) { [weak self] in self?.readOutputVolume() }
             addListener(
                 to: output, selector: kAudioDevicePropertyMute,
-                scope: kAudioDevicePropertyScopeOutput)
+                scope: kAudioDevicePropertyScopeOutput
+            ) { [weak self] in self?.readOutputMute() }
         }
         if let input = Self.defaultDevice(input: true) {
             addListener(
                 to: input, selector: kAudioDevicePropertyMute,
-                scope: kAudioDevicePropertyScopeInput)
+                scope: kAudioDevicePropertyScopeInput
+            ) { [weak self] in self?.readInputMute() }
             // So the popup's gain slider follows changes made anywhere else,
             // the same way the output slider already does.
             addListener(
                 to: input, selector: kAudioDevicePropertyVolumeScalar,
-                scope: kAudioDevicePropertyScopeInput)
+                scope: kAudioDevicePropertyScopeInput
+            ) { [weak self] in self?.readInputVolume() }
         }
+    }
+
+    /// Reads one property back, and publishes only when it actually moved. A
+    /// level written from here comes straight back through its own listener,
+    /// and republishing an unchanged value redraws the popup for nothing.
+    private func readOutputVolume() {
+        guard let device = Self.defaultDevice(input: false),
+            let value = Self.volume(of: device),
+            abs(value - volume) > 0.0001
+        else { return }
+        volume = value
+    }
+
+    private func readOutputMute() {
+        guard let device = Self.defaultDevice(input: false),
+            let muted = Self.isMuted(device, input: false),
+            muted != isOutputMuted
+        else { return }
+        isOutputMuted = muted
+    }
+
+    private func readInputVolume() {
+        guard let device = Self.defaultDevice(input: true) else { return }
+        let value = Self.volume(of: device, input: true)
+        guard value != inputVolume else { return }
+        inputVolume = value
+    }
+
+    private func readInputMute() {
+        guard let device = Self.defaultDevice(input: true),
+            let muted = Self.isMuted(device, input: true),
+            muted != isInputMuted
+        else { return }
+        isInputMuted = muted
     }
 
     private func addListener(
         to device: AudioObjectID, selector: AudioObjectPropertySelector,
-        scope: AudioObjectPropertyScope
+        scope: AudioObjectPropertyScope, onChange: @escaping () -> Void
     ) {
         var address = AudioObjectPropertyAddress(
             mSelector: selector, mScope: scope,
             mElement: kAudioObjectPropertyElementMain)
-        let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
-            guard let self else { return }
-            // A default-device change invalidates the per-device listeners.
-            self.removeDeviceListeners()
-            self.refresh()
-            self.observeCurrentDevices()
-        }
+        let block: AudioObjectPropertyListenerBlock = { _, _ in onChange() }
         let status = AudioObjectAddPropertyListenerBlock(
             device, &address, DispatchQueue.main, block)
         if status == noErr {
