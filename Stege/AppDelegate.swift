@@ -88,14 +88,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Registers the shortcut from the config file, now and on every reload,
     /// so changing it takes effect without a restart.
     private func observeToggleShortcut() {
-        ToggleShortcut.shared.apply(ConfigManager.shared.config.toggleShortcut)
+        applyShortcuts(ConfigManager.shared.config)
         shortcutObserver = ConfigManager.shared.$config
-            .map(\.toggleShortcut)
-            .removeDuplicates()
             .receive(on: DispatchQueue.main)
-            .sink { shortcut in
-                ToggleShortcut.shared.apply(shortcut)
+            .sink { [weak self] configuration in
+                self?.applyShortcuts(configuration)
             }
+    }
+
+    private func applyShortcuts(_ configuration: Config) {
+        GlobalShortcut.shared.apply(
+            configuration.toggleShortcut, name: "toggle"
+        ) {
+            BarVisibility.shared.toggleByShortcut()
+        }
+        GlobalShortcut.shared.apply(
+            configuration.focusShortcut, name: "focus"
+        ) {
+            BarFocus.shared.begin()
+        }
     }
 
     /// Orders Stege's panels out so the system menu bar underneath is reachable,

@@ -44,16 +44,19 @@ struct MicrophoneWidget: View {
         )
         .overlay(
             PointerInput(
-                onClick: {
-                    MenuBarPopup.show(rect: rect, id: "microphone") {
-                        AudioPopup(manager: manager, scope: .input)
-                    }
-                },
+                onClick: { showPopup() },
                 onScroll: { manager.nudgeInputVolume(by: Double($0) * 0.05) },
                 onRightClick: { manager.toggleInputMute() })
         )
+        .barFocusable { showPopup() }
         .help(tooltip)
         .opacity(manager.hasInput ? 1 : 0.4)
+    }
+
+    private func showPopup() {
+        MenuBarPopup.show(rect: rect, id: "microphone") {
+            AudioPopup(manager: manager, scope: .input)
+        }
     }
 
     private var tooltip: String {

@@ -69,6 +69,17 @@ struct NetworkWidget: View {
                 NetworkPopup(viewModel: viewModel)
             }
         }
+        .barFocusable {
+            // The popup is where the network name is shown, so this is the
+            // first moment Location is actually needed.
+            viewModel.requestSSIDAccessIfNeeded()
+            // The widget's own view model, not a second one. Each carries an
+            // `NWPathMonitor` and a refresh timer, so building one here meant
+            // one widget ran two of each.
+            MenuBarPopup.show(rect: rect, id: "network") {
+                NetworkPopup(viewModel: viewModel)
+            }
+        }
         .help(tooltip)
     }
 

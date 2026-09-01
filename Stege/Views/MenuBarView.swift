@@ -21,8 +21,15 @@ struct MenuBarView: View {
                 ForEach(0..<items.count, id: \.self) { index in
                     let item = items[index]
                     buildView(for: item)
+                        // So a widget can tell whether the keyboard ring is on
+                        // it without the bar having to know what each one does.
+                        .environment(\.barItemIndex, index)
                 }
             }
+        }
+        .onAppear { BarFocus.shared.count = items.count }
+        .onChange(of: items.count) { _, count in
+            BarFocus.shared.count = count
         }
         .foregroundStyle(Color.foregroundOutside)
         .frame(height: max(configManager.config.experimental.foreground.resolveHeight(), 1.0))

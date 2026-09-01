@@ -5,6 +5,7 @@ struct RootToml: Decodable {
     var theme: String?
     var hidden: Bool?
     var toggleShortcut: String?
+    var focusShortcut: String?
     var yabai: YabaiConfig?
     var aerospace: AerospaceConfig?
     var experimental: ExperimentalConfig?
@@ -14,6 +15,7 @@ struct RootToml: Decodable {
         case theme
         case hidden
         case toggleShortcut = "toggle-shortcut"
+        case focusShortcut = "focus-shortcut"
         case yabai
         case aerospace
         case experimental
@@ -24,6 +26,7 @@ struct RootToml: Decodable {
         self.theme = nil
         self.hidden = nil
         self.toggleShortcut = nil
+        self.focusShortcut = nil
         self.yabai = nil
         self.aerospace = nil
         self.widgets = WidgetsSection(displayed: [], others: [:])
@@ -55,6 +58,12 @@ struct Config {
     /// other tools write one, "cmd+alt+b". Nil registers nothing.
     var toggleShortcut: String? {
         rootToml.toggleShortcut
+    }
+
+    /// A system-wide shortcut that puts a focus ring on the bar so it can be
+    /// stepped through and opened without the pointer. Nil registers nothing.
+    var focusShortcut: String? {
+        rootToml.focusShortcut
     }
     
     var yabai: YabaiConfig {
