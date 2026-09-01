@@ -234,13 +234,13 @@ The speaker's arcs say the level the way macOS's own does. `glyph = "waveform"` 
 alternative. Scrolling on the icon changes the volume and right-clicking mutes, so the popup is
 only needed for picking a device.
 
-The popup is two matching blocks, output and input, each with what it is, a level slider, and the
-devices to choose between. Clicking the glyph left of either slider mutes that half. A muted
-device reads `Muted` where its percentage would be, in the popup and in the bar under
-`show-percentage`, while the slider keeps the level it will come back to.
-
 `default.microphone` puts the microphone in the bar as its own icon, with the same scroll and
-right-click over the input level. Both icons open the same popup.
+right-click over the input level.
+
+Each icon opens its own popup: the speaker opens `Sound`, the microphone opens `Microphone`, and
+each holds a level slider and the devices to choose between. Clicking the glyph left of the slider
+mutes that half. A muted device reads `Muted` where its percentage would be, in the popup and in
+the bar under `show-percentage`, while the slider keeps the level it will come back to.
 
 Output devices that carry no mute property, the built-in speakers among them, are muted by
 dropping the level to zero and put back where they were on the way out. An input device that
