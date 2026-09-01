@@ -113,6 +113,11 @@ always-show = false
 # framework needs an Apple-issued entitlement.
 # Adds a second control opening Control Center beside the bell.
 show-control-centre = false
+# Keep the list across restarts. Off by default, because remembering means
+# writing every notification's title, subtitle and body to ~/Library/Preferences
+# in plaintext, where anything running as you can read them. Left off, the bell
+# starts empty after a restart and the refresh arrow fills it.
+remember-between-launches = false
 
 [widgets.default.updates]
 # Hidden while there is nothing waiting, which is most of the time.

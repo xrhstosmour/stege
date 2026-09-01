@@ -34,8 +34,8 @@ struct SystemNotification: Identifiable, Equatable, Codable {
 /// So it is never read on its own. Every banner macOS draws is its own window
 /// in the same process, and a banner publishes exactly what a row in the list
 /// does: the same identifier, the same labelled title, subtitle and body, the
-/// same actions. Folding arriving banners into the list, and keeping the list
-/// between launches, means nothing here ever opens a panel unasked. Opening
+/// same actions. Folding arriving banners into the list means nothing here ever
+/// opens a panel unasked. Opening
 /// Notification Center by hand is read too, so a list gone stale corrects
 /// itself, and the refresh control asks for a read outright.
 ///
@@ -54,7 +54,27 @@ final class NotificationCenterReader: ObservableObject {
     static let shared = NotificationCenterReader()
 
     @Published private(set) var notifications: [SystemNotification] = [] {
-        didSet { Self.store(notifications) }
+        didSet { if remembersBetweenLaunches { Self.store(notifications) } }
+    }
+
+    /// Whether the list survives a restart.
+    ///
+    /// Off by default, and this is the reason: remembering means writing every
+    /// notification's title, subtitle and body to
+    /// `~/Library/Preferences`, in plaintext, where anything running as this
+    /// user can read them. Message previews are exactly the kind of thing this
+    /// app refuses Full Disk Access to avoid reading, so it does not leave them
+    /// lying around either. Turned on, a restart keeps what was collected;
+    /// left off, the bell starts empty and the refresh arrow fills it.
+    var remembersBetweenLaunches = false {
+        didSet {
+            guard remembersBetweenLaunches != oldValue else { return }
+            if remembersBetweenLaunches {
+                if notifications.isEmpty { notifications = Self.stored() }
+            } else {
+                Self.forget()
+            }
+        }
     }
     @Published private(set) var isReading = false
     @Published private(set) var failure: String?
@@ -68,9 +88,7 @@ final class NotificationCenterReader: ObservableObject {
 
     private var observer: AXObserver?
 
-    private init() {
-        notifications = Self.stored()
-    }
+    private init() {}
 
     var isTrusted: Bool { AXIsProcessTrusted() }
 
@@ -509,6 +527,12 @@ final class NotificationCenterReader: ObservableObject {
     private static func store(_ list: [SystemNotification]) {
         guard let data = try? JSONEncoder().encode(list) else { return }
         UserDefaults.standard.set(data, forKey: storageKey)
+    }
+
+    /// Clears what an earlier run may have written, so switching the option off
+    /// takes the text off disk rather than only stopping new writes.
+    private static func forget() {
+        UserDefaults.standard.removeObject(forKey: storageKey)
     }
 
     // MARK: - Accessibility

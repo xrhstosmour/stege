@@ -144,10 +144,12 @@ struct RevealWidget: View {
     private var chevron: some View {
         Image(systemName: chevronSymbol)
             .font(.system(size: BarStyle.chevronSize, weight: .semibold))
-            // No padding of its own. The row already spaces its widgets, and
-            // four points on each side on top of that made this the one gap in
-            // the bar that was wider than every other.
-            .frame(width: BarStyle.glyphWidth)
+            // Sized to the mark rather than to the glyph box. A chevron is
+            // half the width of a status glyph, so centring it in the full box
+            // padded this one gap wider than every other in the row. It is the
+            // one mark that does not change shape with state, so it does not
+            // need the box to hold its place.
+            .frame(width: BarStyle.chevronSize)
             .frame(maxHeight: .infinity)
             .contentShape(Rectangle())
             .background(.black.opacity(0.001))
