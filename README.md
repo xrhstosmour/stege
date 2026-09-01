@@ -278,7 +278,9 @@ Opening the bell opens nothing. The panel has to exist to be read, so it is read
 seconds after launch, and every banner macOS draws afterwards goes straight into the list, because
 a banner publishes the same identifier and the same text a row in the panel does. Opening
 Notification Center by hand is read too, so a list gone stale corrects itself, and the circular
-arrow next to the `Notifications` heading asks macOS again.
+arrow next to the `Notifications` heading asks macOS again. A notification delivered without a
+banner, an application whose alert style is `None`, or anything that arrives under a Focus, is not
+seen until one of those reads, which is what the arrow is for.
 
 Dismissals are queued rather than pressed as you click: the row leaves the list at once, and the
 real close button, or Clear All, is pressed in one visit after the popup has gone. So the panel
