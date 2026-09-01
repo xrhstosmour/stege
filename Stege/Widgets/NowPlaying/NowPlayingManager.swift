@@ -21,6 +21,24 @@ struct NowPlayingSong: Equatable, Identifiable {
     let albumArtURL: URL?
     let position: Double?
     let duration: Double?  // Duration in seconds
+    /// Artwork the system handed over directly. `MediaRemote` returns the
+    /// bytes rather than a link, so there is nothing to fetch.
+    var artwork: NSImage?
+
+    init(
+        appName: String, state: PlaybackState, title: String, artist: String,
+        albumArtURL: URL?, position: Double?, duration: Double?,
+        artwork: NSImage? = nil
+    ) {
+        self.appName = appName
+        self.state = state
+        self.title = title
+        self.artist = artist
+        self.albumArtURL = albumArtURL
+        self.position = position
+        self.duration = duration
+        self.artwork = artwork
+    }
 
     /// Initializes a song model from a given output string.
     /// - Parameters:
@@ -233,14 +251,39 @@ final class NowPlayingManager: ObservableObject {
             }
     }
 
-    /// Updates the now playing song asynchronously.
+    /// Asks the system first, then the two scriptable applications.
+    ///
+    /// `MediaRemote` covers whatever is playing, browsers included, and needs
+    /// no Automation grant. Where macOS withholds it the AppleScript path still
+    /// covers `Spotify` and `Music`, which is what this did before.
     private func updateNowPlaying() {
-        DispatchQueue.global(qos: .background).async {
-            let song = NowPlayingProvider.fetchNowPlaying()
-            DispatchQueue.main.async { [weak self] in
-                self?.nowPlaying = song
+        MediaRemoteSource.read { [weak self] snapshot in
+            guard let self else { return }
+            if let snapshot {
+                self.nowPlaying = Self.song(from: snapshot)
+                return
+            }
+            DispatchQueue.global(qos: .background).async {
+                let song = NowPlayingProvider.fetchNowPlaying()
+                DispatchQueue.main.async { [weak self] in
+                    self?.nowPlaying = song
+                }
             }
         }
+    }
+
+    private static func song(from snapshot: MediaRemoteSource.Snapshot)
+        -> NowPlayingSong
+    {
+        NowPlayingSong(
+            appName: snapshot.application ?? "",
+            state: snapshot.isPlaying ? .playing : .paused,
+            title: snapshot.title,
+            artist: snapshot.artist,
+            albumArtURL: nil,
+            position: snapshot.position,
+            duration: snapshot.duration,
+            artwork: snapshot.artwork)
     }
 
     /// Skips to the previous track.

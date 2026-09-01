@@ -102,6 +102,9 @@ extension NSImage {
 struct RotateAnimatedCachedImage<RotatingContent: View>: View {
     let url: URL?
     let targetSize: CGSize?
+    /// Artwork the caller already has. `MediaRemote` returns the bytes rather
+    /// than a link, so when this is set the loader is never asked for anything.
+    let image: NSImage?
     
     @StateObject private var loader: ImageLoader
     @State private var displayedImage: NSImage?
@@ -111,23 +114,30 @@ struct RotateAnimatedCachedImage<RotatingContent: View>: View {
     /// Initializes the view with a URL, optional target size, and a custom rotating modifier.
     init(
         url: URL?,
+        image: NSImage? = nil,
         targetSize: CGSize? = nil,
         @ViewBuilder rotatingModifier: @escaping (Image) -> RotatingContent
     ) {
         self.url = url
+        self.image = image
         self.targetSize = targetSize
         _loader = StateObject(wrappedValue: ImageLoader(url: url, targetSize: targetSize))
         self.rotatingModifier = rotatingModifier
     }
     
     /// Convenience initializer when no custom modifier is needed.
-    init(url: URL?, targetSize: CGSize? = nil) where RotatingContent == Image {
-        self.init(url: url, targetSize: targetSize) { image in image }
+    init(url: URL?, image: NSImage? = nil, targetSize: CGSize? = nil)
+    where RotatingContent == Image {
+        self.init(url: url, image: image, targetSize: targetSize) { image in
+            image
+        }
     }
     
     var body: some View {
         Group {
-            if let image = displayedImage {
+            // What the caller handed over wins. Nothing to fetch, so the loader
+            // is never started for it.
+            if let image = image ?? displayedImage {
                 rotatingModifier(Image(nsImage: image).resizable())
                     .blur(radius: abs(1 - rotation) * 5)
                     .scaleEffect(x: rotation)
@@ -135,7 +145,7 @@ struct RotateAnimatedCachedImage<RotatingContent: View>: View {
                 Color.clear
             }
         }
-        .onAppear { loader.load() }
+        .onAppear { if image == nil { loader.load() } }
         .onReceive(loader.$image) { newImage in
             guard let newImage = newImage else { return }
             // If image is loading for the first time.
@@ -163,6 +173,8 @@ struct RotateAnimatedCachedImage<RotatingContent: View>: View {
 struct FadeAnimatedCachedImage<Content: View>: View {
     let url: URL?
     let targetSize: CGSize?
+    /// Artwork the caller already has, which wins over the URL.
+    let image: NSImage?
     
     @StateObject private var loader: ImageLoader
     @State private var currentImage: NSImage?
@@ -173,32 +185,39 @@ struct FadeAnimatedCachedImage<Content: View>: View {
     /// Initializes the view with a URL, optional target size, and a custom content modifier.
     init(
         url: URL?,
+        image: NSImage? = nil,
         targetSize: CGSize? = nil,
         @ViewBuilder content: @escaping (Image) -> Content
     ) {
         self.url = url
+        self.image = image
         self.targetSize = targetSize
         _loader = StateObject(wrappedValue: ImageLoader(url: url, targetSize: targetSize))
         self.content = content
     }
     
     /// Convenience initializer when no custom modifier is needed.
-    init(url: URL?, targetSize: CGSize? = nil) where Content == Image {
-        self.init(url: url, targetSize: targetSize) { image in image }
+    init(url: URL?, image: NSImage? = nil, targetSize: CGSize? = nil)
+    where Content == Image {
+        self.init(url: url, image: image, targetSize: targetSize) { image in
+            image
+        }
     }
     
     var body: some View {
         ZStack {
-            if let currentImage = currentImage {
+            if let image {
+                content(Image(nsImage: image))
+            } else if let currentImage = currentImage {
                 content(Image(nsImage: currentImage))
             }
             
-            if let nextImage = nextImage {
+            if image == nil, let nextImage = nextImage {
                 content(Image(nsImage: nextImage))
                     .opacity(showNextImage ? 1 : 0)
             }
         }
-        .onAppear { loader.load() }
+        .onAppear { if image == nil { loader.load() } }
         .onReceive(loader.$image) { newImage in
             guard let newImage = newImage else { return }
             // Set the image for the first time.
