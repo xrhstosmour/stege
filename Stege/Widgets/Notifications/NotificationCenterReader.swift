@@ -68,10 +68,13 @@ final class NotificationCenterReader: ObservableObject {
     /// left off, the bell starts empty and the refresh arrow fills it.
     var remembersBetweenLaunches = false {
         didSet {
-            guard remembersBetweenLaunches != oldValue else { return }
             if remembersBetweenLaunches {
                 if notifications.isEmpty { notifications = Self.stored() }
             } else {
+                // Not guarded on the value having changed. The widget sets this
+                // on every appearance, and it starts false, so a guard meant
+                // that anything written by an earlier version stayed on disk
+                // forever: the one thing switching it off is supposed to undo.
                 Self.forget()
             }
         }
