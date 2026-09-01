@@ -104,6 +104,7 @@ displayed = [
 | `default.stayawake` | A cup, while something is keeping the display awake |
 | `default.notifications` | A bell listing the notifications macOS is holding, and the Focus modes |
 | `default.audio` | Output volume |
+| `default.display` | Screen brightness, with Night Shift and True Tone in the popup |
 | `default.microphone` | The microphone on its own |
 | `default.keyboardlayout` | The current input source, with a popup for switching |
 | `default.bluetooth` | Bluetooth state and connected device battery |
@@ -134,6 +135,9 @@ modifier-key = "option"             # option, command, control, shift, function
 [widgets.default.audio]
 show-percentage = false             # the icon already conveys the level
 glyph = "speaker"                   # or "waveform"
+
+[widgets.default.display]
+show-percentage = false             # the glyph already fills with the level
 
 [widgets.default.network]
 show-name = false                   # showing the name asks for Location
@@ -256,6 +260,19 @@ exposes no settable gain, which is most USB and Bluetooth microphones, shows mut
 slider's place.
 
 ![The sound popup](.github/assets/sound.png)
+
+### Display
+
+Brightness in the bar, scrollable without opening anything, with a slider per
+attached display in the popup, plus Night Shift and its warmth, and True Tone on
+the Macs that have the sensor.
+
+All of it is set directly. `DisplayServicesGetBrightness` and
+`DisplayServicesSetBrightness` are plain C functions `DisplayServices` exports,
+and Night Shift and True Tone are `CBBlueLightClient` and `CBTrueToneClient` in
+`CoreBrightness`, so no panel appears and no extra permission is asked for. A
+monitor whose backlight is not ours to set is still listed, saying so, rather
+than being dropped.
 
 ### Wi-Fi
 

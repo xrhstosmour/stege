@@ -29,6 +29,7 @@ displayed = [
     "default.privacy",
     "default.stayawake",
     "default.keyboardlayout",
+    "default.display",
     "default.audio",
     "default.microphone",
     "default.bluetooth",
@@ -111,6 +112,13 @@ always-show = false
 # framework needs an Apple-issued entitlement.
 # Adds a second control opening Control Center beside the bell.
 show-control-centre = false
+
+[widgets.default.display]
+# Brightness in the bar, with Night Shift and True Tone in the popup. All three
+# are set directly, so nothing opens a system panel. Scrolling the icon changes
+# the brightness. The glyph fills with the level, so the number is off by
+# default.
+show-percentage = false
 
 [widgets.default.audio]
 glyph = "speaker"              # or "waveform"
