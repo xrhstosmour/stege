@@ -11,6 +11,11 @@ struct MenuBarExtraItem: Identifiable {
     /// its version.
     let bundleIdentifier: String?
     let icon: NSImage?
+    /// Whether `icon` is the glyph the application actually draws in the menu
+    /// bar, rather than its application icon. A real glyph is line art meant
+    /// for a menu bar and is drawn as a template beside Stege's own marks; an
+    /// application icon is filled artwork and is toned down instead.
+    let isMenuBarGlyph: Bool
     /// Where the real item sits in the real menu bar, used only to put the row
     /// in the same order macOS has it in.
     let position: CGFloat
@@ -127,12 +132,14 @@ final class MenuBarExtrasReader: ObservableObject {
                 // that does nothing.
                 guard size(of: item).width > 0 else { continue }
                 guard isShownInMenuBar(item) else { continue }
+                let glyph = menuBarGlyph(for: item, in: application)
                 found.append(
                     MenuBarExtraItem(
                         id: "\(application.bundleIdentifier ?? "\(pid)")-\(index)",
                         name: application.localizedName ?? "",
                         bundleIdentifier: application.bundleIdentifier,
-                        icon: application.icon,
+                        icon: glyph ?? application.icon,
+                        isMenuBarGlyph: glyph != nil,
                         position: position(of: item).x,
                         element: item))
             }
@@ -175,6 +182,69 @@ final class MenuBarExtrasReader: ObservableObject {
     }
 
     // MARK: - Accessibility
+
+    /// The glyph the application actually draws in the menu bar, when it can
+    /// be found at all.
+    ///
+    /// A status item publishes no image through the accessibility API, checked
+    /// by dumping every attribute of several. Two things do lead back to one.
+    ///
+    /// `AXTitle` on the item is often the name of the image the application set
+    /// on its status button, because `NSImage`'s accessibility title falls back
+    /// to the image's name. `SwipeAeroSpace` exposes `MenubarIcon` this way.
+    ///
+    /// Failing that, applications name the asset conventionally: `Maccy` ships
+    /// `StatusBarMenuImage`, `LocalSend` ships `StatusBarItemIcon`. Asking the
+    /// bundle for those by name reaches into the compiled asset catalog the
+    /// same way the application itself does.
+    ///
+    /// Plenty are reachable by neither. `Docker` names its assets for the state
+    /// they show, `Running` and `Paused` and `Stopped`, and `Amphetamine` and
+    /// `1Password` ship no menu bar template at all. Those keep their
+    /// application icon, so the row is mixed rather than uniform. The
+    /// alternative is photographing the menu bar, which costs a Screen
+    /// Recording grant and, for an item parked off screen, does not work.
+    private static func menuBarGlyph(
+        for item: AXUIElement, in application: NSRunningApplication
+    ) -> NSImage? {
+        guard let bundleURL = application.bundleURL,
+            let bundle = Bundle(url: bundleURL)
+        else { return nil }
+
+        let key = (application.bundleIdentifier ?? bundleURL.path) as NSString
+        if let cached = glyphCache.object(forKey: key) { return cached }
+
+        var names: [String] = []
+        if let title = copy(item, kAXTitleAttribute as String) as? String,
+            !title.trimmingCharacters(in: .whitespaces).isEmpty
+        {
+            names.append(title)
+        }
+        names.append(contentsOf: conventionalGlyphNames)
+
+        for name in names {
+            guard let image = bundle.image(forResource: name) else { continue }
+            // Only images the application marked as templates. Anything else
+            // is artwork, and artwork tinted as a template draws as a solid
+            // block.
+            guard image.isTemplate else { continue }
+            glyphCache.setObject(image, forKey: key)
+            return image
+        }
+        return nil
+    }
+
+    /// What applications tend to call the asset, most specific first.
+    private static let conventionalGlyphNames = [
+        "StatusBarMenuImage", "StatusBarItemIcon", "StatusBarIcon",
+        "MenubarIcon", "MenuBarIcon", "MenuBarItemIcon", "StatusIcon",
+        "StatusItemIcon", "TrayIcon", "menubar", "statusbar",
+    ]
+
+    /// One lookup per application. Opening a bundle and searching its asset
+    /// catalog is not free, and the row is read again whenever the menu bar
+    /// changes.
+    private static let glyphCache = NSCache<NSString, NSImage>()
 
     private static func copy(_ element: AXUIElement, _ attribute: String) -> Any? {
         var value: CFTypeRef?

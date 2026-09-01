@@ -28,13 +28,14 @@ displayed = [
     "default.monitor",
     "default.privacy",
     "default.stayawake",
-    "default.notifications",
-    "default.audio",
     "default.keyboardlayout",
+    "default.audio",
+    "default.microphone",
     "default.bluetooth",
     "default.network",
     "default.battery",
     "divider",
+    "default.notifications",
     "default.time",
 ]
 
@@ -96,11 +97,18 @@ style = "icon"                 # icon, or dot to match the system indicator
 always-show = false
 
 [widgets.default.notifications]
-# The popup shows which Focus is on and opens Notification Center, which is
-# where the notifications themselves stay. Stege does not draw the list:
-# there is no public API for it, and the private database behind it needs
-# Full Disk Access, which also grants read of Mail, Messages and browser
-# data. Focus state comes from ~/Library/DoNotDisturb, which does not.
+# The popup lists the notifications macOS is holding, and every Focus.
+#
+# There is no public API for the list, so it is read out of Notification
+# Center's own accessibility tree, and reading it means opening the panel.
+# Stege never does that on its own: the list is kept between launches, banners
+# are folded in as they arrive, and the arrow in the popup is what asks for a
+# read. So a notification that arrived before Stege started, or one macOS
+# delivered without a banner, shows up only once that arrow is pressed.
+#
+# The Focus list comes from Control Center for the same reason:
+# ~/Library/DoNotDisturb needs Full Disk Access and the private DoNotDisturb
+# framework needs an Apple-issued entitlement.
 # Adds a second control opening Control Center beside the bell.
 show-control-centre = false
 

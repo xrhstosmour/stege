@@ -5,7 +5,7 @@ import Foundation
 import IOBluetooth
 
 /// A Bluetooth device, paired or merely in range.
-struct BluetoothDevice: Identifiable {
+struct BluetoothDevice: Identifiable, Equatable {
     let id: String
     let name: String
     /// 0 to 1, or nil when the device does not report a battery level.
@@ -29,7 +29,25 @@ final class BluetoothManager: NSObject, ObservableObject {
     @Published private(set) var discovered: [BluetoothDevice] = []
     @Published private(set) var isScanning = false
     /// The address a connect, disconnect or pair is in flight for.
+    /// The device an action is in flight for, and which action it is, so a row
+    /// can say `Connecting…` rather than only spinning. Wi-Fi keeps its scan
+    /// and its join apart for the same reason.
+    enum Activity {
+        case connecting
+        case disconnecting
+        case pairing
+
+        var label: String {
+            switch self {
+            case .connecting: return "Connecting…"
+            case .disconnecting: return "Disconnecting…"
+            case .pairing: return "Pairing…"
+            }
+        }
+    }
+
     @Published private(set) var busy: String?
+    @Published private(set) var activity: Activity?
     /// Set when an action did not take, so the popup can say so.
     @Published private(set) var failure: String?
     /// Whether the app is allowed to read Bluetooth at all.
@@ -159,20 +177,22 @@ final class BluetoothManager: NSObject, ObservableObject {
             let powered =
                 IOBluetoothHostController.default()?.powerState
                 == kBluetoothHCIPowerStateON
-            let connected = Self.connectedDevices()
+            // A controller that is off has nothing paired to it that can be
+            // reached. `IOBluetoothDevice.isConnected()` keeps answering yes
+            // from its cached objects for a while after the radio goes down,
+            // so asking it at all here means listing devices as connected to a
+            // radio that is not running.
+            let connected = powered ? Self.connectedDevices() : []
 
             DispatchQueue.main.async {
                 self.isReading = false
                 self.isAuthorized = true
-                guard powered != self.isPoweredOn
-                    || connected.map(\.id) != self.devices.map(\.id)
-                    || connected.map(\.isConnected)
-                        != self.devices.map(\.isConnected)
-                    || connected.map(\.batteryLevel)
-                        != self.devices.map(\.batteryLevel)
-                else { return }
-                self.isPoweredOn = powered
-                self.devices = connected
+                // Assigned separately. These used to share one guard, so a
+                // read where only the power had changed wrote the same stale
+                // device array straight back and the list kept its blue
+                // connected dots after the radio was switched off.
+                if powered != self.isPoweredOn { self.isPoweredOn = powered }
+                if connected != self.devices { self.devices = connected }
             }
         }
     }
@@ -198,7 +218,9 @@ final class BluetoothManager: NSObject, ObservableObject {
         isSwitchingPower = true
         failure = nil
         _ = set(on ? 1 : 0)
-        isSwitchingPower = false
+        // Left true until the read-back sees the radio move. It used to be
+        // cleared on the next line, in the same runloop tick, so SwiftUI never
+        // rendered a frame with it set and the header spinner was unreachable.
         readBackPower(until: !on, attempt: 0)
     }
 
@@ -221,13 +243,36 @@ final class BluetoothManager: NSObject, ObservableObject {
     /// otherwise is a thirty second timer, so the popup would sit on the old
     /// answer until long after the switch had moved.
     private func readBackPower(until previous: Bool, attempt: Int) {
-        guard attempt < 12 else { return }
+        guard attempt < 12 else {
+            // Gave up. The radio never reported the move, so let the switch go
+            // rather than leaving it spinning for the rest of the session.
+            isSwitchingPower = false
+            return
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
             [weak self] in
             guard let self else { return }
             self.refresh()
-            guard self.isPoweredOn == previous else { return }
+            guard self.isPoweredOn == previous else {
+                // The power has moved, but the device list settles after it
+                // does, so keep reading for a moment rather than handing the
+                // next thirty seconds to the safety-net timer.
+                self.isSwitchingPower = false
+                self.settle(attempt: 0)
+                return
+            }
             self.readBackPower(until: previous, attempt: attempt + 1)
+        }
+    }
+
+    /// A few more reads once the power has moved, so devices that drop off
+    /// after the controller does are noticed straight away.
+    private func settle(attempt: Int) {
+        guard attempt < 4 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+            guard let self else { return }
+            self.refresh()
+            self.settle(attempt: attempt + 1)
         }
     }
 
@@ -266,15 +311,18 @@ final class BluetoothManager: NSObject, ObservableObject {
     /// profiles on top of it, which is what makes a headset audible again
     /// without this having to know anything about audio.
     func toggleConnection(_ device: BluetoothDevice) {
+        guard busy == nil else { return }
         busy = device.id
         failure = nil
         let address = device.id
         let shouldConnect = !device.isConnected
+        activity = shouldConnect ? .connecting : .disconnecting
 
         queue.async { [weak self] in
             guard let target = Self.device(withAddress: address) else {
                 DispatchQueue.main.async {
                     self?.busy = nil
+                    self?.activity = nil
                     self?.failure = "\(device.name) is not reachable"
                 }
                 return
@@ -284,6 +332,7 @@ final class BluetoothManager: NSObject, ObservableObject {
                 ? target.openConnection() : target.closeConnection()
             DispatchQueue.main.async {
                 self?.busy = nil
+                self?.activity = nil
                 if result != kIOReturnSuccess {
                     self?.failure =
                         shouldConnect
@@ -301,8 +350,10 @@ final class BluetoothManager: NSObject, ObservableObject {
     /// screen itself. A device that wants a typed PIN is left to the system,
     /// which has the UI for it, and reports back as a failure here.
     func pair(_ device: BluetoothDevice) {
+        guard busy == nil else { return }
         guard let target = Self.device(withAddress: device.id) else { return }
         busy = device.id
+        activity = .pairing
         failure = nil
         // Built and set by selector rather than through `pairWithDevice:` or
         // `device`. Each macOS SDK imports those differently, a factory
@@ -315,6 +366,7 @@ final class BluetoothManager: NSObject, ObservableObject {
         activePairing = pairing
         if pairing.start() != kIOReturnSuccess {
             busy = nil
+            activity = nil
             failure = "Could not start pairing \(device.name)"
             activePairing = nil
         }
@@ -433,6 +485,7 @@ extension BluetoothManager: IOBluetoothDevicePairDelegate {
 
     func devicePairingFinished(_ sender: Any!, error: IOReturn) {
         busy = nil
+        activity = nil
         activePairing = nil
         if error != kIOReturnSuccess {
             failure = "Pairing did not complete"

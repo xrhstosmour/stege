@@ -4,7 +4,7 @@ struct BatteryWidget: View {
     @EnvironmentObject var configProvider: ConfigProvider
     var config: ConfigData { configProvider.config }
     var showPercentage: Bool { config["show-percentage"]?.boolValue ?? true }
-    var warningLevel: Int { config["warning-level"]?.intValue ?? 20 }
+    var warningLevel: Int { config["warning-level"]?.intValue ?? 30 }
     var criticalLevel: Int { config["critical-level"]?.intValue ?? 10 }
 
     /// How the charge is drawn.
@@ -101,31 +101,41 @@ struct BatteryWidget: View {
 
     /// The outline, the level filled in behind it, and the number in the body.
     private var insideBody: some View {
-        ZStack {
-            ZStack(alignment: .leading) {
-                BatteryBodyView(mask: false)
-                    .opacity(showPercentage ? 0.3 : 0.4)
-                BatteryBodyView(mask: true)
-                    .clipShape(
-                        Rectangle().path(
-                            in: CGRect(
-                                x: showPercentage ? 0 : 2,
-                                y: 0,
-                                width: 30 * Int(level)
-                                    / (showPercentage ? 110 : 130),
-                                height: .bitWidth
-                            )
-                        )
-                    )
-                    .foregroundStyle(batteryColor)
-                BatteryText(
-                    level: level, isCharging: isCharging,
-                    isPluggedIn: isPluggedIn
-                )
-                .foregroundStyle(batteryTextColor)
-            }
-            .frame(width: 30, height: 10)
+        ZStack(alignment: .leading) {
+            BatteryBodyView(mask: false)
+                .opacity(showPercentage ? 0.3 : 0.4)
+            BatteryBodyView(mask: true)
+                .clipShape(Rectangle().path(in: fillRect))
+                .foregroundStyle(batteryColor)
+
+            // The number is drawn twice, each copy clipped to the side of the
+            // fill edge it falls on: dark where it sits on the level, light
+            // where it sits on the empty part of the body. One colour cannot
+            // do both. It used to be dark everywhere, which was legible only
+            // because the fill was pale, and a battery down to a fifth put its
+            // number on the empty part where dark on dark says nothing.
+            batteryText.foregroundStyle(Color.foregroundOutside)
+            batteryText
+                .foregroundStyle(Color.foregroundOutsideInvert)
+                .clipShape(Rectangle().path(in: fillRect))
         }
+        .frame(width: 30, height: 10)
+    }
+
+    private var batteryText: some View {
+        BatteryText(
+            level: level, isCharging: isCharging, isPluggedIn: isPluggedIn)
+    }
+
+    /// How much of the body the level covers. Out of 100, not the 110 it used
+    /// to be divided by, which left a full battery drawing 27 of its 30 points
+    /// and never looking full.
+    private var fillRect: CGRect {
+        CGRect(
+            x: showPercentage ? 0 : 2,
+            y: 0,
+            width: CGFloat(30 * level / 100),
+            height: 40)
     }
 
     /// The charge is already on the icon, so the useful part on hover is how
@@ -149,22 +159,18 @@ struct BatteryWidget: View {
         return parts.joined(separator: ", ")
     }
 
-    /// The number reads on the fill behind it in every state, so it is one
-    /// colour. It used to flip to black once the level dropped past the
-    /// warning, which meant the one moment the number mattered most was the one
-    /// moment it was drawn in the darkest colour available.
-    private var batteryTextColor: Color {
-        .foregroundOutside
-    }
-
-    /// The level behind the number, dimmed so the battery is not the brightest
-    /// thing in the bar. Full brightness is kept for the states that are worth
-    /// interrupting for.
+    /// The level behind the number.
+    ///
+    /// Green while charging, red past the critical level, yellow past the
+    /// warning, and otherwise the bar's own foreground at full strength. It
+    /// used to be dimmed to 35% so the battery would not be the brightest
+    /// thing in the bar, which made a healthy battery read as an empty one at
+    /// a glance. The number sitting inside it is what keeps it legible.
     private var batteryColor: Color {
         if isCharging { return .green }
         if level <= criticalLevel { return .red }
         if level <= warningLevel { return .yellow }
-        return Color.foregroundOutside.opacity(0.35)
+        return .foregroundOutside
     }
 }
 
@@ -185,20 +191,20 @@ private struct BatteryText: View {
                     .transition(.blurReplace)
             }
 
-            if isCharging && level != 100 {
+            // Kept at 100 too. A machine on the charger is charging whether
+            // or not it has finished, and dropping the mark at exactly full
+            // made the one unambiguous state the only one with nothing to say.
+            if isCharging {
                 Image(systemName: "bolt.fill")
                     .font(.system(size: showPercentage ? 8 : 10))
             }
 
-            if !isCharging && isPluggedIn && level != 100 {
+            if !isCharging && isPluggedIn {
                 Image(systemName: "powerplug.portrait.fill")
                     .font(.system(size: 8))
                     .padding(.leading, 1)
             }
         }
-        .foregroundStyle(
-            showPercentage ? .foregroundOutsideInvert : .foregroundOutside
-        )
         .fontWeight(.semibold)
         .transition(.blurReplace)
         .animation(.smooth, value: isCharging)

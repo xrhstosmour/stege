@@ -116,16 +116,8 @@ class MenuBarPopup {
             let duration = isContentChange ? baseDuration / 2 : baseDuration
             DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
                 panel.contentView = NSHostingView(
-                    rootView:
-                        ZStack {
-                            MenuBarPopupView {
-                                content()
-                            }
-                            .position(x: rect.midX - screenFrame.minX)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .id(UUID())
-                )
+                    rootView: placed(
+                        rect: rect, screenFrame: screenFrame, content: content))
                 panel.makeKeyAndOrderFront(nil)
                 DispatchQueue.main.async {
                     NotificationCenter.default.post(
@@ -134,21 +126,40 @@ class MenuBarPopup {
             }
         } else {
             panel.contentView = NSHostingView(
-                rootView:
-                    ZStack {
-                        MenuBarPopupView {
-                            content()
-                        }
-                        .position(x: rect.midX - screenFrame.minX)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            )
+                rootView: placed(
+                    rect: rect, screenFrame: screenFrame, content: content))
             panel.makeKeyAndOrderFront(nil)
             DispatchQueue.main.async {
                 NotificationCenter.default.post(
                     name: .willShowWindow, object: nil)
             }
         }
+    }
+
+    /// The popup, laid against the top edge of the screen-sized panel.
+    ///
+    /// Top aligned rather than centred. `position(x:)` leaves `y` at zero,
+    /// which puts the popup's *centre* on the panel's top edge, and the only
+    /// thing that pushed it back down was an offset of half its own measured
+    /// height. So the popup spent its first frame hanging off the top of the
+    /// screen and slid into place once the height landed. A `Slider` is
+    /// `NSSlider` underneath and measures a layout pass later than pure
+    /// SwiftUI does, which is why the two popups holding one were the two that
+    /// visibly slid down. Anchoring the top edge needs no measurement at all.
+    private static func placed<Content: View>(
+        rect: CGRect, screenFrame: CGRect,
+        @ViewBuilder content: @escaping () -> Content
+    ) -> some View {
+        ZStack(alignment: .top) {
+            Color.clear
+            MenuBarPopupView { content() }
+                // Centred on the widget that opened it. The panel spans the
+                // screen, so this is measured from the screen's middle.
+                .offset(
+                    x: (rect.midX - screenFrame.minX) - screenFrame.width / 2)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .id(UUID())
     }
 
     /// Dismisses the popup from code, for a row that has acted and should not

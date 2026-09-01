@@ -18,6 +18,17 @@ enum BarStyle {
     static let glyphSize: CGFloat = 13
     static let glyphWeight: Font.Weight = .regular
 
+    /// The box every single-symbol mark is centred in.
+    ///
+    /// SF Symbols do not share an advance width: `speaker.wave.1.fill` through
+    /// `speaker.wave.3.fill` each add an arc, `bell.slash` is wider than
+    /// `bell`, `wifi.exclamationmark` is wider than `wifi`. Without a box, a
+    /// widget changing state changes its own width, and because the bar is one
+    /// `HStack` with a spacer holding the trailing group to the right edge,
+    /// every mark to its left slides. Turning the volume up moved the whole
+    /// row.
+    static let glyphWidth: CGFloat = 18
+
     /// Text standing in for a glyph, such as the input source code. A point
     /// smaller than a glyph, because a letterform at the same point size reads
     /// larger than a symbol does.
@@ -42,7 +53,18 @@ enum BarStyle {
 
 extension View {
     /// One size and one weight, for any symbol drawn in the bar.
+    ///
+    /// Font only, because several widgets apply this to a container so the
+    /// symbols inside inherit it. A single mark that changes shape with state
+    /// wants `barGlyphBox` instead.
     func barGlyph() -> some View {
         font(BarStyle.glyphFont)
+    }
+
+    /// One size, one weight, and one width: a mark that holds its place in the
+    /// row whatever it is currently drawing.
+    func barGlyphBox() -> some View {
+        font(BarStyle.glyphFont)
+            .frame(width: BarStyle.glyphWidth)
     }
 }

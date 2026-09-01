@@ -24,10 +24,10 @@ struct NetworkWidget: View {
             {
                 EmptyView()
             } else if viewModel.wifiState != .notSupported {
-                wifiIcon
+                wifiIcon.frame(width: BarStyle.glyphWidth)
             }
             if viewModel.ethernetState != .notSupported {
-                ethernetIcon
+                ethernetIcon.frame(width: BarStyle.glyphWidth)
             }
             if showName, viewModel.wifiState == .connected {
                 Text(viewModel.ssid).font(.system(size: 11)).lineLimit(1)

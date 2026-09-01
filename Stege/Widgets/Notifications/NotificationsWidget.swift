@@ -30,7 +30,7 @@ struct NotificationsWidget: View {
             Image(
                 systemName: focus.activeFocus == nil ? "bell" : "bell.slash"
             )
-            .barGlyph()
+            .barGlyphBox()
             // A dot for anything unread, the way every notification icon
             // anywhere says there is something to look at.
             .overlay(alignment: .topTrailing) {
@@ -236,32 +236,58 @@ struct NotificationsPopup: View {
     }
 
     private func notificationRow(_ entry: SystemNotification) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
-            HStack(spacing: 6) {
-                Text(entry.application)
-                    .font(
-                        .system(size: PopupStyle.captionSize, weight: .semibold)
-                    )
-                    .opacity(0.6)
-                Spacer(minLength: 4)
-                Text(entry.time)
-                    .font(.system(size: PopupStyle.captionSize))
-                    .opacity(0.5)
-            }
-            Text(entry.title)
-                .font(.system(size: PopupStyle.bodySize, weight: .medium))
-                .lineLimit(1)
-                .truncationMode(.tail)
-            if !detail(for: entry).isEmpty {
-                Text(detail(for: entry))
-                    .font(.system(size: PopupStyle.captionSize))
-                    .opacity(0.75)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
+        HStack(alignment: .top, spacing: 10) {
+            applicationIcon(for: entry)
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 6) {
+                    Text(entry.application)
+                        .font(
+                            .system(
+                                size: PopupStyle.captionSize,
+                                weight: .semibold)
+                        )
+                        .opacity(0.6)
+                    Spacer(minLength: 4)
+                    Text(entry.time)
+                        .font(.system(size: PopupStyle.captionSize))
+                        .opacity(0.5)
+                }
+                Text(entry.title)
+                    .font(.system(size: PopupStyle.bodySize, weight: .medium))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                if !detail(for: entry).isEmpty {
+                    Text(detail(for: entry))
+                        .font(.system(size: PopupStyle.captionSize))
+                        .opacity(0.75)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
             }
         }
         .popupRow { centre.dismiss(entry) }
         .help("Dismiss")
+    }
+
+    /// The posting application, in the leading column every other popup row
+    /// already lays its icon out in.
+    ///
+    /// Resolved by display name, because nothing in Notification Center's
+    /// accessibility tree carries a bundle identifier. `IconCache` already
+    /// handles that lookup and caches it, so this does not open a second one.
+    @ViewBuilder
+    private func applicationIcon(for entry: SystemNotification) -> some View {
+        Group {
+            if let icon = IconCache.shared.icon(for: entry.application) {
+                Image(nsImage: icon).resizable()
+            } else {
+                Image(systemName: "app.dashed")
+                    .resizable()
+                    .scaledToFit()
+                    .opacity(0.5)
+            }
+        }
+        .frame(width: PopupStyle.iconColumn, height: PopupStyle.iconColumn)
     }
 
     private func detail(for entry: SystemNotification) -> String {
