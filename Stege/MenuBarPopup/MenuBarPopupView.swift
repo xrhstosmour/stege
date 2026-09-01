@@ -7,7 +7,6 @@ struct MenuBarPopupView<Content: View>: View {
     @ObservedObject var configManager = ConfigManager.shared
     var foregroundHeight: CGFloat { configManager.config.experimental.foreground.resolveHeight() }
 
-    @State private var contentHeight: CGFloat = 0
     @State private var viewFrame: CGRect = .zero
     @State private var animationValue: Double = 0.01
     private var animated: Bool { isShowAnimation || isHideAnimation }
@@ -38,7 +37,7 @@ struct MenuBarPopupView<Content: View>: View {
                         cornerRadius: PopupStyle.cornerRadius,
                         style: .continuous))
                 .padding(.top, foregroundHeight + 5)
-                .offset(x: computedOffset, y: computedYOffset)
+                .offset(x: computedOffset)
                 .shadow(radius: 12, y: 4)
                 // Grows a little out of its top edge and fades, which is what
                 // Control Center and the menu bar extras do. It used to blur
@@ -118,10 +117,6 @@ struct MenuBarPopupView<Content: View>: View {
                 .animation(
                     .smooth(duration: 0.3), value: animated ? 0 : computedOffset
                 )
-                .animation(
-                    .smooth(duration: 0.3),
-                    value: animated ? 0 : computedYOffset
-                )
         }
         .background(
             GeometryReader { geometry in
@@ -129,12 +124,10 @@ struct MenuBarPopupView<Content: View>: View {
                     .onAppear {
                         DispatchQueue.main.async {
                             viewFrame = geometry.frame(in: .global)
-                            contentHeight = geometry.size.height
                         }
                     }
                     .onChange(of: geometry.size) { _, __ in
                         viewFrame = geometry.frame(in: .global)
-                        contentHeight = geometry.size.height
                     }
             }
         )
@@ -142,6 +135,10 @@ struct MenuBarPopupView<Content: View>: View {
         .preferredColorScheme(.dark)
     }
 
+    /// How far to pull the popup back so it stays inside the screen's edges.
+    ///
+    /// The only placement that still needs the popup measured. Its vertical
+    /// position does not: `MenuBarPopup.placed` anchors the top edge.
     var computedOffset: CGFloat {
         // The popup panel is sized to the screen it was opened on, so clamp
         // against that screen rather than whichever one happens to be main.
@@ -160,10 +157,6 @@ struct MenuBarPopupView<Content: View>: View {
             return -newLeft
         }
         return 0
-    }
-
-    var computedYOffset: CGFloat {
-        return viewFrame.height / 2
     }
 }
 
