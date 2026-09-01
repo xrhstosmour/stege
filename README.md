@@ -183,6 +183,14 @@ The `default.reveal` chevron works from the bar and has two modes. `extras`, the
 the other applications' status items to the bar, read through the Accessibility API under
 `AXExtrasMenuBar`. Clicking one presses the real item, so that application opens its real menu.
 Items macOS has parked under the notch are left out, because they are never drawn there either.
+
+Where an application ships the glyph it draws in the menu bar, that is what appears. Nothing
+publishes one through the accessibility API, but the name is often reachable: an item's `AXTitle`
+is frequently the image's own name, and applications name the asset conventionally,
+`StatusBarMenuImage` or `StatusBarItemIcon` or `MenubarIcon`. Asking the bundle for those by name
+reaches the same compiled asset catalog the application uses. Applications naming their assets for
+the state they show, or shipping no menu bar template at all, keep their application icon instead,
+so the row is a mix.
 `collapse` takes Stege away so the real menu bar underneath becomes reachable, and leaves a small
 button just left of the notch to bring it back.
 
@@ -262,6 +270,11 @@ password at all.
 The icon stays in the bar with the radio off, drawn as a red slash, so the switch is still
 reachable. `hide-when-disconnected = true` takes it away instead.
 
+Every mark in the bar is drawn in a box of one width, so a widget changing state changes what it
+draws and never where anything sits. The speaker fills its arcs by level rather than swapping
+between three symbols of three different widths, which is what used to shove the whole row
+sideways when the volume crossed a third of the way up.
+
 ![The Wi-Fi popup](.github/assets/wifi.png)
 
 ### Notifications
@@ -274,13 +287,14 @@ Notification Center's own accessibility tree, which publishes one element per no
 the application name, the title, subtitle and body as separately labelled text, the timestamp, and
 the actions that dismiss it.
 
-Opening the bell opens nothing. The panel has to exist to be read, so it is read once a few
-seconds after launch, and every banner macOS draws afterwards goes straight into the list, because
-a banner publishes the same identifier and the same text a row in the panel does. Opening
+Nothing here opens Notification Center on its own. The panel has to exist to be read, so instead
+the list is kept between launches, and every banner macOS draws goes straight into it, because a
+banner publishes the same identifier and the same text a row in the panel does. Opening
 Notification Center by hand is read too, so a list gone stale corrects itself, and the circular
-arrow next to the `Notifications` heading asks macOS again. A notification delivered without a
-banner, an application whose alert style is `None`, or anything that arrives under a Focus, is not
-seen until one of those reads, which is what the arrow is for.
+arrow next to the `Notifications` heading asks macOS outright. A notification that arrived before
+Stege started, one delivered without a banner, an application whose alert style is `None`, or
+anything that arrives under a Focus, is not in the list until one of those reads, which is what
+the arrow is for. Each row carries the posting application's icon.
 
 Dismissals are queued rather than pressed as you click: the row leaves the list at once, and the
 real close button, or Clear All, is pressed in one visit after the popup has gone. So the panel
@@ -297,9 +311,12 @@ Focus in System Settings.
 
 ### Bluetooth
 
-Every paired device is listed, connected ones first, with a battery bar for the devices that
-report a level. Clicking a device connects or disconnects it. `Scan` looks for devices that are
-not paired yet, and stops as soon as the popup closes, because an inquiry keeps the radio busy.
+Every paired device is listed, connected ones first, with a device symbol, a battery bar for the
+ones that report a level, and `Connecting…` or `Disconnecting…` on the row while an action is in
+flight. Clicking a device connects or disconnects it, and the other rows dim while that runs. The
+popup scans for unpaired devices as it opens and stops as soon as it closes, because an inquiry
+keeps the radio busy. With the radio off the list is empty rather than listing devices that cannot
+be reached.
 
 The switch in the header turns the controller on and off directly, with nothing appearing on
 screen. `IOBluetoothPreferenceSetControllerPowerState` is not in any published header but it is a
@@ -313,9 +330,11 @@ in the bar with the controller off unless `hide-when-off = true`.
 Charge, time estimate, health and cycles, and a switch for Low Power Mode.
 
 The charge is drawn as the battery outline with the level filled in behind the number, which sits
-in the body of the battery. The fill is dimmed so the battery is not the brightest object on
-screen, with full brightness kept for low and for charging. `style = "plain"` puts the outline and
-the number side by side instead, which is what macOS does.
+in the body of the battery. The fill is white, yellow past `warning-level`, red past
+`critical-level`, and green with a bolt while charging. The number is drawn twice and each copy
+clipped to the side of the fill edge it falls on, dark on the level and light on the empty part, so
+it stays legible at any charge. `style = "plain"` puts the outline and the number side by side
+instead, which is what macOS does.
 
 ![The battery popup](.github/assets/battery.png)
 
