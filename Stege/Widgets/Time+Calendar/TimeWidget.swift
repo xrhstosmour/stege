@@ -49,7 +49,7 @@ struct TimeWidget: View {
             }
         }
         .font(.headline)
-        .foregroundStyle(.foregroundOutside)
+        .foregroundStyle(Color("Foreground Outside"))
         .shadow(color: .foregroundShadowOutside, radius: 3)
         .onReceive(timer) { date in
             currentTime = date

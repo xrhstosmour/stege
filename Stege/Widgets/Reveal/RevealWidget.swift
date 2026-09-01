@@ -217,7 +217,7 @@ struct RevealWidget: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: iconSize, height: iconSize)
-                .foregroundStyle(Color.foregroundOutside)
+                .foregroundStyle(Color("Foreground Outside"))
                 .modifier(ExtraIconInteraction(item: item, reader: reader))
         } else {
             Group {
