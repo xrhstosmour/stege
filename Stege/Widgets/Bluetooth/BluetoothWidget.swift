@@ -258,7 +258,7 @@ struct BluetoothPopup: View {
             HStack(spacing: 10) {
                 // What the device is, not a bare dot. A dot said only that
                 // something was connected; the symbol says what.
-                Image(systemName: Self.symbol(for: device.name))
+                Image(systemName: Self.symbol(for: device))
                     .font(.system(size: PopupStyle.bodySize))
                     .foregroundStyle(
                         device.isConnected ? Color.blue : .secondary
@@ -311,10 +311,22 @@ struct BluetoothPopup: View {
         .help(device.isConnected ? "Disconnect" : "Connect")
     }
 
-    /// A guess from the name, which is all there is without reading the
-    /// device's class of device record. Wrong guesses fall back to a shape that
-    /// says "device" rather than to nothing.
-    private static func symbol(for name: String) -> String {
+    /// What the device says it is. The name is only consulted for a device
+    /// whose class of device record says nothing, which is rare.
+    private static func symbol(for device: BluetoothDevice) -> String {
+        switch device.kind {
+        case .keyboard: return "keyboard"
+        case .pointing: return "magicmouse"
+        case .headphones: return "headphones"
+        case .speaker: return "hifispeaker"
+        case .phone: return "iphone"
+        case .computer: return "laptopcomputer"
+        case .watch: return "applewatch"
+        case .unknown: return fallbackSymbol(for: device.name)
+        }
+    }
+
+    private static func fallbackSymbol(for name: String) -> String {
         let lowered = name.lowercased()
         if lowered.contains("keyboard") { return "keyboard" }
         if lowered.contains("mouse") || lowered.contains("trackpad") {
@@ -325,15 +337,7 @@ struct BluetoothPopup: View {
         {
             return "headphones"
         }
-        if lowered.contains("speaker") || lowered.contains("flip")
-            || lowered.contains("boom")
-        {
-            return "hifispeaker"
-        }
-        if lowered.contains("watch") { return "applewatch" }
-        if lowered.contains("iphone") || lowered.contains("phone") {
-            return "iphone"
-        }
+        if lowered.contains("speaker") { return "hifispeaker" }
         return "dot.radiowaves.left.and.right"
     }
 }
