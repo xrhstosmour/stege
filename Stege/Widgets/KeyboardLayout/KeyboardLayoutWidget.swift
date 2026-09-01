@@ -15,7 +15,11 @@ struct KeyboardLayoutWidget: View {
     var body: some View {
         Text(showFullName ? manager.name : manager.abbreviation)
             .font(BarStyle.labelFont)
-            .padding(.horizontal, 4)
+            // The code is always two characters, but the face is proportional,
+            // so `EN` and `GR` still measure differently and the row shifted on
+            // every switch. A full name has no width worth promising, so only
+            // the code gets the box.
+            .frame(width: showFullName ? nil : BarStyle.glyphWidth)
             .frame(maxHeight: .infinity)
             .contentShape(Rectangle())
             .background(.black.opacity(0.001))

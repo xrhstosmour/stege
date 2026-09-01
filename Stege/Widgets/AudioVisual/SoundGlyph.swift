@@ -32,23 +32,23 @@ struct SoundGlyph: View {
     var body: some View {
         switch style {
         case .speaker:
-            Image(systemName: speakerSymbol)
-                .font(.system(size: size))
+            speaker
                 .accessibilityLabel("Sound")
         case .waveform:
             Image(systemName: isOutputMuted || level <= 0.001
                 ? "waveform.slash" : "waveform")
                 .font(.system(size: size))
+                .frame(width: BarStyle.glyphWidth)
                 .accessibilityLabel("Sound")
         case .speakerAndMicrophone:
             HStack(spacing: size * 0.08) {
-                Image(systemName: speakerSymbol)
-                    .font(.system(size: size))
+                speaker
                 if hasInput {
                     Image(
                         systemName: isInputMuted ? "mic.slash.fill" : "mic.fill"
                     )
                     .font(.system(size: size * 0.8))
+                    .frame(width: BarStyle.glyphWidth)
                     .foregroundStyle(isInputMuted ? Color.red : Color.primary)
                 }
             }
@@ -57,13 +57,30 @@ struct SoundGlyph: View {
         }
     }
 
-    /// Muted and silent are drawn the same way, because they sound the same.
-    private var speakerSymbol: String {
-        if isOutputMuted || level <= 0.001 { return "speaker.slash.fill" }
-        switch level {
-        case ..<0.33: return "speaker.wave.1.fill"
-        case ..<0.66: return "speaker.wave.2.fill"
-        default: return "speaker.wave.3.fill"
+    /// One symbol whose arcs fill by value, rather than three symbols swapped
+    /// at thresholds.
+    ///
+    /// `speaker.wave.1/2/3.fill` each add an arc and each is wider than the
+    /// last, so crossing a third of the way up the range used to change the
+    /// widget's width and push the rest of the bar sideways. A variable value
+    /// draws the same shape at every level, which is also what macOS does with
+    /// its own volume mark, and what `NetworkPopup` already does for signal
+    /// strength.
+    @ViewBuilder
+    private var speaker: some View {
+        if isOutputMuted || level <= 0.001 {
+            // Muted and silent are drawn the same way, because they sound the
+            // same.
+            Image(systemName: "speaker.slash.fill")
+                .font(.system(size: size))
+                .frame(width: BarStyle.glyphWidth)
+        } else {
+            Image(
+                systemName: "speaker.wave.3.fill",
+                variableValue: level
+            )
+            .font(.system(size: size))
+            .frame(width: BarStyle.glyphWidth)
         }
     }
 }

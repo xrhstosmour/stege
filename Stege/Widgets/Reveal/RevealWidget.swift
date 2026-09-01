@@ -144,7 +144,10 @@ struct RevealWidget: View {
     private var chevron: some View {
         Image(systemName: chevronSymbol)
             .font(.system(size: BarStyle.chevronSize, weight: .semibold))
-            .padding(.horizontal, 4)
+            // No padding of its own. The row already spaces its widgets, and
+            // four points on each side on top of that made this the one gap in
+            // the bar that was wider than every other.
+            .frame(width: BarStyle.glyphWidth)
             .frame(maxHeight: .infinity)
             .contentShape(Rectangle())
             .background(.black.opacity(0.001))

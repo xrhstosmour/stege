@@ -39,7 +39,7 @@ struct SystemMonitorWidget: View {
     @ViewBuilder
     private func reading(symbol: String, value: Double) -> some View {
         HStack(spacing: 3) {
-            Image(systemName: symbol).barGlyph()
+            Image(systemName: symbol).barGlyphBox()
             Text("\(Int((value * 100).rounded()))%")
                 .font(.system(size: 12))
                 .monospacedDigit()
