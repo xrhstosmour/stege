@@ -45,11 +45,11 @@ struct NotificationsWidget: View {
             .background(.black.opacity(0.001))
             .help(helpText)
             .onTapGesture {
-                // Only when there is nothing to show yet. A read opens a
-                // Control Center panel, which is not something to do every
-                // time the bell is clicked.
+                // Neither reader is asked for anything here. The Focus list is
+                // read once and kept, and the notification list is seeded at
+                // launch and kept current by the banner observer, so opening
+                // the bell puts no system panel on screen.
                 focus.refreshIfNeeded()
-                centre.refresh()
                 MenuBarPopup.show(rect: rect, id: "notifications") {
                     NotificationsPopup(focus: focus, centre: centre)
                 }
@@ -78,7 +78,7 @@ struct NotificationsWidget: View {
     private var helpText: String {
         if let focusName = focus.activeFocus { return focusName }
         switch centre.notifications.count {
-        case 0: return centre.hasAny ? "New notification" : "Notifications"
+        case 0: return "Notifications"
         case 1: return "1 notification"
         case let count: return "\(count) notifications"
         }
@@ -169,6 +169,14 @@ struct NotificationsPopup: View {
             }
         }
         .popupContainer()
+        // Both of the ways this popup goes away: clicked away, or replaced by
+        // another widget's popup.
+        .onReceive(
+            NotificationCenter.default.publisher(for: .willHideWindow)
+        ) { _ in centre.flushPending() }
+        .onReceive(
+            NotificationCenter.default.publisher(for: .willChangeContent)
+        ) { _ in centre.flushPending() }
     }
 
     /// The notifications macOS is holding, read out of Notification Center.
@@ -181,12 +189,24 @@ struct NotificationsPopup: View {
             PopupSectionTitle(title: "Notifications") {
                 if centre.isReading {
                     ProgressView().controlSize(.mini)
-                } else if !centre.notifications.isEmpty {
-                    Text("Clear All")
-                        .font(.system(size: PopupStyle.captionSize))
-                        .opacity(0.6)
+                } else {
+                    // The list keeps itself current from the banners as they
+                    // arrive, which cannot see a notification dismissed
+                    // somewhere else. This is the way to ask macOS again.
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 10, weight: .semibold))
+                        .opacity(0.5)
                         .contentShape(Rectangle())
-                        .onTapGesture { centre.clearAll() }
+                        .onTapGesture { centre.refresh() }
+                        .help("Read the list from Notification Center again")
+
+                    if !centre.notifications.isEmpty {
+                        Text("Clear All")
+                            .font(.system(size: PopupStyle.captionSize))
+                            .opacity(0.6)
+                            .contentShape(Rectangle())
+                            .onTapGesture { centre.clearAll() }
+                    }
                 }
             }
             .popupStaticRow()
