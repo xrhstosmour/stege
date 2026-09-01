@@ -205,25 +205,50 @@ struct RevealWidget: View {
         }
     }
 
+    @ViewBuilder
     private func extraIcon(_ item: MenuBarExtraItem) -> some View {
-        Group {
-            if let icon = item.icon {
-                Image(nsImage: icon).resizable()
-            } else {
-                Image(systemName: "app.dashed").resizable()
+        if let icon = item.icon, item.isMenuBarGlyph {
+            // The application's real menu bar glyph. Line art meant for
+            // exactly this, so it is drawn the way the bar draws its own
+            // marks: one colour, full strength, no toning down.
+            Image(nsImage: icon)
+                .resizable()
+                .scaledToFit()
+                .frame(width: iconSize, height: iconSize)
+                .foregroundStyle(Color.foregroundOutside)
+                .modifier(ExtraIconInteraction(item: item, reader: reader))
+        } else {
+            Group {
+                if let icon = item.icon {
+                    Image(nsImage: icon).resizable()
+                } else {
+                    Image(systemName: "app.dashed").resizable()
+                }
             }
+            .frame(width: iconSize, height: iconSize)
+            .grayscale(isMonochrome ? 1 : 0)
+            // Enough contrast to read against black, but not lifted towards
+            // white. These are filled application icons sitting next to
+            // single-weight line glyphs, and brightening them made the
+            // borrowed half of the row the brightest thing in it.
+            .contrast(isMonochrome ? 1.2 : 1)
+            .opacity(isMonochrome ? 0.85 : 1)
+            .modifier(ExtraIconInteraction(item: item, reader: reader))
         }
-        .frame(width: iconSize, height: iconSize)
-        .grayscale(isMonochrome ? 1 : 0)
-        // Enough contrast to read against black, but no longer lifted towards
-        // white. These are filled application icons sitting next to
-        // single-weight line glyphs, and brightening them made the borrowed
-        // half of the row the brightest thing in it.
-        .contrast(isMonochrome ? 1.2 : 1)
-        .opacity(isMonochrome ? 0.85 : 1)
-        .contentShape(Rectangle())
-        .onTapGesture { reader.press(item) }
-        .help(item.name)
+    }
+}
+
+/// What both kinds of appended icon do when pointed at, kept in one place so
+/// the two drawings cannot drift apart.
+private struct ExtraIconInteraction: ViewModifier {
+    let item: MenuBarExtraItem
+    let reader: MenuBarExtrasReader
+
+    func body(content: Content) -> some View {
+        content
+            .contentShape(Rectangle())
+            .onTapGesture { reader.press(item) }
+            .help(item.name)
     }
 }
 
