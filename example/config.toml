@@ -113,11 +113,8 @@ always-show = false
 show-control-centre = false
 
 [widgets.default.audio]
-glyph = "speaker"              # or "waveform", or "speaker-and-microphone"
+glyph = "speaker"              # or "waveform"
 show-percentage = false        # the icon already conveys the level
-# Badges the speaker with a small slash when the microphone is muted.
-# The microphone is never a second icon in the bar.
-show-microphone = true
 
 [widgets.default.keyboardlayout]
 show-full-name = false         # "Greek" rather than "GR"

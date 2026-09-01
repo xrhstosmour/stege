@@ -13,8 +13,6 @@ enum PopupStyle {
     static let width: CGFloat = 280
     /// Kept so the call sites still read, but the same as `width` now. Two
     /// widths meant opening the sound popup and then the Wi-Fi one visibly
-    /// resized the panel between them.
-    static let wideWidth: CGFloat = width
     /// The margin the rows are inset from, which their highlight bleeds to.
     /// macOS menus keep this tight and put the air inside the rows instead.
     static let padding: CGFloat = 6
@@ -67,12 +65,10 @@ extension View {
     /// under `minWidth` it stretches the popup to the width of the
     /// screen-sized panel behind it and pushes the leading text off the
     /// display.
-    func popupContainer(wide: Bool = false) -> some View {
+    func popupContainer() -> some View {
         self
             .padding(PopupStyle.padding)
-            .frame(
-                width: wide ? PopupStyle.wideWidth : PopupStyle.width,
-                alignment: .leading)
+            .frame(width: PopupStyle.width, alignment: .leading)
     }
 
     /// A row that can be clicked, highlighted while the pointer is over it.

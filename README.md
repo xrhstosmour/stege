@@ -133,7 +133,7 @@ modifier-key = "option"             # option, command, control, shift, function
 
 [widgets.default.audio]
 show-percentage = false             # the icon already conveys the level
-glyph = "speaker"                   # or "waveform", or "speaker-and-microphone"
+glyph = "speaker"                   # or "waveform"
 
 [widgets.default.network]
 show-name = false                   # showing the name asks for Location
@@ -238,7 +238,7 @@ full system menu instead, all fifteen entries including the option-key alternate
 
 ### Sound
 
-The speaker's arcs say the level the way macOS's own does. `glyph = "waveform"` is the neutral
+The speaker's arcs fill by level the way macOS's own does. `glyph = "waveform"` is the neutral
 alternative. Scrolling on the icon changes the volume and right-clicking mutes, so the popup is
 only needed for picking a device.
 
