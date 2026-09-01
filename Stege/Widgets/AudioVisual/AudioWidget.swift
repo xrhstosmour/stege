@@ -33,9 +33,13 @@ struct AudioWidget: View {
                 style: glyphStyle)
 
             if showPercentage {
-                Text("\(Int((manager.volume * 100).rounded()))%")
-                    .font(.system(size: 11))
-                    .monospacedDigit()
+                Text(
+                    manager.isOutputMuted || manager.volume <= 0.001
+                        ? "Muted"
+                        : "\(Int((manager.volume * 100).rounded()))%"
+                )
+                .font(BarStyle.labelFont)
+                .monospacedDigit()
             }
         }
         .frame(maxHeight: .infinity)
@@ -177,11 +181,15 @@ struct AudioPopup: View {
                     .disabled(isMuted)
                     .opacity(isMuted ? 0.4 : 1)
 
-                    Text("\(Int((level * 100).rounded()))%")
+                    // Muted says muted. The level is still there behind it
+                    // and the slider still shows where it will come back to,
+                    // but a muted output reading 83% is two different answers
+                    // to the same question.
+                    Text(isMuted ? "Muted" : "\(Int((level * 100).rounded()))%")
                         .font(.system(size: PopupStyle.captionSize))
                         .monospacedDigit()
                         .opacity(0.6)
-                        .frame(width: 32, alignment: .trailing)
+                        .frame(width: 40, alignment: .trailing)
                 } else {
                     Text(isMuted ? "Muted" : "On")
                         .font(.system(size: PopupStyle.bodySize))
