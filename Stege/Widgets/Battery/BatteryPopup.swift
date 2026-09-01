@@ -3,6 +3,11 @@ import SwiftUI
 /// Battery detail: charge, time estimate, health, cycles, and the power mode.
 struct BatteryPopup: View {
     @ObservedObject var manager: BatteryManager
+    /// The same two numbers the bar glyph colours itself by. They used to be a
+    /// hardcoded 20 here, so setting either one made the popup disagree with
+    /// the mark that opened it.
+    let warningLevel: Int
+    let criticalLevel: Int
 
     var body: some View {
         VStack(alignment: .leading, spacing: PopupStyle.spacing) {
@@ -55,7 +60,9 @@ struct BatteryPopup: View {
 
     private var headerTint: Color {
         if manager.isCharging { return .green }
-        return manager.batteryLevel <= 20 ? .red : .primary
+        if manager.batteryLevel <= criticalLevel { return .red }
+        if manager.batteryLevel <= warningLevel { return .yellow }
+        return .primary
     }
 
     /// The switch is a toggle, not a setter: the state to move to is whichever

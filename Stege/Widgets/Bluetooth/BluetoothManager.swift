@@ -12,6 +12,20 @@ struct BluetoothDevice: Identifiable, Equatable {
     let batteryLevel: Double?
     let isConnected: Bool
     let isPaired: Bool
+    /// What the device says it is, from its class of device record, so the row
+    /// can draw the right symbol without guessing from the name.
+    var kind: Kind = .unknown
+
+    enum Kind {
+        case keyboard
+        case pointing
+        case headphones
+        case speaker
+        case phone
+        case computer
+        case watch
+        case unknown
+    }
 }
 
 /// Bluetooth power state and connected devices.
@@ -276,6 +290,45 @@ final class BluetoothManager: NSObject, ObservableObject {
         }
     }
 
+    /// What the device is, from the class of device record every Bluetooth
+    /// device carries.
+    ///
+    /// This used to be guessed from the name, which failed on anything not
+    /// spelling out what it was: `MX Master 3S` contains neither "mouse" nor
+    /// "trackpad". The record is the device's own answer.
+    private static func kind(of device: IOBluetoothDevice)
+        -> BluetoothDevice.Kind
+    {
+        switch Int(device.deviceClassMajor) {
+        case kBluetoothDeviceClassMajorPeripheral:
+            // Masked against the constants rather than shifted by hand, so the
+            // alignment is whatever `IOBluetooth` defines rather than what this
+            // guessed it to be. A device can claim both, and a combo is more
+            // useful drawn as a keyboard.
+            let minor = Int(device.deviceClassMinor)
+            if minor & kBluetoothDeviceClassMinorPeripheral1Keyboard != 0 {
+                return .keyboard
+            }
+            if minor & kBluetoothDeviceClassMinorPeripheral1Pointing != 0 {
+                return .pointing
+            }
+            return .unknown
+        case kBluetoothDeviceClassMajorAudio:
+            switch Int(device.deviceClassMinor) {
+            case kBluetoothDeviceClassMinorAudioHeadset,
+                kBluetoothDeviceClassMinorAudioHandsFree,
+                kBluetoothDeviceClassMinorAudioHeadphones:
+                return .headphones
+            default:
+                return .speaker
+            }
+        case kBluetoothDeviceClassMajorPhone: return .phone
+        case kBluetoothDeviceClassMajorComputer: return .computer
+        case kBluetoothDeviceClassMajorWearable: return .watch
+        default: return .unknown
+        }
+    }
+
     /// Every paired device, connected first and then by name, which is the
     /// order the system's own list uses.
     private static func connectedDevices() -> [BluetoothDevice] {
@@ -289,7 +342,8 @@ final class BluetoothManager: NSObject, ObservableObject {
                     name: device.name ?? device.addressString ?? "Unknown",
                     batteryLevel: batteryLevel(for: device),
                     isConnected: device.isConnected(),
-                    isPaired: true)
+                    isPaired: true,
+                    kind: kind(of: device))
             }
             .sorted {
                 $0.isConnected == $1.isConnected

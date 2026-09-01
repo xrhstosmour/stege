@@ -51,7 +51,10 @@ struct BatteryWidget: View {
         .background(.black.opacity(0.001))
         .onTapGesture {
             MenuBarPopup.show(rect: rect, id: "battery") {
-                BatteryPopup(manager: batteryManager)
+                BatteryPopup(
+                    manager: batteryManager,
+                    warningLevel: warningLevel,
+                    criticalLevel: criticalLevel)
             }
         }
         .help(tooltip)
@@ -63,6 +66,16 @@ struct BatteryWidget: View {
             Image(systemName: symbolName)
                 .barGlyph()
                 .foregroundStyle(symbolTint)
+                // The bolt rides on the level rather than replacing it. The
+                // symbol used to be `battery.100.bolt` whenever charging, so a
+                // battery at a tenth on the charger drew as a full one.
+                .overlay(alignment: .center) {
+                    if isCharging {
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: BarStyle.badgeSize))
+                            .foregroundStyle(Color.foregroundOutsideInvert)
+                    }
+                }
             if showPercentage {
                 Text("\(level)%")
                     .font(BarStyle.labelFont)
@@ -75,10 +88,9 @@ struct BatteryWidget: View {
     }
 
     /// The five steps SF Symbols draws, picked so the glyph empties at roughly
-    /// the rate the battery does. Charging and plugged in have their own marks,
-    /// the way macOS shows them.
+    /// the rate the battery does. Charging is a bolt drawn over this rather
+    /// than a symbol of its own, so the level still reads while on the charger.
     private var symbolName: String {
-        if isCharging { return "battery.100.bolt" }
         switch level {
         case ...5: return "battery.0"
         case ...30: return "battery.25"

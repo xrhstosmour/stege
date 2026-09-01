@@ -47,9 +47,10 @@ final class UpdatesManager: ObservableObject {
     var includesSystem = true
     var includesHomebrew = true
 
-    init() {
-        refresh()
-    }
+    /// Nothing is read until `configure` says which sources to read. Reading
+    /// in here would fork `brew outdated` once at launch even for someone who
+    /// had switched Homebrew off in the file.
+    init() {}
 
     /// Configured from the widget once it knows what the file asked for, since
     /// a `StateObject` is built before the configuration is in scope. Calling

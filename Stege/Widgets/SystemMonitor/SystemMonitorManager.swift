@@ -17,6 +17,13 @@ final class SystemMonitorManager: ObservableObject {
     @Published private(set) var diskFree: Int64?
     @Published private(set) var diskTotal: Int64?
 
+    /// One per process. The monitor widget and the Wi-Fi popup both want these
+    /// readings, and two managers would mean two timers polling the same
+    /// `host_statistics` and the same interface counters a second apart. Built
+    /// on first use, so a bar with neither of those widgets in it starts
+    /// nothing at all.
+    static let shared = SystemMonitorManager()
+
     private var timer: Timer?
     private var previousTicks: (idle: UInt64, total: UInt64)?
     private var previousTraffic: (received: UInt64, sent: UInt64, at: Date)?
