@@ -5,7 +5,7 @@ import Foundation
 import IOBluetooth
 
 /// A Bluetooth device, paired or merely in range.
-struct BluetoothDevice: Identifiable {
+struct BluetoothDevice: Identifiable, Equatable {
     let id: String
     let name: String
     /// 0 to 1, or nil when the device does not report a battery level.
@@ -159,20 +159,22 @@ final class BluetoothManager: NSObject, ObservableObject {
             let powered =
                 IOBluetoothHostController.default()?.powerState
                 == kBluetoothHCIPowerStateON
-            let connected = Self.connectedDevices()
+            // A controller that is off has nothing paired to it that can be
+            // reached. `IOBluetoothDevice.isConnected()` keeps answering yes
+            // from its cached objects for a while after the radio goes down,
+            // so asking it at all here means listing devices as connected to a
+            // radio that is not running.
+            let connected = powered ? Self.connectedDevices() : []
 
             DispatchQueue.main.async {
                 self.isReading = false
                 self.isAuthorized = true
-                guard powered != self.isPoweredOn
-                    || connected.map(\.id) != self.devices.map(\.id)
-                    || connected.map(\.isConnected)
-                        != self.devices.map(\.isConnected)
-                    || connected.map(\.batteryLevel)
-                        != self.devices.map(\.batteryLevel)
-                else { return }
-                self.isPoweredOn = powered
-                self.devices = connected
+                // Assigned separately. These used to share one guard, so a
+                // read where only the power had changed wrote the same stale
+                // device array straight back and the list kept its blue
+                // connected dots after the radio was switched off.
+                if powered != self.isPoweredOn { self.isPoweredOn = powered }
+                if connected != self.devices { self.devices = connected }
             }
         }
     }
@@ -198,7 +200,9 @@ final class BluetoothManager: NSObject, ObservableObject {
         isSwitchingPower = true
         failure = nil
         _ = set(on ? 1 : 0)
-        isSwitchingPower = false
+        // Left true until the read-back sees the radio move. It used to be
+        // cleared on the next line, in the same runloop tick, so SwiftUI never
+        // rendered a frame with it set and the header spinner was unreachable.
         readBackPower(until: !on, attempt: 0)
     }
 
@@ -221,13 +225,36 @@ final class BluetoothManager: NSObject, ObservableObject {
     /// otherwise is a thirty second timer, so the popup would sit on the old
     /// answer until long after the switch had moved.
     private func readBackPower(until previous: Bool, attempt: Int) {
-        guard attempt < 12 else { return }
+        guard attempt < 12 else {
+            // Gave up. The radio never reported the move, so let the switch go
+            // rather than leaving it spinning for the rest of the session.
+            isSwitchingPower = false
+            return
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
             [weak self] in
             guard let self else { return }
             self.refresh()
-            guard self.isPoweredOn == previous else { return }
+            guard self.isPoweredOn == previous else {
+                // The power has moved, but the device list settles after it
+                // does, so keep reading for a moment rather than handing the
+                // next thirty seconds to the safety-net timer.
+                self.isSwitchingPower = false
+                self.settle(attempt: 0)
+                return
+            }
             self.readBackPower(until: previous, attempt: attempt + 1)
+        }
+    }
+
+    /// A few more reads once the power has moved, so devices that drop off
+    /// after the controller does are noticed straight away.
+    private func settle(attempt: Int) {
+        guard attempt < 4 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+            guard let self else { return }
+            self.refresh()
+            self.settle(attempt: attempt + 1)
         }
     }
 

@@ -98,11 +98,14 @@ struct BluetoothPopup: View {
                 note(
                     "Stege cannot read Bluetooth until it is allowed in Privacy & Security."
                 )
+            } else if !manager.isPoweredOn {
+                // Gated on the radio, not only on the list being empty. The
+                // list is cleared on power-off now, but a popup that would draw
+                // whatever happened to be in it is a popup that will show stale
+                // devices again the next time a read lands late.
+                note("Turn Bluetooth on to connect a device")
             } else if manager.devices.isEmpty {
-                note(
-                    manager.isPoweredOn
-                        ? "Nothing paired yet"
-                        : "Turn Bluetooth on to connect a device")
+                note("Nothing paired yet")
             } else {
                 VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
                     ForEach(manager.devices) { device in
