@@ -53,15 +53,18 @@ struct AudioWidget: View {
         // view sitting over a tap gesture swallows it.
         .overlay(
             PointerInput(
-                onClick: {
-                    MenuBarPopup.show(rect: rect, id: "audio") {
-                        AudioPopup(manager: manager, scope: .output)
-                    }
-                },
+                onClick: { showPopup() },
                 onScroll: { manager.nudgeVolume(by: Double($0) * 0.05) },
                 onRightClick: { manager.toggleOutputMute() })
         )
+        .barFocusable { showPopup() }
         .help(tooltip)
+    }
+
+    private func showPopup() {
+        MenuBarPopup.show(rect: rect, id: "audio") {
+            AudioPopup(manager: manager, scope: .output)
+        }
     }
 
     private var tooltip: String {

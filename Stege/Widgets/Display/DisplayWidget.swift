@@ -43,15 +43,18 @@ struct DisplayWidget: View {
         )
         .overlay(
             PointerInput(
-                onClick: {
-                    MenuBarPopup.show(rect: rect, id: "display") {
-                        DisplayPopup(manager: manager)
-                    }
-                },
+                onClick: { showPopup() },
                 onScroll: { manager.nudgeBrightness(by: Float($0) * 0.05) },
                 onRightClick: {})
         )
+        .barFocusable { showPopup() }
         .help(tooltip)
+    }
+
+    private func showPopup() {
+        MenuBarPopup.show(rect: rect, id: "display") {
+            DisplayPopup(manager: manager)
+        }
     }
 
     private var tooltip: String {

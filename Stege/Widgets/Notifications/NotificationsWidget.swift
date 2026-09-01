@@ -60,6 +60,16 @@ struct NotificationsWidget: View {
                     NotificationsPopup(focus: focus, centre: centre)
                 }
             }
+            .barFocusable {
+                // Neither reader is asked for anything here. The Focus list is
+                // read once and kept, and the notification list is seeded at
+                // launch and kept current by the banner observer, so opening
+                // the bell puts no system panel on screen.
+                focus.refreshIfNeeded()
+                MenuBarPopup.show(rect: rect, id: "notifications") {
+                    NotificationsPopup(focus: focus, centre: centre)
+                }
+            }
 
             if showControlCentre {
                 control(

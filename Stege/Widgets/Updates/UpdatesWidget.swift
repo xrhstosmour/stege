@@ -65,6 +65,11 @@ struct UpdatesWidget: View {
                 UpdatesPopup(manager: manager)
             }
         }
+        .barFocusable {
+            MenuBarPopup.show(rect: rect, id: "updates") {
+                UpdatesPopup(manager: manager)
+            }
+        }
         .help(tooltip)
     }
 

@@ -84,6 +84,13 @@ struct TimeWidget: View {
                     configProvider: configProvider)
             }
         }
+        .barFocusable {
+            MenuBarPopup.show(rect: rect, id: "calendar") {
+                CalendarPopup(
+                    calendarManager: calendarManager,
+                    configProvider: configProvider)
+            }
+        }
     }
 
     // Format the current time.
