@@ -9,6 +9,13 @@ struct NowPlayingWidget: View {
     @State private var widgetFrame: CGRect = .zero
     @State private var animatedWidth: CGFloat = 0
 
+    /// Album artwork is fetched from the player's servers when the system
+    /// does not hand it over directly. The only outbound request Stege makes,
+    /// so it is worth being able to say no.
+    var fetchesArtwork: Bool {
+        configProvider.config["fetch-artwork"]?.boolValue ?? true
+    }
+
     var body: some View {
         ZStack(alignment: .trailing) {
             if let song = playingManager.nowPlaying {
@@ -44,6 +51,9 @@ struct NowPlayingWidget: View {
                     }
             }
         )
+        .onAppear {
+            playingManager.fetchesArtwork = fetchesArtwork
+        }
     }
 }
 

@@ -21,7 +21,9 @@ poll.
 
 **Security.** Upstream's self-updater replaces the app in `/Applications` without checking a
 signature. Stege has no self-updater and installs through Homebrew, which verifies checksums. It
-makes no outbound network requests and collects no telemetry.
+collects no telemetry. The only request it ever makes is for album artwork, and only when the
+now playing widget is showing a track whose player gave a link rather than the image itself, which
+in practice means `Spotify`. `fetch-artwork = false` refuses even that.
 
 **App menus.** The frontmost app's menus drawn in the bar via the Accessibility API.
 
@@ -307,7 +309,7 @@ what, and hands off rather than acting: Software Update opens the settings pane,
 copies `brew upgrade` to the clipboard, because upgrading can restart services and ask for a
 password and a menu bar is not where that should start on one click.
 
-Neither half checks anything. Stege makes no outbound network requests, so the macOS side reads
+Neither half checks anything, and neither reaches the network, so the macOS side reads
 the result of the system's own last check out of `com.apple.SoftwareUpdate` and says how old that
 answer is, and the Homebrew side runs `brew outdated`, which compares what is installed against
 the tap data already on disk.
