@@ -81,7 +81,7 @@ struct BatteryWidget: View {
                     if isCharging {
                         Image(systemName: "bolt.fill")
                             .font(.system(size: BarStyle.badgeSize))
-                            .foregroundStyle(Color.foregroundOutsideInvert)
+                            .foregroundStyle(Color("Foreground Outside Invert"))
                     }
                 }
             if showPercentage {
@@ -132,9 +132,9 @@ struct BatteryWidget: View {
             // do both. It used to be dark everywhere, which was legible only
             // because the fill was pale, and a battery down to a fifth put its
             // number on the empty part where dark on dark says nothing.
-            batteryText.foregroundStyle(Color.foregroundOutside)
+            batteryText.foregroundStyle(Color("Foreground Outside"))
             batteryText
-                .foregroundStyle(Color.foregroundOutsideInvert)
+                .foregroundStyle(Color("Foreground Outside Invert"))
                 .clipShape(Rectangle().path(in: fillRect))
         }
         .frame(width: 30, height: 10)

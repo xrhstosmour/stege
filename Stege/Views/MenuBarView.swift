@@ -34,7 +34,7 @@ struct MenuBarView: View {
         .onChange(of: items.count) { _, count in
             BarFocus.shared.count = count
         }
-        .foregroundStyle(Color.foregroundOutside)
+        .foregroundStyle(Color("Foreground Outside"))
         .frame(height: max(configManager.config.experimental.foreground.resolveHeight(), 1.0))
         .frame(maxWidth: .infinity)
         .padding(.horizontal, configManager.config.experimental.foreground.horizontalPadding)
@@ -110,7 +110,7 @@ struct MenuBarView: View {
 
         case "divider":
             Rectangle()
-                .fill(Color.active)
+                .fill(Color("Active"))
                 .frame(width: 2, height: 15)
                 .clipShape(Capsule())
 

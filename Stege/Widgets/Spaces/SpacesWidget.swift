@@ -25,7 +25,7 @@ struct SpacesWidget: View {
         .experimentalConfiguration(horizontalPadding: 5, cornerRadius: 10)
         .animation(.smooth(duration: 0.3), value: viewModel.spaces)
         .animation(.smooth(duration: 0.15), value: isStandingAside)
-        .foregroundStyle(Color.foreground)
+        .foregroundStyle(Color("Foreground"))
         .environmentObject(viewModel)
     }
 }
@@ -69,14 +69,14 @@ private struct SpaceView: View {
         .background(
             foregroundHeight < 30 ?
             (isFocused
-             ? Color.noActive
+             ? Color("NoActive")
              : Color.clear) :
                 (isFocused
-                 ? Color.active
-                 : isHovered ? Color.noActive : Color.noActive)
+                 ? Color("Active")
+                 : isHovered ? Color("NoActive") : Color("NoActive"))
         )
         .clipShape(RoundedRectangle(cornerRadius: foregroundHeight < 30 ? 0 : 8, style: .continuous))
-        .shadow(color: .shadow, radius: foregroundHeight < 30 ? 0 : 2)
+        .shadow(color: Color("Shadow"), radius: foregroundHeight < 30 ? 0 : 2)
         .transition(.blurReplace)
         .onTapGesture {
             // Switching is what was asked for, not the menus of whatever ends
@@ -124,6 +124,13 @@ private struct WindowView: View {
         reveal.revealsOnHover && window.isFocused
     }
 
+    /// Hoisted out of the modifier chain. Inline, the ternary pushed the
+    /// whole body past what the compiler will infer in reasonable time.
+    private var highlight: Color {
+        isHovered || (!showTitle && window.isFocused)
+            ? Color("Selected") : Color.clear
+    }
+
     var body: some View {
         let titleMaxLength = maxLength
         let size: CGFloat = 21
@@ -138,7 +145,7 @@ private struct WindowView: View {
                         .resizable()
                         .frame(width: size, height: size)
                         .shadow(
-                            color: .iconShadow,
+                            color: Color("Icon Shadow"),
                             radius: 2
                         )
                 } else {
@@ -158,7 +165,7 @@ private struct WindowView: View {
                             : title
                     )
                     .fixedSize(horizontal: true, vertical: false)
-                    .shadow(color: .foregroundShadow, radius: 3)
+                    .shadow(color: Color("Foreground Shadow"), radius: 3)
                     .fontWeight(.semibold)
                     Spacer().frame(width: 5)
                 }
@@ -166,7 +173,7 @@ private struct WindowView: View {
             }
         }
         .padding(.all, 2)
-        .background(isHovered || (!showTitle && window.isFocused) ? .selected : .clear)
+        .background(highlight)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .animation(.smooth, value: isHovered)
         .frame(height: 30)

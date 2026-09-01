@@ -72,11 +72,11 @@ struct NowPlayingContent: View {
                 .background(configManager.config.experimental.foreground.widgetsBackground.blur)
                 .clipShape(Capsule())
                 .overlay(
-                    Capsule().stroke(Color.noActive, lineWidth: 1)
+                    Capsule().stroke(Color("NoActive"), lineWidth: 1)
                 )
             }
         }
-        .foregroundColor(.foreground)
+        .foregroundColor(Color("Foreground"))
     }
 }
 
@@ -128,6 +128,7 @@ struct AlbumArtView: View {
         ZStack {
             FadeAnimatedCachedImage(
                 url: song.albumArtURL,
+                image: song.artwork,
                 targetSize: CGSize(width: 20, height: 20)
             )
             .frame(width: 20, height: 20)
@@ -137,7 +138,7 @@ struct AlbumArtView: View {
 
             if song.state == .paused {
                 Image(systemName: "pause.fill")
-                    .foregroundColor(.icon)
+                    .foregroundColor(Color("Icon"))
                     .transition(.blurReplace)
             }
         }

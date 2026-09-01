@@ -52,6 +52,7 @@ private struct NowPlayingVerticalPopup: View {
             VStack(spacing: 15) {
                 RotateAnimatedCachedImage(
                     url: song.albumArtURL,
+                    image: song.artwork,
                     targetSize: CGSize(width: 200, height: 200)
                 ) { image in
                     image.clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -121,6 +122,7 @@ struct NowPlayingHorizontalPopup: View {
                 HStack(spacing: 15) {
                     RotateAnimatedCachedImage(
                         url: song.albumArtURL,
+                        image: song.artwork,
                         targetSize: CGSize(width: 200, height: 200)
                     ) { image in
                         image.clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))

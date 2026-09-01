@@ -117,7 +117,7 @@ struct NetworkWidget: View {
         switch viewModel.wifiState {
         case .connected:
             return Image(systemName: "wifi")
-                .foregroundColor(.foregroundOutside)
+                .foregroundColor(Color("Foreground Outside"))
         case .connecting:
             return Image(systemName: "wifi")
                 .foregroundColor(.yellow)
