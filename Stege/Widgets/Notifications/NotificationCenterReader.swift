@@ -3,7 +3,7 @@ import ApplicationServices
 import Combine
 
 /// One notification sitting in Notification Center.
-struct SystemNotification: Identifiable, Equatable {
+struct SystemNotification: Identifiable, Equatable, Codable {
     /// Notification Center's own identifier for it, which is stable across
     /// reads and is what dismissing one is keyed on.
     let id: String
@@ -31,14 +31,17 @@ struct SystemNotification: Identifiable, Equatable {
 /// its widgets, confirmed by dumping its windows, so the list cannot be read
 /// cold without opening Notification Center.
 ///
-/// So it is read once, shortly after launch, and kept current from there. Every
-/// banner macOS draws is its own window in the same process, and a banner
-/// publishes exactly what a row in the list does: the same identifier, the same
-/// labelled title, subtitle and body, the same actions. Folding arriving
-/// banners into the list means opening the popup opens nothing, which is the
-/// whole point of the bell being in the bar rather than being a shortcut to the
-/// panel. Opening Notification Center by hand is read too, so a list gone stale
-/// corrects itself.
+/// So it is never read on its own. Every banner macOS draws is its own window
+/// in the same process, and a banner publishes exactly what a row in the list
+/// does: the same identifier, the same labelled title, subtitle and body, the
+/// same actions. Folding arriving banners into the list, and keeping the list
+/// between launches, means nothing here ever opens a panel unasked. Opening
+/// Notification Center by hand is read too, so a list gone stale corrects
+/// itself, and the refresh control asks for a read outright.
+///
+/// The cost is honest: a notification that arrived before Stege started, or one
+/// macOS delivered without drawing a banner, is not in the list until a read is
+/// asked for.
 ///
 /// Dismissing and clearing are the real ones. Pressing an entry's last action
 /// is what the close button on the notification does, and the button at the top
@@ -50,20 +53,24 @@ struct SystemNotification: Identifiable, Equatable {
 final class NotificationCenterReader: ObservableObject {
     static let shared = NotificationCenterReader()
 
-    @Published private(set) var notifications: [SystemNotification] = []
+    @Published private(set) var notifications: [SystemNotification] = [] {
+        didSet { Self.store(notifications) }
+    }
     @Published private(set) var isReading = false
     @Published private(set) var failure: String?
-    /// Whether the one read at launch has landed. Until it does the list holds
-    /// only what has arrived since, which is not the same as macOS holding
-    /// nothing.
-    private var hasSeeded = false
+    /// Kept between launches, the way `FocusReader` keeps its modes, so a
+    /// restart does not throw away everything collected and leave the bell
+    /// blank until a notification happens to arrive.
+    private static let storageKey = "stege.notifications.list"
     /// Rows dismissed in the popup, waiting for their real close button.
     private var pendingDismissals: [String] = []
     private var pendingClearAll = false
 
     private var observer: AXObserver?
 
-    private init() {}
+    private init() {
+        notifications = Self.stored()
+    }
 
     var isTrusted: Bool { AXIsProcessTrusted() }
 
@@ -79,7 +86,6 @@ final class NotificationCenterReader: ObservableObject {
     func startWatching() {
         guard observer == nil, isTrusted else { return }
         guard let centre = Self.centre() else { return }
-        defer { seed() }
 
         let element = AXUIElementCreateApplication(centre.processIdentifier)
         var created: AXObserver?
@@ -113,7 +119,6 @@ final class NotificationCenterReader: ObservableObject {
             let found = Self.parse(window)
             DispatchQueue.main.async {
                 self.notifications = found
-                self.hasSeeded = true
             }
             return
         }
@@ -136,28 +141,11 @@ final class NotificationCenterReader: ObservableObject {
         notifications = Array(merged.prefix(Self.limit))
     }
 
-    /// The one read at launch, deferred so it lands after the bar has drawn and
-    /// macOS has finished the login rush rather than in the middle of it.
-    ///
-    /// Asked again if it does not land. At login Notification Center's menu
-    /// extra is often not there to be pressed three seconds in, and a read that
-    /// misses would otherwise leave the list empty until a notification
-    /// happened to arrive.
-    private func seed(attempt: Int = 0) {
-        guard !hasSeeded, attempt < 3 else { return }
-        let delay = Double(3 * (attempt + 1))
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-            guard let self, !self.hasSeeded else { return }
-            self.refresh()
-            self.seed(attempt: attempt + 1)
-        }
-    }
-
     // MARK: - Reading
 
-    /// Opens Notification Center, reads the list, closes it again. The one
-    /// thing here that puts a panel on screen, so it runs at launch and then
-    /// only when the user asks for it.
+    /// Opens Notification Center, reads the list, closes it again. The only
+    /// thing here that puts a panel on screen, so nothing calls it but the
+    /// refresh control and the queued dismissals the user asked for.
     func refresh() {
         guard !isReading, isTrusted else { return }
         isReading = true
@@ -173,7 +161,6 @@ final class NotificationCenterReader: ObservableObject {
                     return
                 }
                 self.notifications = found
-                self.hasSeeded = true
             }
         }
     }
@@ -507,6 +494,21 @@ final class NotificationCenterReader: ObservableObject {
             collectText(
                 child, into: &labelled, untagged: &untagged, depth: depth + 1)
         }
+    }
+
+    // MARK: - Storage
+
+    private static func stored() -> [SystemNotification] {
+        guard let data = UserDefaults.standard.data(forKey: storageKey),
+            let list = try? JSONDecoder().decode(
+                [SystemNotification].self, from: data)
+        else { return [] }
+        return list
+    }
+
+    private static func store(_ list: [SystemNotification]) {
+        guard let data = try? JSONEncoder().encode(list) else { return }
+        UserDefaults.standard.set(data, forKey: storageKey)
     }
 
     // MARK: - Accessibility
