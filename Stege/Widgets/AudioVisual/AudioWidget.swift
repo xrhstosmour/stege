@@ -16,10 +16,6 @@ struct AudioWidget: View {
             ?? .speaker
     }
 
-    /// Only read by the `speaker-and-microphone` style, which is the only one
-    /// with a microphone half to leave out.
-    var showMicrophone: Bool { config["show-microphone"]?.boolValue ?? true }
-
     @ObservedObject private var manager = AudioManager.shared
     @State private var rect: CGRect = .zero
 
@@ -28,8 +24,6 @@ struct AudioWidget: View {
             SoundGlyph(
                 level: manager.volume,
                 isOutputMuted: manager.isOutputMuted,
-                isInputMuted: manager.isInputMuted,
-                hasInput: showMicrophone && manager.hasInput,
                 style: glyphStyle)
 
             if showPercentage {
@@ -142,7 +136,7 @@ struct AudioPopup: View {
                 )
             }
         }
-        .popupContainer(wide: true)
+        .popupContainer()
     }
 
     @ViewBuilder
@@ -153,8 +147,6 @@ struct AudioPopup: View {
                 SoundGlyph(
                     level: manager.volume,
                     isOutputMuted: manager.isOutputMuted,
-                    isInputMuted: manager.isInputMuted,
-                    hasInput: false,
                     style: .speaker,
                     size: PopupStyle.titleSize)
                 Text("Sound")

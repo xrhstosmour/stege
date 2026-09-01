@@ -12,16 +12,14 @@ struct BatteryWidget: View {
     /// `inside` is the default: the battery outline with the level filled in
     /// behind the number, which sits in the body of the battery. `plain` puts
     /// the outline and the number side by side, which is what macOS itself
-    /// does. `bar` is accepted as the old name for `inside`.
+    /// does.
     ///
-    /// Neither of the first two is the filled white pill this started as. The
-    /// outline is drawn like every other glyph in the bar and the level behind
-    /// the number is dimmed, so the battery stops being the brightest object on
-    /// screen while still being the only one that carries a number.
+    /// Neither is the filled white pill this started as. The outline is drawn
+    /// like every other glyph in the bar, and the number sits inside it rather
+    /// than beside it.
     enum Style: String {
         case inside
         case plain
-        case bar
     }
 
     var style: Style {

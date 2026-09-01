@@ -9,23 +9,20 @@ import SwiftUI
 /// `speaker` is the default and is what macOS puts in its own menu bar: the
 /// arcs say the level, so the icon is worth looking at rather than only worth
 /// clicking. `waveform` is the neutral alternative for anyone who wants one
-/// mark for sound in general rather than output in particular. The microphone
-/// lives in the popup either way, and the privacy widget is what says when
-/// something is listening.
+/// mark for sound in general rather than output in particular.
+///
+/// There used to be a third, a speaker and a microphone kerned together. The
+/// microphone is its own widget now, `default.microphone`, so the pair was two
+/// ways of drawing the same thing and twice as wide as anything beside it.
 enum SoundGlyphStyle: String {
     case speaker
     case waveform
-    /// The old pair, for anyone who preferred it.
-    case speakerAndMicrophone = "speaker-and-microphone"
 }
 
 struct SoundGlyph: View {
     /// Output volume, 0 to 1.
     var level: Double
     var isOutputMuted: Bool
-    var isInputMuted: Bool
-    /// Only drawn by the pair style, and only when there is an input device.
-    var hasInput: Bool = true
     var style: SoundGlyphStyle = .speaker
     var size: CGFloat = BarStyle.glyphSize
 
@@ -40,20 +37,6 @@ struct SoundGlyph: View {
                 .font(.system(size: size))
                 .frame(width: BarStyle.glyphWidth)
                 .accessibilityLabel("Sound")
-        case .speakerAndMicrophone:
-            HStack(spacing: size * 0.08) {
-                speaker
-                if hasInput {
-                    Image(
-                        systemName: isInputMuted ? "mic.slash.fill" : "mic.fill"
-                    )
-                    .font(.system(size: size * 0.8))
-                    .frame(width: BarStyle.glyphWidth)
-                    .foregroundStyle(isInputMuted ? Color.red : Color.primary)
-                }
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Sound")
         }
     }
 
