@@ -66,12 +66,19 @@ class MenuBarPopup {
     /// than the main display's.
     static var currentScreenFrame: CGRect = .zero
 
-    /// Moves the shared popup panel onto whichever screen the widget that was
-    /// clicked lives on, so a popup opened from the bar on a second display
-    /// does not appear on the first.
-    private static func moveToScreen(containing rect: CGRect) -> CGRect {
+    /// Moves the shared popup panel onto whichever screen the click came from.
+    ///
+    /// The pointer, not the widget's rectangle. A widget measures itself in
+    /// SwiftUI's `.global` space, which is its own window's and starts at
+    /// zero, and there is one bar panel per screen, so every widget on every
+    /// display reports a rectangle inside the first screen's frame. Looking
+    /// for the screen containing that rectangle therefore always answered the
+    /// screen at the origin, and clicking the bar on the second display opened
+    /// its popup on the first.
+    private static func moveToClickedScreen() -> CGRect {
+        let pointer = NSEvent.mouseLocation
         let screen =
-            NSScreen.screens.first { $0.frame.intersects(rect) }
+            NSScreen.screens.first { $0.frame.contains(pointer) }
             ?? NSScreen.main
         guard let frame = screen?.frame else { return .zero }
         currentScreenFrame = frame
@@ -83,7 +90,7 @@ class MenuBarPopup {
         rect: CGRect, id: String, @ViewBuilder content: @escaping () -> Content
     ) {
         guard let panel = panel else { return }
-        let screenFrame = moveToScreen(containing: rect)
+        let screenFrame = moveToClickedScreen()
 
         if panel.isKeyWindow, lastContentIdentifier == id {
             NotificationCenter.default.post(name: .willHideWindow, object: nil)
@@ -152,10 +159,12 @@ class MenuBarPopup {
         ZStack(alignment: .top) {
             Color.clear
             MenuBarPopupView { content() }
-                // Centred on the widget that opened it. The panel spans the
-                // screen, so this is measured from the screen's middle.
-                .offset(
-                    x: (rect.midX - screenFrame.minX) - screenFrame.width / 2)
+                // Centred on the widget that opened it. `rect` is already
+                // relative to its own bar panel, which covers exactly one
+                // screen, so the screen's origin must not be subtracted a
+                // second time: doing that pushed every popup on a second
+                // display a whole screen width to the left.
+                .offset(x: rect.midX - screenFrame.width / 2)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .id(UUID())
@@ -210,8 +219,11 @@ class MenuBarPopup {
             defer: false
         )
 
+        // Menu level, the same as a real menu. It used to be `floatingWindow`,
+        // which was above the bar only because the bar was below every window
+        // on the screen.
         newPanel.level = NSWindow.Level(
-            rawValue: Int(CGWindowLevelForKey(.floatingWindow)))
+            rawValue: Int(CGWindowLevelForKey(.popUpMenuWindow)))
         newPanel.backgroundColor = .clear
         newPanel.hasShadow = false
         newPanel.collectionBehavior = [.canJoinAllSpaces]

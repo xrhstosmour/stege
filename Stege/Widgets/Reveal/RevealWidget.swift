@@ -29,12 +29,14 @@ struct RevealWidget: View {
         Mode(rawValue: config["mode"]?.stringValue ?? "extras") ?? .extras
     }
 
-    /// Defaults to the size every other mark in the bar is drawn at. At 15,
-    /// which is what this used to be, the appended icons stood a third taller
-    /// than the glyphs beside them and read as a second row of icons rather
-    /// than part of the same one.
+    /// Three points more than a glyph.
+    ///
+    /// An application icon is square artwork with its own padding baked in,
+    /// so at the glyph's own point size it draws visibly smaller than the
+    /// symbols beside it: an SF Symbol at 15 points puts 15 points of ink on
+    /// the screen, a 15 point application icon rather less.
     var iconSize: CGFloat {
-        CGFloat(config["icon-size"]?.intValue ?? Int(BarStyle.glyphSize))
+        CGFloat(config["icon-size"]?.intValue ?? Int(BarStyle.glyphSize) + 3)
     }
 
     /// How the appended icons are drawn.

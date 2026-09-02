@@ -75,7 +75,7 @@ modifier-key = "option"     # option, command, control, shift, function
 
 [widgets.default.reveal]
 mode = "extras"                # append the other apps' status items, or "collapse"
-icon-size = 15                 # extras only: how big those icons are drawn
+icon-size = 18                 # extras only: how big those icons are drawn
 icon-style = "colour"          # extras only: as the apps ship them, or "monochrome"
 always-show = []               # extras only: bundle ids kept in the bar permanently
 hidden = []                    # extras only: bundle ids that never appear
@@ -130,6 +130,10 @@ refresh-interval = 30          # minutes; reading Homebrew forks a process
 # the macOS half reads the result of the system's own last check and says how
 # old it is.
 
+# The screen. Brightness in the bar and on the scroll wheel, and in the popup
+# the resolution of every attached display, a mirror switch when there is more
+# than one, Night Shift and True Tone. A resolution picked here is applied for
+# the login session only, never written permanently.
 [widgets.default.display]
 # Brightness in the bar, with Night Shift and True Tone in the popup. All three
 # are set directly, so nothing opens a system panel. Scrolling the icon changes

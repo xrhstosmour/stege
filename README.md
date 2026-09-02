@@ -107,7 +107,7 @@ displayed = [
 | `default.stayawake` | A cup, while something is keeping the display awake |
 | `default.notifications` | A bell listing the notifications macOS is holding, and the Focus modes |
 | `default.audio` | Output volume |
-| `default.display` | Screen brightness, with Night Shift and True Tone in the popup |
+| `default.display` | The screen: brightness, resolution, mirroring, Night Shift, True Tone |
 | `default.updates` | A mark while macOS or Homebrew has something waiting |
 | `default.microphone` | The microphone on its own |
 | `default.keyboardlayout` | The current input source, with a popup for switching |
@@ -242,7 +242,7 @@ button just left of the notch to bring it back.
 ```toml
 [widgets.default.reveal]
 mode = "extras"            # or "collapse"
-icon-size = 15             # `extras` only
+icon-size = 18             # `extras` only
 icon-style = "colour"      # `extras` only, or "monochrome"
 always-show = []           # `extras` only: bundle ids kept in the bar permanently
 hidden = []                # `extras` only: bundle ids that never appear
