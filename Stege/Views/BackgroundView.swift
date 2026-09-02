@@ -4,19 +4,11 @@ struct BackgroundView: View {
     @ObservedObject var configManager = ConfigManager.shared
 
     private func spacer(_ geometry: GeometryProxy) -> some View {
-        let theme: ColorScheme? = {
-            switch configManager.config.rootToml.theme {
-            case "dark": return .dark
-            case "light": return .light
-            default: return nil
-            }
-        }()
-        
         let height = configManager.config.bar.background.resolveHeight()
         
         return Color.clear
             .frame(height: height ?? geometry.size.height)
-            .preferredColorScheme(theme)
+            .preferredColorScheme(configManager.config.colorScheme)
         
     }
     
