@@ -119,6 +119,13 @@ extension View {
 struct BarHover: ViewModifier {
     var cornerRadius: CGFloat = 5
     var verticalInset: CGFloat = 5
+    /// How far the highlight reaches past the item on each side.
+    ///
+    /// Applied as negative padding on the background, so it costs no layout
+    /// width. Giving the item real padding instead widened it, and because the
+    /// bar is one `HStack` with a single spacing value, every gap in the row
+    /// grew by twice this.
+    var horizontalOutset: CGFloat = 0
     @State private var isHovered = false
 
     func body(content: Content) -> some View {
@@ -127,6 +134,7 @@ struct BarHover: ViewModifier {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(isHovered ? BarStyle.hoverFill : .clear)
                     .padding(.vertical, verticalInset)
+                    .padding(.horizontal, -horizontalOutset)
             )
             .animation(BarStyle.hoverAnimation, value: isHovered)
             .onHover { isHovered = $0 }
@@ -134,10 +142,13 @@ struct BarHover: ViewModifier {
 }
 
 extension View {
-    func barHover(cornerRadius: CGFloat = 5, verticalInset: CGFloat = 5)
-        -> some View
-    {
+    func barHover(
+        cornerRadius: CGFloat = 5, verticalInset: CGFloat = 5,
+        horizontalOutset: CGFloat = 0
+    ) -> some View {
         modifier(
-            BarHover(cornerRadius: cornerRadius, verticalInset: verticalInset))
+            BarHover(
+                cornerRadius: cornerRadius, verticalInset: verticalInset,
+                horizontalOutset: horizontalOutset))
     }
 }
