@@ -55,6 +55,7 @@ whatever is still missing.
 | Bluetooth | The Bluetooth widget | The glyph shows a small lock and opens the settings pane |
 | Location | The Wi-Fi network name and the nearby network list | The name is hidden, everything else still works |
 | Calendars | Events in the clock widget and calendar popup | Events are omitted |
+| Automation | Reading and controlling `Spotify` and `Music` for the now playing widget | The widget draws a music note with a warning mark, and its tooltip says which player it could not reach |
 
 Stege is not sandboxed, because the Accessibility API is unavailable to sandboxed apps.
 
@@ -187,6 +188,19 @@ height = "menu-bar"
 horizontal-padding = 12
 spacing = 10
 ```
+
+### Now playing
+
+`default.nowplaying` reads `Spotify` and `Music` over `AppleScript`, which is why it wants
+Automation. It also asks `MediaRemote`, the system's own now-playing service that Control Center
+reads, which would cover anything playing in a browser. On macOS 26 that returns an empty answer
+to any caller without Apple's own entitlement, and an empty answer is indistinguishable from
+nothing playing, so in practice the two scriptable applications are the coverage.
+
+When a player is running and cannot be read, the widget draws a music note with a warning mark
+rather than disappearing, and clicking it opens Privacy & Security, Automation. Nothing playing
+and cannot see what is playing used to look the same from the bar, which is the worst way to
+report a permission that was never granted.
 
 ### Hiding the bar
 
