@@ -79,7 +79,9 @@ enum AudioActivity {
         if let application = NSRunningApplication(processIdentifier: pid),
             let name = application.localizedName
         {
-            return AudioSource(id: pid, name: name, icon: application.icon)
+            return AudioSource(
+                id: pid, name: name,
+                icon: icon(named: name) { application.icon })
         }
 
         guard let bundle = bundleIdentifier(of: object), !bundle.isEmpty
@@ -97,12 +99,35 @@ enum AudioActivity {
                     .replacingOccurrences(of: ".app", with: "")
                 return AudioSource(
                     id: pid, name: name,
-                    icon: workspace.icon(forFile: url.path))
+                    icon: icon(named: name) {
+                        workspace.icon(forFile: url.path)
+                    })
             }
             guard let dot = candidate.lastIndex(of: ".") else { break }
             candidate = String(candidate[..<dot])
         }
         return nil
+    }
+
+    /// Icons, kept between ticks.
+    ///
+    /// This list is rebuilt once a second while the sound popup is open, and
+    /// an application icon is a `LaunchServices` binding and a disk-backed
+    /// lookup rather than a dictionary read: it was the second most expensive
+    /// thing in a profile of the idle application, behind only the `CoreAudio`
+    /// call that produced the list in the first place.
+    ///
+    /// Small and bounded by how many applications can play sound at once, so
+    /// it is never cleared.
+    private static var icons: [String: NSImage] = [:]
+
+    private static func icon(named name: String, make: () -> NSImage?)
+        -> NSImage?
+    {
+        if let cached = icons[name] { return cached }
+        guard let image = make() else { return nil }
+        icons[name] = image
+        return image
     }
 
     private static func bundleIdentifier(of object: AudioObjectID) -> String? {
