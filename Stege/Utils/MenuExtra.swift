@@ -405,9 +405,14 @@ enum MenuExtra {
         // Menu bar extras hang off `AXExtrasMenuBar`, not `AXMenuBar`. The
         // latter is the application's own menus, which Control Center does not
         // publish, so reading it returns nothing at all.
+        // The type is checked before the cast. This was a force cast on
+        // whatever Control Center happened to return, and anything that was not
+        // an element would have taken the application down with it.
+        guard let barValue = attribute(application, "AXExtrasMenuBar"),
+            CFGetTypeID(barValue) == AXUIElementGetTypeID()
+        else { return nil }
+        let bar = barValue as! AXUIElement
         guard
-            let bar = attribute(application, "AXExtrasMenuBar")
-                as! AXUIElement?,
             let items = attribute(bar, kAXChildrenAttribute as String)
                 as? [AXUIElement]
         else { return nil }
