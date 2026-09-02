@@ -237,6 +237,12 @@ struct DisplayPopup: View {
                             .font(.system(size: PopupStyle.bodySize))
                             .monospacedDigit()
                         Spacer(minLength: 8)
+                        if let rate = mode.refreshLabel {
+                            Text(rate)
+                                .font(.system(size: PopupStyle.captionSize))
+                                .monospacedDigit()
+                                .opacity(0.5)
+                        }
                         if mode.isRetina {
                             Text("Retina")
                                 .font(.system(size: PopupStyle.captionSize))

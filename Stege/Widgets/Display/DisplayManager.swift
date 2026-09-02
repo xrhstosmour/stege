@@ -24,13 +24,19 @@ struct DisplayMode: Identifiable, Equatable {
     /// Two pixels per point. Worth saying, because a display offers the same
     /// point size both ways and one of them is blurry.
     let isRetina: Bool
+    /// Hertz, rounded. Zero for a mode that does not report one, which is what
+    /// a display driven at its native timing does.
+    let refreshRate: Int
     let mode: CGDisplayMode
 
     var id: String {
-        "\(Int(size.width))x\(Int(size.height))\(isRetina ? "@2x" : "")"
+        "\(Int(size.width))x\(Int(size.height))\(isRetina ? "@2x" : "")@\(refreshRate)"
     }
     var label: String {
         "\(Int(size.width)) × \(Int(size.height))"
+    }
+    var refreshLabel: String? {
+        refreshRate > 0 ? "\(refreshRate) Hz" : nil
     }
 }
 
@@ -168,12 +174,19 @@ final class DisplayManager: ObservableObject {
                 size: size,
                 isCurrent: mode.ioDisplayModeID == current?.ioDisplayModeID,
                 isRetina: isRetina,
+                refreshRate: Int(mode.refreshRate.rounded()),
                 mode: mode)
             // The current mode always wins its slot, so the tick is never on a
-            // row that is not the one in use. Otherwise the sharper of the two.
+            // row that is not the one in use. Otherwise the sharper of the two,
+            // then the faster: a display offering the same size at 60 and 120
+            // should be listed at 120.
             if let existing = best[key] {
                 if existing.isCurrent { continue }
-                if candidate.isCurrent || (isRetina && !existing.isRetina) {
+                if candidate.isCurrent
+                    || (isRetina && !existing.isRetina)
+                    || (isRetina == existing.isRetina
+                        && candidate.refreshRate > existing.refreshRate)
+                {
                     best[key] = candidate
                 }
             } else {
