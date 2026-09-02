@@ -206,3 +206,14 @@ spacing = 10
 # not hand the image over directly, which in practice means Spotify. It is the
 # only outbound request Stege makes, so it can be refused.
 fetch-artwork = true
+# The artwork in the bar, at the size every other mark is drawn at. Off leaves
+# a music note, which is all macOS shows for its own now playing status item.
+show-artwork = true
+# The track title beside it. Off leaves the mark alone.
+show-title = true
+# How much of the row a long title may take before it is cut.
+title-width = 130
+
+# The same track, with previous, play and next, also appears at the top of the
+# sound popup, which is where Control Center keeps it. Leave `default.nowplaying`
+# out of `widgets.displayed` if that is enough and you want the bar shorter.

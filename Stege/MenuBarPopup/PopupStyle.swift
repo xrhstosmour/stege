@@ -201,6 +201,31 @@ struct PopupPowerRow<Leading: View, Trailing: View>: View {
     }
 }
 
+/// A round icon button, for controls that are a symbol and nothing else.
+///
+/// The transport in the sound popup is three of these in a row, where a
+/// labelled row would be three lines for what reads as one control.
+struct PopupIconButton: View {
+    let symbol: String
+    var size: CGFloat = 12
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: size, weight: .medium))
+            .frame(width: 24, height: 24)
+            .background(
+                Circle().fill(isHovered ? Color.accentColor : .clear)
+            )
+            .foregroundStyle(isHovered ? Color.white : Color.primary)
+            .contentShape(Circle())
+            .onHover { isHovered = $0 }
+            .onTapGesture(perform: action)
+            .accessibilityAddTraits(.isButton)
+    }
+}
+
 /// The small heading over a list, such as "Other Networks".
 struct PopupSectionTitle<Trailing: View>: View {
     let title: String

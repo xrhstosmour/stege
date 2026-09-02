@@ -300,7 +300,22 @@ final class NowPlayingManager: ObservableObject {
     var fetchesArtwork = true
     private var cancellable: AnyCancellable?
 
-    private init() {
+    /// How many views are showing what is playing.
+    ///
+    /// The timer used to start with the singleton and run for the life of the
+    /// process, which was cheap while the widget was the only thing that
+    /// wanted it and the widget was always in the bar. It is in the sound
+    /// popup now as well, and a popup is on screen for a few seconds at a
+    /// time, so a poll that costs an Apple Event a second has to stop when the
+    /// last thing looking at it goes away.
+    private var watchers = 0
+
+    private init() {}
+
+    func startWatching() {
+        watchers += 1
+        guard cancellable == nil else { return }
+        updateNowPlaying()
         // One second, not the original 0.3. With the script cached and idle
         // applications skipped a tick costs 0.44 ms, so the interval is no
         // longer the expensive part, but the popup's progress bar still wants
@@ -310,6 +325,13 @@ final class NowPlayingManager: ObservableObject {
             .sink { [weak self] _ in
                 self?.updateNowPlaying()
             }
+    }
+
+    func stopWatching() {
+        watchers = max(0, watchers - 1)
+        guard watchers == 0 else { return }
+        cancellable?.cancel()
+        cancellable = nil
     }
 
     /// Asks the system first, then the two scriptable applications.

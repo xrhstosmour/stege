@@ -114,7 +114,7 @@ displayed = [
 | `default.bluetooth` | Bluetooth state and connected device battery |
 | `default.network` | Wi-Fi and Ethernet state |
 | `default.battery` | Charge, with health and cycles in the popup |
-| `default.nowplaying` | What is playing, with transport controls |
+| `default.nowplaying` | What is playing, also at the top of the sound popup |
 | `default.time` | Clock, with a calendar popup |
 | `spacer` | Pushes everything after it to the right |
 | `divider` | A thin vertical separator |
@@ -191,8 +191,13 @@ spacing = 10
 
 ### Now playing
 
-`default.nowplaying` reads `Spotify` and `Music` over `AppleScript`, which is why it wants
-Automation. It also asks `MediaRemote`, the system's own now-playing service that Control Center
+What is playing, with previous, play and next, is at the top of the sound popup, which is where
+Control Center keeps it. `default.nowplaying` puts the track in the bar as well: the artwork at
+the size of a glyph and the title on one line, dimmed while paused. It used to be a bordered
+capsule holding two stacked lines of text, which read as a control dropped into the bar rather
+than part of the row. Leave it out of `widgets.displayed` if the sound popup is enough.
+
+Both read `Spotify` and `Music` over `AppleScript`, which is why they want Automation. It also asks `MediaRemote`, the system's own now-playing service that Control Center
 reads, which would cover anything playing in a browser. On macOS 26 that returns an empty answer
 to any caller without Apple's own entitlement, and an empty answer is indistinguishable from
 nothing playing, so in practice the two scriptable applications are the coverage.

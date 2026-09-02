@@ -76,7 +76,9 @@ struct NowPlayingWidget: View {
         )
         .onAppear {
             playingManager.fetchesArtwork = fetchesArtwork
+            playingManager.startWatching()
         }
+        .onDisappear { playingManager.stopWatching() }
     }
 
     private var style: NowPlayingStyle {
