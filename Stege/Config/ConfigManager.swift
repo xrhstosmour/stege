@@ -40,8 +40,57 @@ final class ConfigManager: ObservableObject {
 
         if let path = chosenPath {
             configFilePath = path
+            migrateIfNeeded(at: path)
             parseConfigFile(at: path)
             startWatchingFile(at: path)
+        }
+    }
+
+    /// Names that changed, and what they changed to.
+    ///
+    /// Ordered longest first so `default.applemenu` cannot be half-rewritten by
+    /// a shorter rule that happens to match inside it.
+    private static let renames: [(String, String)] = [
+        ("default.keyboardlayout", "default.keyboardLayout"),
+        ("default.applemenu", "default.appleMenu"),
+        ("default.appmenus", "default.applicationMenu"),
+        ("[experimental.", "[bar."),
+    ]
+
+    /// Rewrites a configuration written for an older version, once, in place.
+    ///
+    /// Nothing here fails loudly on its own. TOML has no schema, so an unknown
+    /// table is simply ignored and an unknown widget identifier draws nothing:
+    /// upgrading past the renames would have quietly cost the Apple menu, the
+    /// application menus, the input source and every appearance setting, with
+    /// no error anywhere to say why. The alternative, accepting both spellings
+    /// for ever, leaves two names for everything in a file people read to find
+    /// out what the names are.
+    ///
+    /// The original is kept beside the file as `.backup` before anything is
+    /// written, because this edits something the user owns.
+    private func migrateIfNeeded(at path: String) {
+        guard let original = try? String(contentsOfFile: path, encoding: .utf8)
+        else { return }
+
+        var migrated = original
+        var applied: [String] = []
+        for (old, new) in Self.renames where migrated.contains(old) {
+            migrated = migrated.replacingOccurrences(of: old, with: new)
+            applied.append("\(old) to \(new)")
+        }
+        guard !applied.isEmpty else { return }
+
+        let backup = path + ".backup"
+        do {
+            try? FileManager.default.removeItem(atPath: backup)
+            try original.write(toFile: backup, atomically: true, encoding: .utf8)
+            try migrated.write(toFile: path, atomically: true, encoding: .utf8)
+            Log.configuration.notice(
+                "Migrated the configuration: \(applied.joined(separator: ", "), privacy: .public). The original is at \(backup, privacy: .public)")
+        } catch {
+            Log.configuration.error(
+                "Could not migrate the configuration: \(error.localizedDescription, privacy: .public)")
         }
     }
 
