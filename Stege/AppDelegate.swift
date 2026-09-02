@@ -326,6 +326,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let hostingView = NSHostingView(rootView: hostingRootView)
         hostingView.wantsLayer = true
         hostingView.layer?.isOpaque = false
+        // The panel is the whole screen and the bar is drawn against its top
+        // edge, so the safe area has to be the panel's own, not the display's.
+        // On a notched built-in display the safe area starts below the notch,
+        // 32 points down, and the entire bar was pushed down with it: with an
+        // external monitor attached the bar sat at the top of the screen, and
+        // on the laptop alone it sat under the menu bar with its bottom half
+        // cut off.
+        hostingView.safeAreaRegions = []
         panel.contentView = hostingView
         if show { panel.orderFront(nil) }
         return panel
