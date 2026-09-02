@@ -291,21 +291,33 @@ final class MenuBarExtrasReader: ObservableObject {
         return value
     }
 
+    /// The type is checked before the cast. `AXUIElementCopyAttributeValue`
+    /// answers with whatever the other application put there, and a force cast
+    /// on that crashes the whole bar over one badly behaved status item. This
+    /// runs on every menu bar change.
+    private static func axValue(
+        of element: AXUIElement, _ attribute: String
+    ) -> AXValue? {
+        guard let value = copy(element, attribute) else { return nil }
+        guard CFGetTypeID(value as CFTypeRef) == AXValueGetTypeID() else {
+            return nil
+        }
+        return (value as! AXValue)
+    }
+
     private static func position(of element: AXUIElement) -> CGPoint {
         var point = CGPoint.zero
-        guard let value = copy(element, kAXPositionAttribute as String) else {
-            return point
-        }
-        AXValueGetValue(value as! AXValue, .cgPoint, &point)
+        guard let value = axValue(of: element, kAXPositionAttribute as String)
+        else { return point }
+        AXValueGetValue(value, .cgPoint, &point)
         return point
     }
 
     private static func size(of element: AXUIElement) -> CGSize {
         var size = CGSize.zero
-        guard let value = copy(element, kAXSizeAttribute as String) else {
-            return size
-        }
-        AXValueGetValue(value as! AXValue, .cgSize, &size)
+        guard let value = axValue(of: element, kAXSizeAttribute as String)
+        else { return size }
+        AXValueGetValue(value, .cgSize, &size)
         return size
     }
 }

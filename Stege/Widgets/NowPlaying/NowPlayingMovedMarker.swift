@@ -29,8 +29,7 @@ struct NowPlayingMovedMarker: View {
             )
             .onTapGesture {
                 MenuBarPopup.show(rect: rect, id: "audio") {
-                    AudioPopup(
-                        manager: manager, scope: .output, fetchesArtwork: true)
+                    AudioPopup(manager: manager, scope: .output)
                 }
             }
             .help(

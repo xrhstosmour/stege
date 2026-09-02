@@ -311,6 +311,20 @@ final class ConfigManager: ObservableObject {
         config.rootToml.widgets.config(for: widgetId) ?? [:]
     }
 
+    /// A widget's settings as the bar resolves them, inline parameters and all,
+    /// for code that is not the widget and so has no `ConfigProvider`.
+    ///
+    /// Falls back to the global block when the widget is not in the bar at all,
+    /// so a setting still reads correctly for something drawn from a popup.
+    func widgetSettings(for widgetId: String) -> ConfigData {
+        guard
+            let item = config.rootToml.widgets.displayed.first(where: {
+                $0.id == widgetId
+            })
+        else { return globalWidgetConfig(for: widgetId) }
+        return resolvedWidgetConfig(for: item)
+    }
+
     func resolvedWidgetConfig(for item: TomlWidgetItem) -> ConfigData {
         let global = globalWidgetConfig(for: item.id)
         if item.inlineParams.isEmpty {

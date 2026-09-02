@@ -44,8 +44,15 @@ struct NowPlayingSong: Equatable, Identifiable {
     /// - Parameters:
     ///   - application: The name of the music application.
     ///   - output: The output string returned by AppleScript.
+    /// ASCII unit separator, which is what it is for and what no track title
+    /// contains. This was a vertical bar, and a track called "A|B" made the
+    /// output six fields instead of five, failed the count check, and took the
+    /// whole readout off the popup.
+    static let fieldSeparator = "\u{001F}"
+
     init?(application: String, from output: String) {
-        let components = output.components(separatedBy: "|")
+        let components = output.components(
+            separatedBy: NowPlayingSong.fieldSeparator)
         guard components.count == 6,
             let state = PlaybackState(rawValue: components[0])
         else {
@@ -66,13 +73,27 @@ struct NowPlayingSong: Equatable, Identifiable {
         self.state = state
         self.title = components[1]
         self.artist = components[2]
-        self.albumArtURL = URL(string: components[3])
+        self.albumArtURL = Self.artworkURL(components[3])
         self.position = position
         if application == MusicApp.spotify.rawValue {
             self.duration = duration / 1000
         } else {
             self.duration = duration
         }
+    }
+
+    /// The artwork link, if it is one worth following.
+    ///
+    /// The player hands this over as text and it is the one thing Stege
+    /// fetches, so the scheme is checked rather than trusted. `https` is what
+    /// `Spotify` returns and `file` is what `Music` returns for a local
+    /// library. Anything else, `http` included, is dropped: a cleartext
+    /// request would say what is playing to everything on the path, and no
+    /// player has a reason to ask for one.
+    private static func artworkURL(_ text: String) -> URL? {
+        guard let url = URL(string: text), let scheme = url.scheme?.lowercased()
+        else { return nil }
+        return scheme == "https" || scheme == "file" ? url : nil
     }
 }
 
@@ -116,7 +137,8 @@ enum MusicApp: String, CaseIterable {
                             else if player state is paused then
                                 set stateText to "paused"
                             end if
-                            return stateText & "|" & (name of currentTrack) & "|" & (artist of currentTrack) & "|" & artworkURL & "|" & (player position as text) & "|" & ((duration of currentTrack) as text)
+                            set separator to (character id 31)
+                            return stateText & separator & (name of currentTrack) & separator & (artist of currentTrack) & separator & artworkURL & separator & (player position as text) & separator & ((duration of currentTrack) as text)
                         else
                             return "stopped"
                         end if
@@ -131,10 +153,12 @@ enum MusicApp: String, CaseIterable {
                     tell application "\(rawValue)"
                         if player state is playing then
                             set currentTrack to current track
-                            return "playing|" & (name of currentTrack) & "|" & (artist of currentTrack) & "|" & (artwork url of currentTrack) & "|" & player position & "|" & (duration of currentTrack)
+                            set separator to (character id 31)
+                            return "playing" & separator & (name of currentTrack) & separator & (artist of currentTrack) & separator & (artwork url of currentTrack) & separator & player position & separator & (duration of currentTrack)
                         else if player state is paused then
                             set currentTrack to current track
-                            return "paused|" & (name of currentTrack) & "|" & (artist of currentTrack) & "|" & (artwork url of currentTrack) & "|" & player position & "|" & (duration of currentTrack)
+                            set separator to (character id 31)
+                            return "paused" & separator & (name of currentTrack) & separator & (artist of currentTrack) & separator & (artwork url of currentTrack) & separator & player position & separator & (duration of currentTrack)
                         else
                             return "stopped"
                         end if
@@ -327,7 +351,18 @@ final class NowPlayingManager: ObservableObject {
     /// artwork over as bytes, but the AppleScript path returns a link to the
     /// player's own servers, and following it tells them the track is being
     /// looked at from this machine. Set by the widget from the file.
-    var fetchesArtwork = true
+    /// Whether the artwork link may be followed.
+    ///
+    /// Read from the configuration here rather than pushed in by whichever
+    /// popup drew last. It was a settable property, and the marker standing in
+    /// for the removed now playing widget set it to `true` unconditionally, so
+    /// clicking that mark turned the setting back on for the rest of the
+    /// session. False means the link is dropped before it reaches the view
+    /// that would load it.
+    var fetchesArtwork: Bool {
+        ConfigManager.shared.widgetSettings(for: "default.audio")[
+            "fetch-artwork"]?.boolValue ?? true
+    }
     private var cancellable: AnyCancellable?
 
     /// How many views are showing what is playing.
