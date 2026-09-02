@@ -125,7 +125,7 @@ struct AudioPopup: View {
                         ? "speaker.slash.fill" : "speaker.wave.2.fill",
                     isMuted: manager.isOutputMuted,
                     level: manager.volume,
-                    setLevel: { manager.setVolume($0) },
+                    setLevel: { manager.setOutputLevel($0) },
                     toggleMute: { manager.toggleOutputMute() },
                     devices: manager.outputDevices,
                     selected: manager.currentOutputID,
@@ -137,7 +137,7 @@ struct AudioPopup: View {
                             ? "mic.slash.fill" : "mic.fill",
                         isMuted: manager.isInputMuted,
                         level: manager.inputVolume,
-                        setLevel: { manager.setInputVolume($0) },
+                        setLevel: { manager.setInputLevel($0) },
                         toggleMute: { manager.toggleInputMute() },
                         devices: manager.inputDevices,
                         selected: manager.currentInputID,
@@ -308,11 +308,12 @@ struct AudioPopup: View {
                     .help(isMuted ? "Unmute" : "Mute")
 
                 if let level {
+                    // Live while muted. Dragging it up is how the sound comes
+                    // back, so disabling it took away the one control someone
+                    // reaching for the slider was reaching for.
                     Slider(
                         value: Binding(get: { level }, set: setLevel), in: 0...1
                     )
-                    .disabled(isMuted)
-                    .opacity(isMuted ? 0.4 : 1)
 
                     // Muted says muted. The level is still there behind it
                     // and the slider still shows where it will come back to,
