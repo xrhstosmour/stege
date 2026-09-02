@@ -90,11 +90,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func observeToggleShortcut() {
         observeRunningApplications()
         applyShortcuts(ConfigManager.shared.config)
+        applyAppearance(ConfigManager.shared.config)
         shortcutObserver = ConfigManager.shared.$config
             .receive(on: DispatchQueue.main)
             .sink { [weak self] configuration in
                 self?.applyShortcuts(configuration)
+                self?.applyAppearance(configuration)
             }
+    }
+
+    /// Puts the theme on the panels themselves.
+    ///
+    /// `preferredColorScheme` inside the view is not enough. Changing `theme`
+    /// from `light` back to `system` left the bar light, because
+    /// `preferredColorScheme(nil)` means "no preference" and no preference does
+    /// not undo an override already applied. A nil `NSWindow.appearance` does
+    /// undo it: nil there means inherit from the application, which follows
+    /// System Settings.
+    private func applyAppearance(_ configuration: Config) {
+        let appearance = configuration.appearance
+        for panel in backgroundPanels + menuBarPanels + collapsedPanels {
+            panel.appearance = appearance
+        }
+        MenuBarPopup.applyAppearance(appearance)
     }
 
     /// An application that was not running when its icon was asked for may be
@@ -158,6 +176,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func screenParametersDidChange(_ notification: Notification) {
         setupPanels()
+        // A panel built for a newly attached screen starts with no appearance.
+        applyAppearance(ConfigManager.shared.config)
     }
 
     /// Just under the real menu bar.

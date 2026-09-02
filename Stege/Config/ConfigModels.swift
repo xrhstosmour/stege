@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import SwiftUI
 
@@ -52,6 +53,22 @@ struct Config {
         switch rootToml.theme {
         case "dark": return .dark
         case "light": return .light
+        default: return nil
+        }
+    }
+
+    /// The same answer as an `NSAppearance`, for the panels.
+    ///
+    /// The panels are what carry it, not `preferredColorScheme`. Going from
+    /// `light` back to `system` left the bar light: `preferredColorScheme(nil)`
+    /// means "no preference", and no preference does not undo the override
+    /// SwiftUI already put on the window. Setting `NSWindow.appearance` to nil
+    /// does, because nil there means "inherit from the application", which
+    /// follows System Settings.
+    var appearance: NSAppearance? {
+        switch rootToml.theme {
+        case "dark": return NSAppearance(named: .darkAqua)
+        case "light": return NSAppearance(named: .aqua)
         default: return nil
         }
     }

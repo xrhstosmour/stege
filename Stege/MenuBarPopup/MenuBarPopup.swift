@@ -203,6 +203,18 @@ class MenuBarPopup {
         lastContentIdentifier = nil
     }
 
+    /// The popup hangs off the bar, so it takes the bar's theme. Set on the
+    /// panel rather than in the view for the same reason as the bar's own: a
+    /// nil `preferredColorScheme` does not undo a previous override.
+    static func applyAppearance(_ appearance: NSAppearance?) {
+        storedAppearance = appearance
+        panel?.appearance = appearance
+    }
+
+    /// Kept because the panel is built lazily and may not exist yet when the
+    /// configuration is first read.
+    private static var storedAppearance: NSAppearance?
+
     static func setup() {
         // Placeholder geometry only. `show(rect:id:)` moves the panel onto
         // whichever screen the widget was clicked on before it is ever
@@ -228,6 +240,7 @@ class MenuBarPopup {
         newPanel.hasShadow = false
         newPanel.collectionBehavior = [.canJoinAllSpaces]
 
+        newPanel.appearance = storedAppearance
         panel = newPanel
     }
 }
