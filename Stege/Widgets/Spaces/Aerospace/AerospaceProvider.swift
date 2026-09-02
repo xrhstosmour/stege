@@ -57,7 +57,8 @@ class AerospaceSpacesProvider: SpacesProvider, SwitchableSpacesProvider {
         do {
             try process.run()
         } catch {
-            print("Aerospace error: \(error)")
+            Log.spaces.error(
+                "aerospace could not be run: \(error.localizedDescription, privacy: .public)")
             return nil
         }
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
@@ -76,7 +77,8 @@ class AerospaceSpacesProvider: SpacesProvider, SwitchableSpacesProvider {
         do {
             return try JSONDecoder().decode([AeroWindow].self, from: data)
         } catch {
-            print("Decode windows error: \(error)")
+            Log.spaces.error(
+                "aerospace returned something unreadable: \(error.localizedDescription, privacy: .public)")
             return nil
         }
     }
