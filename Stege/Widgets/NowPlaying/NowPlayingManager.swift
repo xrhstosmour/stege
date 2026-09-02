@@ -179,14 +179,23 @@ final class NowPlayingProvider {
         // with `if application "X" is running`, but reaching that guard still
         // costs a full Apple Event round trip.
         var reason: String?
+        var answers: [NowPlayingSong] = []
         for app in MusicApp.allCases where isAppRunning(app) {
             if let song = fetchNowPlaying(from: app) {
-                failure = nil
-                return song
-            }
-            if let error = lastError {
+                answers.append(song)
+            } else if let error = lastError {
                 reason = reason ?? describe(error, from: app)
             }
+        }
+        // Whichever one is actually playing. Both can answer at once, and
+        // taking the first meant that with `Music` playing and `Spotify` open
+        // and paused in the background, the popup showed the paused track and
+        // its transport moved the wrong application.
+        if let song = answers.first(where: { $0.state == .playing })
+            ?? answers.first
+        {
+            failure = nil
+            return song
         }
         failure = reason
         return nil
@@ -266,9 +275,20 @@ final class NowPlayingProvider {
             in: .whitespacesAndNewlines)
     }
 
-    /// Returns the first running music application.
+    /// The application the transport should act on.
+    ///
+    /// The one that is playing, then the one that is paused with a track
+    /// loaded, then whichever is running. Taking the first running one sent
+    /// `next` to `Spotify` while `Music` was the thing making the sound.
     static func activeMusicApp() -> MusicApp? {
-        MusicApp.allCases.first { isAppRunning($0) }
+        let running = MusicApp.allCases.filter { isAppRunning($0) }
+        if running.count > 1 {
+            for app in running
+            where fetchNowPlaying(from: app)?.state == .playing {
+                return app
+            }
+        }
+        return running.first
     }
 
     /// Executes a playback command for the active music application.
