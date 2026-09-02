@@ -140,7 +140,10 @@ that.
 - **Notifications are only read when asked.** Reading the list means opening
   Notification Center, so Stege never does it on its own. Banners are folded in
   as they arrive; the refresh arrow reads the rest.
-- **No AirPlay.** macOS keeps the receiver list behind an Apple-only entitlement.
+- **AirPlay is handed to macOS.** The receiver list is behind an Apple-only
+  entitlement, so the sound and display popups open Control Center's own picker
+  rather than drawing a list they cannot fill. A receiver already connected is an
+  ordinary output device and is listed and selectable like any other.
 - **No screen recording indicator.** No public API detects another application
   capturing the screen.
 - **An external monitor may not answer DDC**, in which case it is listed without
