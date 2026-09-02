@@ -73,6 +73,13 @@ jobs:
           rm -f "$RUNNER_TEMP/certificate.p12" "$RUNNER_TEMP/certificate.cer"
 
       - name: Build
+        # The version reaches the script as a variable rather than being pasted
+        # into it. A `${{ }}` expression is substituted into the shell source
+        # before the shell ever sees it, so a tag name carrying a quote would be
+        # executed rather than read, and the tag is the one part of this that is
+        # typed by hand.
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -o pipefail
           if [ -n "$SIGNING_IDENTITY" ]; then
@@ -90,7 +97,7 @@ jobs:
             -configuration Release \
             -destination 'platform=macOS' \
             -derivedDataPath .build \
-            MARKETING_VERSION="${{ steps.version.outputs.version }}" \
+            MARKETING_VERSION="$VERSION" \
             ENABLE_HARDENED_RUNTIME=YES \
             "${signing[@]}" \
             | xcbeautify --renderer github-actions
