@@ -114,7 +114,7 @@ struct BatteryWidget: View {
         if isCharging { return .green }
         if level <= criticalLevel { return .red }
         if level <= warningLevel { return .yellow }
-        return .foregroundOutside
+        return Color("Foreground Outside")
     }
 
     /// The outline, the level filled in behind it, and the number in the body.
@@ -188,7 +188,7 @@ struct BatteryWidget: View {
         if isCharging { return .green }
         if level <= criticalLevel { return .red }
         if level <= warningLevel { return .yellow }
-        return .foregroundOutside
+        return Color("Foreground Outside")
     }
 }
 
