@@ -42,7 +42,7 @@ locally. Two things can:
 ```bash
 # Type-check the whole application. The baseline is ZERO errors.
 swiftc -typecheck -sdk $(xcrun --show-sdk-path --sdk macosx) \
-  -target arm64-apple-macos14.6 \
+  -target arm64-apple-macos14.0 \
   -I <path to a built TOMLDecoder>/.build/debug/Modules \
   $(find Stege -name '*.swift')
 
@@ -102,7 +102,11 @@ original as `.backup`.
 
 ## Conventions
 
-- Swift 6 toolchain, deployment target 14.6, no external dependencies but `TOMLDecoder`.
+- Swift 6 toolchain, deployment target 14.0, no external dependencies but `TOMLDecoder`.
+- **Keep the deployment target on a whole release.** Homebrew's `depends_on macos:` only accepts
+  named releases, so a floor of 14.6 cannot be expressed in the cask: it said `:sonoma`, and 14.0
+  through 14.5 could install a binary macOS then refused to launch, with nothing useful said about
+  why. Check with `otool -l <binary> | grep minos`.
 - **Sizes and colours come from `BarStyle`**, never from a literal. A view writing `.white` or
   `Color.black` breaks the light theme, which is a real theme with its own asset values, not a
   flipped dark one. Hover comes from `BarStyle.hoverFill` and `BarStyle.hoverAnimation` or the
