@@ -292,6 +292,8 @@ private struct ExtraIconInteraction: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .padding(.horizontal, 3)
+            .barHover(cornerRadius: 5, verticalInset: 4)
             .contentShape(Rectangle())
             .onTapGesture { reader.press(item) }
             .help(item.name)

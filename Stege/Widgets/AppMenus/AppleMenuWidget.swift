@@ -30,12 +30,12 @@ struct AppleMenuWidget: View {
             // ends of the same row behave the same way.
             .background(
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(.white.opacity(isHovered ? 0.16 : 0))
+                    .fill(isHovered ? BarStyle.hoverFill : .clear)
                     .padding(.vertical, 5)
             )
             .contentShape(Rectangle())
             .onHover { isHovered = $0 }
-            .animation(.smooth(duration: 0.12), value: isHovered)
+            .animation(BarStyle.hoverAnimation, value: isHovered)
             .background(
                 GeometryReader { geometry in
                     Color.clear

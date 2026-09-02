@@ -231,7 +231,7 @@ private struct AppMenuTitle: View {
             .padding(.vertical, 2)
             .background(
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(.white.opacity(isHovered ? 0.16 : 0))
+                    .fill(isHovered ? BarStyle.hoverFill : .clear)
             )
             .contentShape(Rectangle())
             .background(
@@ -244,7 +244,7 @@ private struct AppMenuTitle: View {
                 }
             )
             .onHover { isHovered = $0 }
-            .animation(.smooth(duration: 0.12), value: isHovered)
+            .animation(BarStyle.hoverAnimation, value: isHovered)
             .onTapGesture(perform: action)
     }
 }
