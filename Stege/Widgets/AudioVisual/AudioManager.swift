@@ -6,6 +6,52 @@ import Foundation
 struct AudioDevice: Identifiable, Equatable {
     let id: AudioObjectID
     let name: String
+    /// What it is plugged into, as `CoreAudio` reports it. An AirPlay receiver
+    /// that has been connected is an ordinary output device here, and only the
+    /// transport type says so, which is the whole reason this is carried: the
+    /// name of a receiver is whatever its owner called it.
+    let transport: AudioDeviceTransport
+}
+
+/// The kinds of connection worth drawing differently.
+enum AudioDeviceTransport {
+    case builtIn
+    case airPlay
+    case bluetooth
+    case usb
+    case displayPort
+    case virtual
+    case other
+
+    init(_ raw: UInt32) {
+        switch raw {
+        case kAudioDeviceTransportTypeBuiltIn: self = .builtIn
+        case kAudioDeviceTransportTypeAirPlay: self = .airPlay
+        case kAudioDeviceTransportTypeBluetooth,
+            kAudioDeviceTransportTypeBluetoothLE:
+            self = .bluetooth
+        case kAudioDeviceTransportTypeUSB: self = .usb
+        case kAudioDeviceTransportTypeHDMI, kAudioDeviceTransportTypeDisplayPort:
+            self = .displayPort
+        case kAudioDeviceTransportTypeVirtual,
+            kAudioDeviceTransportTypeAggregate:
+            self = .virtual
+        default: self = .other
+        }
+    }
+
+    /// The mark next to the device name. Nil for the plain ones, where a glyph
+    /// would say nothing the name does not.
+    var symbol: String? {
+        switch self {
+        case .airPlay: return "airplayaudio"
+        case .bluetooth: return "wave.3.right"
+        case .usb: return "cable.connector"
+        case .displayPort: return "display"
+        case .virtual: return "square.stack.3d.up"
+        case .builtIn, .other: return nil
+        }
+    }
 }
 
 /// Output volume and microphone mute state, via public `CoreAudio`.
@@ -185,7 +231,8 @@ final class AudioManager: ObservableObject {
             guard hasStreams(id, input: input), let name = name(of: id) else {
                 return nil
             }
-            return AudioDevice(id: id, name: name)
+            return AudioDevice(
+                id: id, name: name, transport: transport(of: id))
         }
     }
 
@@ -200,6 +247,22 @@ final class AudioManager: ObservableObject {
             AudioObjectGetPropertyDataSize(device, &address, 0, nil, &size) == noErr
         else { return false }
         return size > 0
+    }
+
+    private static func transport(of device: AudioObjectID)
+        -> AudioDeviceTransport
+    {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyTransportType,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain)
+        var raw: UInt32 = 0
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        guard
+            AudioObjectGetPropertyData(
+                device, &address, 0, nil, &size, &raw) == noErr
+        else { return .other }
+        return AudioDeviceTransport(raw)
     }
 
     private static func name(of device: AudioObjectID) -> String? {

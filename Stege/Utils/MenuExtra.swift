@@ -117,6 +117,57 @@ enum MenuExtra {
         return true
     }
 
+    /// Opens an extra's panel, steps into one of its tiles, and leaves it on
+    /// screen for the user.
+    ///
+    /// The other end of `press`, which closes the panel because there the panel
+    /// was only the route to a switch. Here the panel is the answer: macOS
+    /// keeps the AirPlay receivers and the screen mirroring targets behind an
+    /// Apple-only entitlement, and every system output context answers an
+    /// ordinary application with nil, so its own picker is the only place they
+    /// can be chosen. This opens exactly the picker the user would have opened
+    /// by hand.
+    ///
+    /// Stege's own popup is taken off the screen first, because the panel opens
+    /// where the popup was standing.
+    static func open(
+        _ identifier: Identifier, path: [String],
+        completion: @escaping (Bool) -> Void = { _ in }
+    ) {
+        MenuBarPopup.hide()
+        DispatchQueue.global(qos: .userInitiated).async {
+            let result = openSynchronously(identifier, path: path)
+            DispatchQueue.main.async { completion(result) }
+        }
+    }
+
+    private static func openSynchronously(
+        _ identifier: Identifier, path: [String]
+    ) -> Bool {
+        guard let extra = element(for: identifier) else { return false }
+
+        let pointer = revealMenuBarIfHidden(for: extra)
+        defer { pointer.map(restorePointer) }
+
+        guard
+            AXUIElementPerformAction(extra, kAXPressAction as CFString)
+                == .success
+        else { return false }
+
+        for step in path {
+            guard let control = waitForControl(identified: step),
+                AXUIElementPerformAction(control, kAXPressAction as CFString)
+                    == .success
+            else {
+                // Only on the way out. A panel opened and then left half way
+                // into a step that failed is worse than no panel.
+                closePanel(openedBy: extra)
+                return false
+            }
+        }
+        return true
+    }
+
     /// One control read out of a panel.
     struct PanelControl {
         let identifier: String

@@ -175,6 +175,18 @@ struct AudioPopup: View {
 
             PopupSeparator()
 
+            if scope == .output {
+                // The devices above are the ones `CoreAudio` already has. A
+                // receiver that has not been connected yet is not one of them,
+                // and the list of those is behind the same Apple-only
+                // entitlement as the screen mirroring one, so this opens the
+                // picker macOS keeps it in.
+                PopupSettingsRow(title: "AirPlay", symbol: "airplayaudio") {
+                    MenuExtra.open(
+                        .controlCentre, path: ["controlcenter-airplay"])
+                }
+            }
+
             PopupSettingsRow(title: "Sound Settings") {
                 openSettings(
                     "x-apple.systempreferences:com.apple.Sound-Settings.extension"
@@ -397,6 +409,13 @@ struct AudioPopup: View {
                 .font(.system(size: PopupStyle.bodySize))
                 .lineLimit(1)
                 .truncationMode(.tail)
+            // What the device is plugged into. A receiver is named by whoever
+            // set it up, so "Living Room" says nothing about it being AirPlay.
+            if let symbol = device.transport.symbol {
+                Image(systemName: symbol)
+                    .font(.system(size: PopupStyle.captionSize))
+                    .opacity(0.55)
+            }
             Spacer(minLength: 8)
         }
         .popupRow { manager.selectDevice(device, input: input) }
