@@ -32,8 +32,8 @@ class HidingPanel: NSPanel, NSWindowDelegate {
             withTimeInterval: TimeInterval(
                 Constants.menuBarPopupAnimationDurationInMilliseconds) / 1000.0,
             repeats: false
-        ) { [weak self] _ in
-            self?.orderOut(nil)
+        ) { _ in
+            MenuBarPopup.dismissPanel()
         }
     }
 }
@@ -91,8 +91,7 @@ class MenuBarPopup {
                 Double(Constants.menuBarPopupAnimationDurationInMilliseconds)
                 / 1000.0
             DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
-                panel.orderOut(nil)
-                lastContentIdentifier = nil
+                dismissPanel()
             }
             return
         }
@@ -170,9 +169,29 @@ class MenuBarPopup {
         let duration =
             Double(Constants.menuBarPopupAnimationDurationInMilliseconds) / 1000.0
         DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
-            panel.orderOut(nil)
-            lastContentIdentifier = nil
+            dismissPanel()
         }
+    }
+
+    /// Puts the panel away and throws its contents out with it.
+    ///
+    /// Ordering out on its own was not enough. The hosting view stayed
+    /// attached, so SwiftUI kept the popup's view tree alive and never called
+    /// `onDisappear` on it, and every popup that starts something while it is
+    /// open started it once and left it running for the life of the process:
+    /// the audio source scan asking `CoreAudio` for every process object and
+    /// `LaunchServices` for an icon once a second, the now playing poll
+    /// sending an Apple Event a second, the brightness poll, and a Bluetooth
+    /// inquiry, which keeps the radio busy and degrades whatever is connected
+    /// to it. Opening the sound popup once was enough to leave the first
+    /// running until the application was quit.
+    static func dismissPanel() {
+        guard let panel else { return }
+        panel.orderOut(nil)
+        // An empty view rather than nil: `NSWindow` makes its own if this is
+        // cleared, and the point is only to drop the `NSHostingView`.
+        panel.contentView = NSView()
+        lastContentIdentifier = nil
     }
 
     static func setup() {
