@@ -67,6 +67,21 @@ final class AppMenuPresenter: NSObject, NSMenuDelegate {
                 item.keyEquivalentModifierMask = shortcut.modifierFlags
             }
 
+            // Hidden until Option is held, which is what the application's own
+            // menu does with it. Both were being drawn, so Finder's File menu
+            // showed "Get Info" and "Show Inspector" one under the other.
+            //
+            // `NSMenuItem` requires an alternate to share the key equivalent of
+            // the item above and differ only in modifiers, and an entry with no
+            // shortcut at all shares an empty one, so the modifier mask is set
+            // either way.
+            if entry.isAlternate {
+                item.isAlternate = true
+                if entry.shortcut == nil {
+                    item.keyEquivalentModifierMask = .option
+                }
+            }
+
             if entry.hasSubmenu {
                 let submenu = NSMenu()
                 submenu.delegate = self

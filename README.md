@@ -131,8 +131,6 @@ that.
 
 ## Known limitations
 
-- **Option-key menu entries are always visible.** The Accessibility API exposes
-  no attribute distinguishing an alternate item from an ordinary one.
 - **Low Power Mode and Focus flash the system panel.** Nothing else can write
   those settings: `pmset` needs root, `~/Library/DoNotDisturb/DB` needs Full Disk
   Access, and the private frameworks answer only callers holding an Apple-issued
