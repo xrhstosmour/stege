@@ -150,6 +150,6 @@ struct NetworkWidget_Previews: PreviewProvider {
     static var previews: some View {
         NetworkWidget()
             .frame(width: 200, height: 100)
-            .background(Color.black)
+            .background(BarStyle.surface)
     }
 }

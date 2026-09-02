@@ -4,6 +4,11 @@
 # The file is watched, so saving it applies immediately with no restart.
 
 # system follows System Settings, or force it with light or dark.
+#
+# light draws the bar and every popup the way the Dock is drawn: a near-white
+# surface with near-black marks on it. Set background.blur to 7 for a solid
+# surface in whichever colour the theme calls for, or 1 to 6 to let the desktop
+# through.
 theme = "system"
 
 # Hides the bar entirely, leaving the real macOS menu bar and every
@@ -206,8 +211,9 @@ view-variant = "box"
 
 [bar.background]
 displayed = true
-# 1 to 6 blur the desktop behind the bar. 7 is solid black, which makes the
-# notch disappear into the bar on a notched display.
+# 1 to 6 blur the desktop behind the bar. 7 is the theme's own solid surface,
+# black in the dark theme, near-white in the light one, which makes the notch
+# disappear into the bar on a notched display.
 blur = 7
 height = "menu-bar"            # menu-bar, default, or a number of points
 

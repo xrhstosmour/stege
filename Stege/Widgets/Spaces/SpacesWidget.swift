@@ -80,6 +80,8 @@ private struct SpaceView: View {
             Spacer().frame(width: 10)
         }
         .frame(height: 30)
+        // The unfocused pill lifts under the pointer. Both branches used to be
+        // `NoActive`, so the hover state was computed, animated, and invisible.
         .background(
             foregroundHeight < 30 ?
             (isFocused
@@ -87,7 +89,7 @@ private struct SpaceView: View {
              : Color.clear) :
                 (isFocused
                  ? Color("Active")
-                 : isHovered ? Color("NoActive") : Color("NoActive"))
+                 : isHovered ? BarStyle.hoverFill : Color("NoActive"))
         )
         .clipShape(RoundedRectangle(cornerRadius: foregroundHeight < 30 ? 0 : 8, style: .continuous))
         .shadow(color: Color("Shadow"), radius: foregroundHeight < 30 ? 0 : 2)
@@ -98,7 +100,7 @@ private struct SpaceView: View {
             AppMenusReveal.shared.suppressUntilPointerLeaves()
             viewModel.switchToSpace(space, needWindowFocus: true)
         }
-        .animation(.smooth, value: isHovered)
+        .animation(BarStyle.hoverAnimation, value: isHovered)
         .onHover { value in
             isHovered = value
         }
@@ -189,7 +191,7 @@ private struct WindowView: View {
         .padding(.all, 2)
         .background(highlight)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .animation(.smooth, value: isHovered)
+        .animation(BarStyle.hoverAnimation, value: isHovered)
         .frame(height: 30)
         .contentShape(Rectangle())
         .background(

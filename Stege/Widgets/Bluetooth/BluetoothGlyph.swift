@@ -89,7 +89,7 @@ struct BluetoothGlyph_Previews: PreviewProvider {
             BluetoothGlyph(height: 24, slashed: true)
         }
         .padding()
-        .foregroundStyle(.white)
-        .background(.black)
+        .foregroundStyle(BarStyle.ink)
+        .background(BarStyle.surface)
     }
 }

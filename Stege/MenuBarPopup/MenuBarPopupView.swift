@@ -131,8 +131,8 @@ struct MenuBarPopupView<Content: View>: View {
                     }
             }
         )
-        .foregroundStyle(.white)
-        .preferredColorScheme(.dark)
+        .foregroundStyle(BarStyle.ink)
+        .preferredColorScheme(ConfigManager.shared.config.colorScheme)
     }
 
     /// How far to pull the popup back so it stays inside the screen's edges.

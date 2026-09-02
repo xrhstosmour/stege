@@ -49,6 +49,40 @@ enum BarStyle {
     /// smaller than the things they act on.
     static let chevronSize: CGFloat = 12
 
+    // MARK: - Colour and hover
+
+    /// The bar's ink. Near-black on a light bar, white on a dark one.
+    ///
+    /// Every mark in the row draws in this rather than in a literal colour, so
+    /// the light theme is a theme rather than white on white.
+    static let ink = Color("Foreground Outside")
+    /// What is knocked out of the ink: the opposite of it, whichever way round
+    /// the theme has them.
+    static let inkInverse = Color("Foreground Outside Invert")
+
+    /// The wash under a bar item the pointer is on.
+    ///
+    /// Not the accent colour. macOS lights a menu bar title with a neutral
+    /// wash and saves the accent for a menu row that is actually selected, and
+    /// a bar that lit up blue on every pass of the pointer would be the
+    /// loudest thing on the screen. `ink` at low opacity means it flips with
+    /// the theme without a second definition.
+    static let hoverFill = ink.opacity(0.15)
+
+    /// The solid surface the bar and its popups are drawn on.
+    ///
+    /// Black on a dark bar. On a light one, the near-white the Dock and the
+    /// system menu bar use, so a light theme is a light bar rather than a dark
+    /// one with the ink flipped.
+    static let surface = Color("Surface")
+
+    /// One duration for every hover, in the bar and in the popups.
+    ///
+    /// It was 0.12 seconds on the menu titles, the SwiftUI default on the
+    /// workspace pills, and instant in the popups, so the same gesture felt
+    /// like three different controls.
+    static let hoverAnimation: Animation = .smooth(duration: 0.12)
+
     static var glyphFont: Font {
         .system(size: glyphSize, weight: glyphWeight)
     }
@@ -73,5 +107,37 @@ extension View {
     func barGlyphBox() -> some View {
         font(BarStyle.glyphFont)
             .frame(width: BarStyle.glyphWidth)
+    }
+}
+
+/// Lights a bar item while the pointer is on it.
+///
+/// One place, because the Apple menu, the application menus and the workspace
+/// pills each had their own: two different opacities, two different corner
+/// radii, two different animations, and the pills computed a hover state whose
+/// two branches were the same colour, so pointing at one did nothing at all.
+struct BarHover: ViewModifier {
+    var cornerRadius: CGFloat = 5
+    var verticalInset: CGFloat = 5
+    @State private var isHovered = false
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(isHovered ? BarStyle.hoverFill : .clear)
+                    .padding(.vertical, verticalInset)
+            )
+            .animation(BarStyle.hoverAnimation, value: isHovered)
+            .onHover { isHovered = $0 }
+    }
+}
+
+extension View {
+    func barHover(cornerRadius: CGFloat = 5, verticalInset: CGFloat = 5)
+        -> some View
+    {
+        modifier(
+            BarHover(cornerRadius: cornerRadius, verticalInset: verticalInset))
     }
 }

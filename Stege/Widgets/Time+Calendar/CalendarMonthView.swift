@@ -42,7 +42,7 @@ struct CalendarMonthView: View {
 
     var body: some View {
         content
-            .foregroundStyle(.white)
+            .foregroundStyle(BarStyle.ink)
             .onAppear(perform: reload)
             .onChange(of: selectedDate) { _, _ in reloadEvents() }
             .onChange(of: visibleMonth) { _, _ in reload() }
@@ -169,10 +169,10 @@ struct CalendarMonthView: View {
 
         return ZStack {
             if isSelected {
-                Circle().fill(.white).frame(width: cell, height: cell)
+                Circle().fill(BarStyle.ink).frame(width: cell, height: cell)
             } else if isToday {
                 Circle()
-                    .strokeBorder(.white.opacity(0.5), lineWidth: 1)
+                    .strokeBorder(BarStyle.ink.opacity(0.5), lineWidth: 1)
                     .frame(width: cell, height: cell)
             }
 
@@ -185,7 +185,7 @@ struct CalendarMonthView: View {
                 // A dot rather than a count: the number is in the list below,
                 // and a digit at this size is unreadable anyway.
                 Circle()
-                    .fill(isSelected ? Color.black : .white)
+                    .fill(isSelected ? BarStyle.inkInverse : BarStyle.ink)
                     .frame(width: 3, height: 3)
                     .opacity(daysWithEvents.contains(calendar.startOfDay(for: date)) ? 0.8 : 0)
             }
@@ -308,7 +308,7 @@ struct CalendarMonthView: View {
                     .padding(.vertical, 5)
                     .background(
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(.white.opacity(0.1))
+                            .fill(BarStyle.ink.opacity(0.12))
                     )
                     .onSubmit(save)
 
@@ -332,7 +332,7 @@ struct CalendarMonthView: View {
                         .padding(.vertical, 4)
                         .background(
                             RoundedRectangle(cornerRadius: 6)
-                                .fill(canSave ? Color.accentColor : .white.opacity(0.12))
+                                .fill(canSave ? Color.accentColor : BarStyle.ink.opacity(0.15))
                         )
                         .contentShape(Rectangle())
                         .onTapGesture(perform: save)

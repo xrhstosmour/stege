@@ -201,10 +201,10 @@ struct NetworkPopup: View {
         .padding(10)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(.white.opacity(0.06))
+                .fill(BarStyle.ink.opacity(0.06))
                 .overlay(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .strokeBorder(.white.opacity(0.10), lineWidth: 1)
+                        .strokeBorder(BarStyle.ink.opacity(0.12), lineWidth: 1)
                 )
         )
     }
@@ -237,10 +237,10 @@ struct NetworkPopup: View {
         .padding(.vertical, 6)
         .background(
             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(.black.opacity(0.25))
+                .fill(BarStyle.ink.opacity(0.08))
                 .overlay(
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .strokeBorder(.white.opacity(0.12), lineWidth: 1)
+                        .strokeBorder(BarStyle.ink.opacity(0.14), lineWidth: 1)
                 )
         )
     }
@@ -255,7 +255,7 @@ struct NetworkPopup: View {
             .padding(.vertical, 4)
             .background(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(filled ? Color.accentColor : .white.opacity(0.10))
+                    .fill(filled ? Color.accentColor : BarStyle.ink.opacity(0.15))
             )
             .opacity(enabled ? 1 : 0.4)
             .contentShape(Rectangle())

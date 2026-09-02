@@ -22,16 +22,6 @@ struct MenuBarView: View {
     var screenIndex: Int?
 
     var body: some View {
-        let theme: ColorScheme? =
-            switch configManager.config.rootToml.theme {
-            case "dark":
-                .dark
-            case "light":
-                .light
-            default:
-                .none
-            }
-
         let items = configManager.config.rootToml.widgets.displayed
 
         HStack(spacing: 0) {
@@ -51,7 +41,7 @@ struct MenuBarView: View {
         .padding(.trailing, configManager.config.bar.foreground.trailingPadding)
         .background(.black.opacity(0.001))
         .environment(\.barScreenIndex, screenIndex)
-        .preferredColorScheme(theme)
+        .preferredColorScheme(configManager.config.colorScheme)
     }
 
     @ViewBuilder

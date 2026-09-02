@@ -37,8 +37,17 @@ struct Config {
         self.rootToml = rootToml
     }
 
-    var theme: String {
-        rootToml.theme ?? "light"
+    /// What the whole app draws in: `system`, `light` or `dark`.
+    ///
+    /// One accessor, because the bar, its background and every popup each had
+    /// their own copy of this switch and the popups' copy was the literal
+    /// `.dark`, so a light bar came with black popups hanging off it.
+    var colorScheme: ColorScheme? {
+        switch rootToml.theme {
+        case "dark": return .dark
+        case "light": return .light
+        default: return nil
+        }
     }
 
     /// Whether the bar is hidden, leaving the real macOS menu bar and every
