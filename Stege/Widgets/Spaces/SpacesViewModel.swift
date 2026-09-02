@@ -123,6 +123,14 @@ class SpacesViewModel: ObservableObject {
             if window.isMinimized {
                 guard MinimizedWindowMemory.unminimize(window) else { return }
                 usleep(150_000)
+                // The window manager starts tracking the window again the
+                // moment it is no longer minimized, and files it under whatever
+                // workspace is focused right then rather than the one it was
+                // minimized in. Verified: a window minimized in workspace 2 came
+                // back in workspace 1.
+                self.provider?.moveWindow(
+                    windowId: String(window.id), toSpace: space.id)
+                usleep(100_000)
             }
             self.provider?.focusSpace(spaceId: space.id, needWindowFocus: false)
             usleep(100_000)

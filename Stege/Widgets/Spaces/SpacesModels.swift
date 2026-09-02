@@ -29,6 +29,16 @@ protocol SpacesProvider {
 protocol SwitchableSpacesProvider: SpacesProvider {
     func focusSpace(spaceId: String, needWindowFocus: Bool)
     func focusWindow(windowId: String)
+    /// Puts a window back in a workspace it is no longer in. Only used after a
+    /// minimized window is restored, because the window manager assigns it to
+    /// whichever workspace happens to be focused at the time.
+    func moveWindow(windowId: String, toSpace spaceId: String)
+}
+
+extension SwitchableSpacesProvider {
+    /// Nothing by default. `yabai` reports minimized windows itself, so nothing
+    /// is ever restored from memory under it and there is nothing to move.
+    func moveWindow(windowId: String, toSpace spaceId: String) {}
 }
 
 struct AnyWindow: Identifiable, Equatable {
@@ -117,6 +127,7 @@ class AnySpacesProvider {
     private let _getSpacesWithWindows: () -> [AnySpace]?
     private let _focusSpace: ((String, Bool) -> Void)?
     private let _focusWindow: ((String) -> Void)?
+    private let _moveWindow: ((String, String) -> Void)?
 
     init<P: SpacesProvider>(_ provider: P) {
         _getSpacesWithWindows = {
@@ -130,9 +141,13 @@ class AnySpacesProvider {
             _focusWindow = { windowId in
                 switchable.focusWindow(windowId: windowId)
             }
+            _moveWindow = { windowId, spaceId in
+                switchable.moveWindow(windowId: windowId, toSpace: spaceId)
+            }
         } else {
             _focusSpace = nil
             _focusWindow = nil
+            _moveWindow = nil
         }
     }
 
@@ -146,5 +161,9 @@ class AnySpacesProvider {
 
     func focusWindow(windowId: String) {
         _focusWindow?(windowId)
+    }
+
+    func moveWindow(windowId: String, toSpace spaceId: String) {
+        _moveWindow?(windowId, spaceId)
     }
 }
