@@ -33,7 +33,7 @@ struct KeyboardLayoutWidget: View {
                 }
             )
             .onTapGesture {
-                MenuBarPopup.show(rect: rect, id: "keyboardlayout") {
+                MenuBarPopup.show(rect: rect, id: "keyboardLayout") {
                     KeyboardLayoutPopup(manager: manager)
                 }
             }

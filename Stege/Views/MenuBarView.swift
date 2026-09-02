@@ -73,7 +73,7 @@ struct MenuBarView: View {
             TimeWidget(calendarManager: CalendarManager(configProvider: config))
                 .environmentObject(config)
             
-        case "default.keyboardlayout":
+        case "default.keyboardLayout":
             KeyboardLayoutWidget().environmentObject(config)
 
         case "default.audio":
@@ -98,10 +98,10 @@ struct MenuBarView: View {
         case "default.privacy":
             PrivacyWidget().environmentObject(config)
 
-        case "default.applemenu":
+        case "default.appleMenu":
             AppleMenuWidget().environmentObject(config)
 
-        case "default.appmenus":
+        case "default.applicationMenu":
             AppMenusWidget().environmentObject(config)
 
         case "default.reveal":

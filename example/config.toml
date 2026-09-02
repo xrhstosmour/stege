@@ -20,16 +20,16 @@ hidden = false
 # The bar, left to right. Remove an entry to hide that widget entirely.
 # "spacer" pushes everything after it to the right, "divider" draws a separator.
 displayed = [
-    "default.applemenu",
+    "default.appleMenu",
     "default.spaces",
-    "default.appmenus",
+    "default.applicationMenu",
     "spacer",
     "default.reveal",
     "default.monitor",
     "default.privacy",
     "default.stayawake",
     "default.updates",
-    "default.keyboardlayout",
+    "default.keyboardLayout",
     "default.display",
     "default.audio",
     "default.microphone",
@@ -43,7 +43,7 @@ displayed = [
 
 # --- Left ------------------------------------------------------------------
 
-[widgets.default.applemenu]
+[widgets.default.appleMenu]
 icon-size = 14
 # The short menu, drawn in the bar's own style, with About This Mac,
 # System Information, Log Out, Restart and Shut Down. Set to false to hand
@@ -58,7 +58,7 @@ window.title.max-length = 50
 # Always show the app name rather than the window title for these.
 window.title.always-display-app-name-for = ["Mail", "Chrome", "Arc"]
 
-[widgets.default.appmenus]
+[widgets.default.applicationMenu]
 max-menus = 6                  # Chrome exposes 11, which crowds a laptop bar
 # Draws the application's own name menu, the first one, in bold, as macOS
 # does. That menu is always shown either way, since it holds About and Quit.
@@ -151,7 +151,7 @@ show-percentage = false        # the icon already conveys the level
 # can be refused.
 fetch-artwork = true
 
-[widgets.default.keyboardlayout]
+[widgets.default.keyboardLayout]
 show-full-name = false         # "Greek" rather than "GR"
 
 [widgets.default.bluetooth]

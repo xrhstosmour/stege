@@ -59,7 +59,7 @@ struct AppleMenuWidget: View {
                         menu: appleMenu, manager: manager, below: rect)
                     return
                 }
-                MenuBarPopup.show(rect: rect, id: "applemenu") {
+                MenuBarPopup.show(rect: rect, id: "appleMenu") {
                     AppleMenuPopup(manager: manager)
                 }
             }

@@ -85,9 +85,9 @@ hidden = false            # true takes the bar away entirely
 
 [widgets]
 displayed = [
-    "default.applemenu",
+    "default.appleMenu",
     "default.spaces",
-    "default.appmenus",
+    "default.applicationMenu",
     "spacer",             # pushes everything after it to the right
     "default.audio",
     "default.battery",
@@ -98,9 +98,9 @@ displayed = [
 
 | Widget | Shows |
 | --- | --- |
-| `default.applemenu` | The Apple logo, opening the real Apple menu |
+| `default.appleMenu` | The Apple logo, opening the real Apple menu |
 | `default.spaces` | Window manager workspaces, with an icon per window |
-| `default.appmenus` | The frontmost app's menus |
+| `default.applicationMenu` | The frontmost app's menus |
 | `default.reveal` | A chevron that appends the other applications' menu bar items to the bar |
 | `default.monitor` | CPU and memory, with disk and throughput in the popup |
 | `default.privacy` | Microphone and camera in-use indicators |
@@ -110,7 +110,7 @@ displayed = [
 | `default.display` | The screen: brightness, resolution, mirroring, Night Shift, True Tone |
 | `default.updates` | A mark while macOS or Homebrew has something waiting |
 | `default.microphone` | The microphone on its own |
-| `default.keyboardlayout` | The current input source, with a popup for switching |
+| `default.keyboardLayout` | The current input source, with a popup for switching |
 | `default.bluetooth` | Bluetooth state and connected device battery |
 | `default.network` | Wi-Fi and Ethernet state |
 | `default.battery` | Charge, with health and cycles in the popup |
@@ -129,7 +129,7 @@ space.show-key = true               # the workspace number or letter
 window.show-title = true            # the focused window's title
 window.title.max-length = 50
 
-[widgets.default.appmenus]
+[widgets.default.applicationMenu]
 max-menus = 6                       # Chrome exposes 11, which crowds a laptop bar
 show-application-name = true        # draw the app's own menu in bold, as macOS does
 visibility = "always"               # always, hover, modifier, click
