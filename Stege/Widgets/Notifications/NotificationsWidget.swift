@@ -122,12 +122,6 @@ struct NotificationsPopup: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: PopupStyle.spacing) {
-            PopupHeader(
-                symbol: focus.activeFocus == nil
-                    ? "bell.fill" : "bell.slash.fill",
-                title: focus.activeFocus ?? "Notifications",
-                tint: focus.activeFocus == nil ? .primary : .purple)
-
             notifications
 
             PopupSeparator()

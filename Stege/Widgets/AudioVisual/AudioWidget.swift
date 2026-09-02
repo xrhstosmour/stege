@@ -94,11 +94,11 @@ struct AudioPopup: View {
     @ObservedObject var manager: AudioManager
     let scope: AudioScope
 
-    /// One block: what it is, how loud it is, and which device it is using.
+    /// One block: how loud it is, and which device it is using. No opening
+    /// line naming the popup, because clicking the speaker is already the
+    /// answer to what this is.
     var body: some View {
         VStack(alignment: .leading, spacing: PopupStyle.spacing) {
-            header
-
             switch scope {
             case .output:
                 section(
@@ -170,35 +170,6 @@ struct AudioPopup: View {
         .popupContainer()
         .onAppear { if scope == .output { manager.startWatchingSources() } }
         .onDisappear { manager.stopWatchingSources() }
-    }
-
-    @ViewBuilder
-    private var header: some View {
-        HStack(spacing: 8) {
-            switch scope {
-            case .output:
-                SoundGlyph(
-                    level: manager.volume,
-                    isOutputMuted: manager.isOutputMuted,
-                    style: .speaker,
-                    size: PopupStyle.titleSize)
-                Text("Sound")
-                    .font(
-                        .system(size: PopupStyle.titleSize, weight: .semibold))
-            case .input:
-                Image(
-                    systemName: manager.isInputMuted
-                        ? "mic.slash.fill" : "mic.fill"
-                )
-                .font(.system(size: PopupStyle.titleSize))
-                .foregroundStyle(manager.isInputMuted ? Color.red : .primary)
-                Text("Microphone")
-                    .font(
-                        .system(size: PopupStyle.titleSize, weight: .semibold))
-            }
-            Spacer(minLength: 8)
-        }
-        .padding(.horizontal, PopupStyle.rowHorizontalPadding)
     }
 
     /// One half of the popup.

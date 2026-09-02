@@ -70,8 +70,6 @@ struct DisplayPopup: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: PopupStyle.spacing) {
-            PopupHeader(symbol: "sun.max.fill", title: "Display")
-
             VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
                 ForEach(manager.displays) { display in
                     brightnessRow(display)
