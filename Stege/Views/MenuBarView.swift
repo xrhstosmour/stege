@@ -21,18 +21,8 @@ struct MenuBarView: View {
                 ForEach(0..<items.count, id: \.self) { index in
                     let item = items[index]
                     buildView(for: item)
-                        // So a widget can tell whether an activation was meant
-                        // for it without the bar knowing what each one does.
-                        .environment(\.barItemIndex, index)
-                        // The ring is the bar's, not each widget's, so every
-                        // item shows where the keyboard is.
-                        .barFocusRing()
                 }
             }
-        }
-        .onAppear { BarFocus.shared.count = items.count }
-        .onChange(of: items.count) { _, count in
-            BarFocus.shared.count = count
         }
         .foregroundStyle(Color("Foreground Outside"))
         .frame(height: max(configManager.config.experimental.foreground.resolveHeight(), 1.0))

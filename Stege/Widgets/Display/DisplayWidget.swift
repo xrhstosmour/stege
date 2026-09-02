@@ -47,7 +47,6 @@ struct DisplayWidget: View {
                 onScroll: { manager.nudgeBrightness(by: Float($0) * 0.05) },
                 onRightClick: {})
         )
-        .barFocusable { showPopup() }
         .help(tooltip)
     }
 

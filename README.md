@@ -194,17 +194,6 @@ spacing = 10
 third-party status item reachable. `toggle-shortcut` gives the same switch from the keyboard,
 written as modifiers then a key joined with `+`, at least one modifier required.
 
-### The keyboard
-
-`focus-shortcut` puts a ring on the bar. The arrow keys or tab walk it, wrapping at both ends,
-`return` or `space` opens what is under the ring, and `escape` puts it away. Clicking anywhere
-else puts it away too, since the pointer has taken over.
-
-Keys are read by a panel of Stege's own rather than by the bar. The bar deliberately never takes
-focus, because one that stole it whenever the pointer crossed the top of the screen would be
-unusable, and a window that cannot become key cannot receive a key press. The panel that does is
-one point across, off in a corner, and exists only while the ring is up.
-
 The `default.reveal` chevron works from the bar and has two modes. `extras`, the default, appends
 the other applications' status items to the bar, read through the Accessibility API under
 `AXExtrasMenuBar`. Clicking one presses the real item, so that application opens its real menu.

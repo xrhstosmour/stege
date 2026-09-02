@@ -37,11 +37,6 @@ struct KeyboardLayoutWidget: View {
                     KeyboardLayoutPopup(manager: manager)
                 }
             }
-            .barFocusable {
-                MenuBarPopup.show(rect: rect, id: "keyboardlayout") {
-                    KeyboardLayoutPopup(manager: manager)
-                }
-            }
             .help(manager.name)
     }
 }

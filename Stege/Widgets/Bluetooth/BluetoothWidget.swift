@@ -101,19 +101,6 @@ struct BluetoothWidget: View {
                 BluetoothPopup(manager: manager)
             }
         }
-        .barFocusable {
-            guard manager.isAuthorized else {
-                NSWorkspace.shared.open(
-                    URL(
-                        string:
-                            "x-apple.systempreferences:com.apple.preference.security?Privacy_Bluetooth"
-                    )!)
-                return
-            }
-            MenuBarPopup.show(rect: rect, id: "bluetooth") {
-                BluetoothPopup(manager: manager)
-            }
-        }
     }
 }
 

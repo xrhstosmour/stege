@@ -113,11 +113,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ) {
             BarVisibility.shared.toggleByShortcut()
         }
-        GlobalShortcut.shared.apply(
-            configuration.focusShortcut, name: "focus"
-        ) {
-            BarFocus.shared.begin()
-        }
     }
 
     /// Orders Stege's panels out so the system menu bar underneath is reachable,

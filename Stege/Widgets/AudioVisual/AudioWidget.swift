@@ -57,7 +57,6 @@ struct AudioWidget: View {
                 onScroll: { manager.nudgeVolume(by: Double($0) * 0.05) },
                 onRightClick: { manager.toggleOutputMute() })
         )
-        .barFocusable { showPopup() }
         .help(tooltip)
     }
 

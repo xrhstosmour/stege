@@ -57,14 +57,6 @@ struct BatteryWidget: View {
                     criticalLevel: criticalLevel)
             }
         }
-        .barFocusable {
-            MenuBarPopup.show(rect: rect, id: "battery") {
-                BatteryPopup(
-                    manager: batteryManager,
-                    warningLevel: warningLevel,
-                    criticalLevel: criticalLevel)
-            }
-        }
         .help(tooltip)
     }
 

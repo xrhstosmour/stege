@@ -15,10 +15,6 @@ hidden = false
 # reach for the reveal chevron. Modifiers then a key, joined with "+". Leave it
 # out to register nothing.
 # toggle-shortcut = "cmd+alt+b"
-# Puts a ring on the bar so it can be walked with the arrow keys, opened with
-# return and put away with escape. The one thing the bar was missing against the
-# menu bar it replaces: everything in it needed the pointer.
-# focus-shortcut = "cmd+alt+m"
 
 [widgets]
 # The bar, left to right. Remove an entry to hide that widget entirely.

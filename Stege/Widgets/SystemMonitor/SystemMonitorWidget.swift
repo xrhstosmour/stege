@@ -32,12 +32,6 @@ struct SystemMonitorWidget: View {
                     SystemMonitorPopup(manager: manager)
                 }
             }
-            .barFocusable {
-                manager.updateDisk()
-                MenuBarPopup.show(rect: rect, id: "monitor") {
-                    SystemMonitorPopup(manager: manager)
-                }
-            }
     }
 
     private var content: some View {

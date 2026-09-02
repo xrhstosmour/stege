@@ -48,7 +48,6 @@ struct MicrophoneWidget: View {
                 onScroll: { manager.nudgeInputVolume(by: Double($0) * 0.05) },
                 onRightClick: { manager.toggleInputMute() })
         )
-        .barFocusable { showPopup() }
         .help(tooltip)
         .opacity(manager.hasInput ? 1 : 0.4)
     }
