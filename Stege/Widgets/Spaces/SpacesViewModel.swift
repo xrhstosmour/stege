@@ -85,7 +85,13 @@ class SpacesViewModel: ObservableObject {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self else { return }
             let spaces = self.provider?.getSpacesWithWindows()
-            let sorted = spaces?.sorted { $0.id < $1.id } ?? []
+            // `AeroSpace` stops reporting a window the moment it is minimized,
+            // so without this a minimized window left its workspace pill and
+            // an all-minimized workspace left the bar entirely.
+            let restored = spaces.map {
+                MinimizedWindowMemory.shared.reconcile($0)
+            }
+            let sorted = restored?.sorted { $0.id < $1.id } ?? []
             DispatchQueue.main.async {
                 self.isLoading = false
                 // Assigning an identical value still republishes and redraws
@@ -111,6 +117,13 @@ class SpacesViewModel: ObservableObject {
     func switchToSpaceAndWindow(_ space: AnySpace, window: AnyWindow) {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self else { return }
+            // A minimized window has to come back on screen first. The window
+            // manager cannot focus one it is not tracking, and it only starts
+            // tracking it again once it is no longer minimized.
+            if window.isMinimized {
+                guard MinimizedWindowMemory.unminimize(window) else { return }
+                usleep(150_000)
+            }
             self.provider?.focusSpace(spaceId: space.id, needWindowFocus: false)
             usleep(100_000)
             self.provider?.focusWindow(windowId: String(window.id))
@@ -119,6 +132,10 @@ class SpacesViewModel: ObservableObject {
 
     func switchToWindow(_ window: AnyWindow) {
         DispatchQueue.global(qos: .userInitiated).async {
+            if window.isMinimized {
+                guard MinimizedWindowMemory.unminimize(window) else { return }
+                usleep(150_000)
+            }
             self.provider?.focusWindow(windowId: String(window.id))
         }
     }

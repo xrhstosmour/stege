@@ -170,7 +170,9 @@ private struct WindowView: View {
                         .frame(width: size, height: size)
                 }
             }
-            .opacity(spaceIsFocused && !window.isFocused ? 0.5 : 1)
+            // A minimized window is still in its workspace and still worth a
+            // click, but it is not on screen, so it is drawn back.
+            .opacity(window.isMinimized ? 0.4 : (spaceIsFocused && !window.isFocused ? 0.5 : 1))
             .transition(.blurReplace)
 
             if window.isFocused, !title.isEmpty, showTitle {
