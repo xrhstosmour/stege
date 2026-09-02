@@ -98,25 +98,28 @@ struct BatteryWidget: View {
     private var chargingBolt: some View {
         if isCharging {
             Image(systemName: "bolt.fill")
-                .font(.system(size: 8))
+                .font(.system(size: 9))
                 .foregroundStyle(Color("Foreground Outside Invert"))
         }
     }
 
     private var number: some View {
         HStack(spacing: 0) {
+            // Sized to the body it sits in, which grew with the rest of the
+            // bar. Any larger and the digits cross the outline top and bottom
+            // and read as printed over the battery rather than inside it.
             Text("\(level)")
-                .font(.system(size: 9.5, weight: .semibold))
+                .font(.system(size: 10.5, weight: .semibold))
                 .monospacedDigit()
                 .transition(.blurReplace)
             // Kept at 100 too. A machine on the charger is charging whether or
             // not it has finished, and dropping the mark at exactly full made
             // the one unambiguous state the only one with nothing to say.
             if isCharging {
-                Image(systemName: "bolt.fill").font(.system(size: 7))
+                Image(systemName: "bolt.fill").font(.system(size: 8))
             } else if isPluggedIn {
                 Image(systemName: "powerplug.portrait.fill")
-                    .font(.system(size: 7))
+                    .font(.system(size: 8))
                     .padding(.leading, 1)
             }
         }
@@ -188,17 +191,17 @@ private struct BatteryBody<Overlay: View>: View {
     let outline: Color
     @ViewBuilder var overlay: Overlay
 
-    static var width: CGFloat { 27 }
-    static var height: CGFloat { 12 }
-    private static var inset: CGFloat { 1.5 }
+    static var width: CGFloat { 30 }
+    static var height: CGFloat { 13.5 }
+    private static var inset: CGFloat { 1.75 }
 
     var body: some View {
         HStack(spacing: 1) {
             ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 3.5, style: .continuous)
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
                     .stroke(outline.opacity(0.5), lineWidth: 1)
 
-                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                RoundedRectangle(cornerRadius: 2.25, style: .continuous)
                     .fill(fill.opacity(fillOpacity))
                     .frame(
                         width: fillWidth,
@@ -215,11 +218,11 @@ private struct BatteryBody<Overlay: View>: View {
             .frame(width: Self.width, height: Self.height)
 
             UnevenRoundedRectangle(
-                bottomTrailingRadius: 1.5, topTrailingRadius: 1.5,
+                bottomTrailingRadius: 1.75, topTrailingRadius: 1.75,
                 style: .continuous
             )
             .fill(outline.opacity(0.5))
-            .frame(width: 1.5, height: 4.5)
+            .frame(width: 1.75, height: 5)
         }
     }
 

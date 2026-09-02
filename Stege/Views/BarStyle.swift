@@ -13,9 +13,14 @@ import SwiftUI
 /// Widgets take these instead of choosing for themselves. A widget that needs
 /// to differ should say why.
 enum BarStyle {
-    /// Every glyph. Matches the optical size of a macOS status item on a bar
-    /// this tall.
-    static let glyphSize: CGFloat = 13
+    /// Every glyph.
+    ///
+    /// Fifteen, not thirteen. Measured on this machine: the system menu bar is
+    /// 32 points tall, this bar is 44, and yet the band of ink across the
+    /// system's own row of icons and clock came to 20.5 points against 16 for
+    /// this one. The bar was both taller than the system's and drawn smaller
+    /// inside it, so the marks floated in a lot of black.
+    static let glyphSize: CGFloat = 15
     static let glyphWeight: Font.Weight = .regular
 
     /// The box every single-symbol mark is centred in.
@@ -27,20 +32,22 @@ enum BarStyle {
     /// `HStack` with a spacer holding the trailing group to the right edge,
     /// every mark to its left slides. Turning the volume up moved the whole
     /// row.
-    static let glyphWidth: CGFloat = 18
+    static let glyphWidth: CGFloat = 20
 
-    /// Text standing in for a glyph, such as the input source code. A point
+    /// Text standing in for a glyph, such as the input source code. Two points
     /// smaller than a glyph, because a letterform at the same point size reads
-    /// larger than a symbol does.
-    static let labelSize: CGFloat = 12
+    /// larger than a symbol does. Only two: a capital at 12 points stands 8.6
+    /// points tall against 11 to 14 for the symbols beside it, which was the
+    /// one mark in the row that read as undersized rather than as different.
+    static let labelSize: CGFloat = 13
 
     /// A mark riding on a glyph rather than beside it: the charging bolt, the
     /// lock on a widget missing its permission.
-    static let badgeSize: CGFloat = 8
+    static let badgeSize: CGFloat = 9
 
     /// Chevrons and other pure navigation marks, which macOS also draws
     /// smaller than the things they act on.
-    static let chevronSize: CGFloat = 11
+    static let chevronSize: CGFloat = 12
 
     static var glyphFont: Font {
         .system(size: glyphSize, weight: glyphWeight)
