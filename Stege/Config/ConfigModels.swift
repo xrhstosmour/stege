@@ -5,6 +5,8 @@ struct RootToml: Decodable {
     var theme: String?
     var hidden: Bool?
     var toggleShortcut: String?
+    var revealShortcut: String?
+    var menuShortcut: String?
     var yabai: YabaiConfig?
     var aerospace: AerospaceConfig?
     var bar: BarConfig?
@@ -14,6 +16,8 @@ struct RootToml: Decodable {
         case theme
         case hidden
         case toggleShortcut = "toggle-shortcut"
+        case revealShortcut = "reveal-shortcut"
+        case menuShortcut = "menu-shortcut"
         case yabai
         case aerospace
         case bar
@@ -24,6 +28,8 @@ struct RootToml: Decodable {
         self.theme = nil
         self.hidden = nil
         self.toggleShortcut = nil
+        self.revealShortcut = nil
+        self.menuShortcut = nil
         self.yabai = nil
         self.aerospace = nil
         self.widgets = WidgetsSection(displayed: [], others: [:])
@@ -64,6 +70,18 @@ struct Config {
     /// other tools write one, "cmd+alt+b". Nil registers nothing.
     var toggleShortcut: String? {
         rootToml.toggleShortcut
+    }
+
+    /// Appends the other applications' status items to the bar, and takes them
+    /// away again. The same thing the chevron does.
+    var revealShortcut: String? {
+        rootToml.revealShortcut
+    }
+
+    /// Opens the frontmost application's first menu. `NSMenu` takes the arrows,
+    /// Return and Escape from there.
+    var menuShortcut: String? {
+        rootToml.menuShortcut
     }
 
     var yabai: YabaiConfig {

@@ -113,6 +113,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ) {
             BarVisibility.shared.toggleByShortcut()
         }
+        // Each of these calls what the click calls. Nothing synthesises a
+        // press: a shortcut that worked by clicking its own bar would break
+        // the moment the bar was hidden, which is exactly when it is wanted.
+        GlobalShortcut.shared.apply(
+            configuration.revealShortcut, name: "reveal"
+        ) {
+            let visibility = BarVisibility.shared
+            if !visibility.isShowingExtras {
+                MenuBarExtrasReader.shared.refresh()
+            }
+            visibility.isShowingExtras.toggle()
+        }
+        GlobalShortcut.shared.apply(
+            configuration.menuShortcut, name: "menu"
+        ) {
+            AppMenusManager.shared.openFirstMenu()
+        }
     }
 
     /// Orders Stege's panels out so the system menu bar underneath is reachable,

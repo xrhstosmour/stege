@@ -36,7 +36,7 @@ final class GlobalShortcut {
             .lowercased()
         if registrations[name]?.shortcut == normalised { return }
         unregister(name)
-        guard let normalised, let combination = Self.parse(normalised) else {
+        guard let normalised, let combination = ShortcutParser.parse(normalised) else {
             return
         }
         installHandlerIfNeeded()
@@ -93,50 +93,4 @@ final class GlobalShortcut {
         guard let action = actions[identifier] else { return }
         DispatchQueue.main.async(execute: action)
     }
-
-    // MARK: - Parsing
-
-    private struct Combination {
-        let modifiers: UInt32
-        let keyCode: UInt32
-    }
-
-    /// Accepts "cmd+alt+b" and the like. Names follow what people write in
-    /// other menu bar tools, so `cmd`, `command`, `opt`, `option`, `alt`,
-    /// `ctrl`, `control` and `shift` all resolve.
-    private static func parse(_ shortcut: String) -> Combination? {
-        let parts = shortcut.split(separator: "+").map {
-            $0.trimmingCharacters(in: .whitespaces)
-        }
-        guard let key = parts.last, parts.count > 1 else { return nil }
-
-        var modifiers: UInt32 = 0
-        for part in parts.dropLast() {
-            switch part {
-            case "cmd", "command": modifiers |= UInt32(cmdKey)
-            case "opt", "option", "alt": modifiers |= UInt32(optionKey)
-            case "ctrl", "control": modifiers |= UInt32(controlKey)
-            case "shift": modifiers |= UInt32(shiftKey)
-            default: return nil
-            }
-        }
-        guard modifiers != 0, let keyCode = keyCodes[key] else { return nil }
-        return Combination(modifiers: modifiers, keyCode: keyCode)
-    }
-
-    /// Virtual key codes are positional, not lexical, so they cannot be derived
-    /// from the character and have to be listed.
-    private static let keyCodes: [String: UInt32] = [
-        "a": 0, "s": 1, "d": 2, "f": 3, "h": 4, "g": 5, "z": 6, "x": 7,
-        "c": 8, "v": 9, "b": 11, "q": 12, "w": 13, "e": 14, "r": 15,
-        "y": 16, "t": 17, "1": 18, "2": 19, "3": 20, "4": 21, "6": 22,
-        "5": 23, "=": 24, "9": 25, "7": 26, "-": 27, "8": 28, "0": 29,
-        "]": 30, "o": 31, "u": 32, "[": 33, "i": 34, "p": 35, "l": 37,
-        "j": 38, "'": 39, "k": 40, ";": 41, "\\": 42, ",": 43, "/": 44,
-        "n": 45, "m": 46, ".": 47, "`": 50,
-        "space": 49, "return": 36, "tab": 48, "escape": 53, "delete": 51,
-        "left": 123, "right": 124, "down": 125, "up": 126,
-        "f1": 122, "f2": 120, "f3": 99, "f4": 118, "f5": 96, "f6": 97,
-        "f7": 98, "f8": 100, "f9": 101, "f10": 109, "f11": 103, "f12": 111,
-    ]
 }

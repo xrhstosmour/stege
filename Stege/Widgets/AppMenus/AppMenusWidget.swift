@@ -52,7 +52,7 @@ struct AppMenusWidget: View {
             named: config["modifier-key"]?.stringValue ?? "option")
     }
 
-    @StateObject private var manager = AppMenusManager()
+    @ObservedObject private var manager = AppMenusManager.shared
     @StateObject private var modifiers = ModifierKeyMonitor.shared
     @ObservedObject private var reveal = AppMenusReveal.shared
     @State private var rects: [String: CGRect] = [:]
@@ -183,7 +183,10 @@ struct AppMenusWidget: View {
     {
         AppMenuTitle(
             title: menu.title, emphasised: emphasised,
-            onFrameChange: { rects[menu.id] = $0 },
+            onFrameChange: {
+                rects[menu.id] = $0
+                manager.titleFrames[menu.id] = $0
+            },
             action: {
                 AppMenuPresenter.present(
                     menu: menu, manager: manager,

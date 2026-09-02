@@ -16,7 +16,7 @@ struct AppleMenuWidget: View {
     /// to the full system one.
     var useShortMenu: Bool { config["short-menu"]?.boolValue ?? true }
 
-    @StateObject private var manager = AppMenusManager()
+    @ObservedObject private var manager = AppMenusManager.shared
     @State private var rect: CGRect = .zero
 
     @State private var isHovered = false
