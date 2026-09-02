@@ -1,10 +1,12 @@
 import SwiftUI
 
-/// Brightness in the bar, with Night Shift and True Tone in the popup.
+/// The screen: brightness, resolution, mirroring, Night Shift and True Tone.
 ///
-/// One mark, no number by default, in keeping with the rest of the bar.
-/// Scrolling changes the brightness without opening anything, the way the
-/// speaker already works.
+/// The mark is a display rather than a sun. It was a sun, filled by the
+/// brightness level, which said one true thing and hid the rest: this popup is
+/// where the resolution and the mirror switch live, and neither has anything
+/// to do with brightness. Scrolling still changes the brightness without
+/// opening anything, the way the speaker already works.
 struct DisplayWidget: View {
     @EnvironmentObject var configProvider: ConfigProvider
     var config: ConfigData { configProvider.config }
@@ -19,9 +21,7 @@ struct DisplayWidget: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            // Fills by value rather than swapping symbols, so the mark keeps
-            // its width at every level.
-            Image(systemName: "sun.max.fill", variableValue: Double(level))
+            Image(systemName: symbol)
                 .barGlyphBox()
 
             if showPercentage {
@@ -50,6 +50,13 @@ struct DisplayWidget: View {
         .help(tooltip)
     }
 
+    /// Two displays are two rectangles, which is what macOS puts on its own
+    /// screen mirroring item, and mirroring gets the symbol that says so.
+    private var symbol: String {
+        if manager.isMirrored { return "rectangle.on.rectangle" }
+        return manager.displays.count > 1 ? "display.2" : "display"
+    }
+
     private func showPopup() {
         MenuBarPopup.show(rect: rect, id: "display") {
             DisplayPopup(manager: manager)
@@ -57,10 +64,17 @@ struct DisplayWidget: View {
     }
 
     private var tooltip: String {
-        guard manager.displays.first?.brightness != nil else {
-            return "Display"
+        var parts: [String] = []
+        if manager.displays.first?.brightness != nil {
+            parts.append("Brightness \(Int((level * 100).rounded()))%")
         }
-        return "Brightness \(Int((level * 100).rounded()))%"
+        if manager.isMirrored { parts.append("Mirroring") }
+        if let first = manager.displays.first, first.resolution.width > 0 {
+            parts.append(
+                "\(Int(first.resolution.width)) × "
+                    + "\(Int(first.resolution.height))")
+        }
+        return parts.isEmpty ? "Display" : parts.joined(separator: ", ")
     }
 }
 
@@ -144,6 +158,30 @@ struct DisplayPopup: View {
                     .popupStaticRow()
             }
 
+            if manager.displays.count > 1 {
+                PopupSeparator()
+
+                HStack(spacing: 10) {
+                    Image(systemName: "rectangle.on.rectangle")
+                        .font(.system(size: PopupStyle.bodySize))
+                        .foregroundStyle(
+                            manager.isMirrored ? Color.blue : .secondary
+                        )
+                        .frame(width: PopupStyle.iconColumn)
+                    Text("Mirror Displays")
+                        .font(.system(size: PopupStyle.bodySize))
+                    Spacer(minLength: 8)
+                    PopupSwitch(isOn: manager.isMirrored) {
+                        manager.setMirroring(!manager.isMirrored)
+                    }
+                }
+                .popupStaticRow()
+            }
+
+            ForEach(manager.displays) { display in
+                resolutions(for: display)
+            }
+
             PopupSeparator()
 
             PopupSettingsRow(title: "Display Settings") {
@@ -155,6 +193,60 @@ struct DisplayPopup: View {
         .popupContainer()
         .onAppear { manager.startPolling() }
         .onDisappear { manager.stopPolling() }
+    }
+
+    /// The resolutions a display will take, as System Settings lists them.
+    ///
+    /// Applied for this login session only. Writing a display mode
+    /// permanently is System Settings' job, and a menu bar should not leave a
+    /// display in a state that survives a restart without being asked to.
+    @ViewBuilder
+    private func resolutions(for display: DisplayInfo) -> some View {
+        let modes = manager.modes(for: display)
+        if modes.count > 1 {
+            PopupSeparator()
+
+            VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
+                PopupSectionTitle(
+                    title: manager.displays.count > 1
+                        ? display.name : "Resolution"
+                ) {
+                    if manager.displays.count > 1 {
+                        Text("Resolution")
+                            .font(
+                                .system(
+                                    size: PopupStyle.captionSize,
+                                    weight: .semibold)
+                            )
+                            .opacity(0.5)
+                    }
+                }
+                .popupStaticRow()
+
+                ForEach(modes) { mode in
+                    HStack(spacing: 10) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: PopupStyle.captionSize,
+                                          weight: .semibold))
+                            .opacity(mode.isCurrent ? 1 : 0)
+                            .frame(width: PopupStyle.iconColumn)
+                        Text(mode.label)
+                            .font(.system(size: PopupStyle.bodySize))
+                            .monospacedDigit()
+                        Spacer(minLength: 8)
+                        if mode.isRetina {
+                            Text("Retina")
+                                .font(.system(size: PopupStyle.captionSize))
+                                .opacity(0.5)
+                        }
+                    }
+                    .popupRow {
+                        guard !mode.isCurrent else { return }
+                        manager.setMode(mode, on: display)
+                    }
+                }
+            }
+        }
     }
 
     /// One row per display. A monitor whose backlight is not ours to set is

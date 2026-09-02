@@ -11,6 +11,27 @@ struct DisplayInfo: Identifiable, Equatable {
     /// 0 to 1, or nil for a display whose backlight is not ours to set, which
     /// is most external monitors.
     let brightness: Float?
+    /// What the desktop is currently drawn at, in points.
+    let resolution: CGSize
+}
+
+/// One resolution a display will accept.
+struct DisplayMode: Identifiable, Equatable {
+    /// The size in points, which is what System Settings lists and what
+    /// everything is laid out in. A Retina mode is half its pixel size.
+    let size: CGSize
+    let isCurrent: Bool
+    /// Two pixels per point. Worth saying, because a display offers the same
+    /// point size both ways and one of them is blurry.
+    let isRetina: Bool
+    let mode: CGDisplayMode
+
+    var id: String {
+        "\(Int(size.width))x\(Int(size.height))\(isRetina ? "@2x" : "")"
+    }
+    var label: String {
+        "\(Int(size.width)) × \(Int(size.height))"
+    }
 }
 
 /// Brightness, Night Shift and True Tone.
@@ -31,6 +52,8 @@ final class DisplayManager: ObservableObject {
     @Published private(set) var nightShiftStrength: Float = 0
     @Published private(set) var isTrueToneAvailable = false
     @Published private(set) var isTrueToneOn = false
+    /// Whether the displays are showing the same picture.
+    @Published private(set) var isMirrored = false
     /// Set when a control could not be reached at all, so the popup can say so
     /// rather than drawing a switch that does nothing.
     @Published private(set) var failure: String?
@@ -70,6 +93,7 @@ final class DisplayManager: ObservableObject {
 
     func refresh() {
         displays = Self.activeDisplays()
+        isMirrored = CGDisplayIsInMirrorSet(CGMainDisplayID()) != 0
         isNightShiftOn = Self.readNightShift()
         nightShiftStrength = Self.readNightShiftStrength()
         isTrueToneAvailable = Self.readTrueToneAvailable()
@@ -85,11 +109,14 @@ final class DisplayManager: ObservableObject {
         else { return [] }
 
         return ids.map { id in
-            DisplayInfo(
+            let mode = CGDisplayCopyDisplayMode(id)
+            return DisplayInfo(
                 id: id,
                 name: name(of: id),
                 isBuiltIn: CGDisplayIsBuiltin(id) != 0,
-                brightness: brightness(of: id))
+                brightness: brightness(of: id),
+                resolution: CGSize(
+                    width: mode?.width ?? 0, height: mode?.height ?? 0))
         }
         // The built-in panel first, which is the one a laptop's brightness keys
         // act on and the one most people mean.
@@ -107,6 +134,106 @@ final class DisplayManager: ObservableObject {
         return CGDisplayIsBuiltin(id) != 0 ? "Built-in Display" : "Display"
     }
 
+    // MARK: - Resolution
+
+    /// The resolutions a display will accept, as System Settings lists them.
+    ///
+    /// `CGDisplayCopyAllDisplayModes` hands back everything the panel can do,
+    /// which is dozens of entries: every refresh rate, every pixel encoding,
+    /// and modes macOS will not put a desktop on. Only the usable ones are
+    /// kept, one per point size, preferring the Retina version where a
+    /// display offers the same size both ways, and the list is capped so a
+    /// monitor with twenty modes does not make a popup taller than the screen.
+    func modes(for display: DisplayInfo) -> [DisplayMode] {
+        let options =
+            [kCGDisplayShowDuplicateLowResolutionModes: kCFBooleanTrue]
+            as CFDictionary
+        guard
+            let all = CGDisplayCopyAllDisplayModes(display.id, options)
+                as? [CGDisplayMode]
+        else { return [] }
+
+        let current = CGDisplayCopyDisplayMode(display.id)
+        var best: [String: DisplayMode] = [:]
+        for mode in all where mode.isUsableForDesktopGUI() {
+            let size = CGSize(width: mode.width, height: mode.height)
+            let isRetina = mode.pixelWidth > mode.width
+            let key = "\(mode.width)x\(mode.height)"
+            let candidate = DisplayMode(
+                size: size,
+                isCurrent: mode.ioDisplayModeID == current?.ioDisplayModeID,
+                isRetina: isRetina,
+                mode: mode)
+            // The current mode always wins its slot, so the tick is never on a
+            // row that is not the one in use. Otherwise the sharper of the two.
+            if let existing = best[key] {
+                if existing.isCurrent { continue }
+                if candidate.isCurrent || (isRetina && !existing.isRetina) {
+                    best[key] = candidate
+                }
+            } else {
+                best[key] = candidate
+            }
+        }
+        return best.values
+            .sorted { $0.size.width * $0.size.height > $1.size.width * $1.size.height }
+            .prefix(6)
+            .map { $0 }
+    }
+
+    /// Applied inside a configuration transaction, which is what makes the
+    /// change atomic and lets macOS put it back if the display cannot show it.
+    func setMode(_ mode: DisplayMode, on display: DisplayInfo) {
+        var configuration: CGDisplayConfigRef?
+        guard CGBeginDisplayConfiguration(&configuration) == .success,
+            let configuration
+        else {
+            failure = "The resolution could not be changed"
+            return
+        }
+        CGConfigureDisplayWithDisplayMode(
+            configuration, display.id, mode.mode, nil)
+        // For this login session only. Writing it permanently is System
+        // Settings' job, and a menu bar should not leave a display in a state
+        // that survives a restart without being asked to.
+        guard CGCompleteDisplayConfiguration(configuration, .forSession)
+            == .success
+        else {
+            failure = "The resolution could not be changed"
+            return
+        }
+        refresh()
+    }
+
+    // MARK: - Mirroring
+
+    /// Every display shows what the main one shows, or none of them do.
+    func setMirroring(_ on: Bool) {
+        var configuration: CGDisplayConfigRef?
+        guard CGBeginDisplayConfiguration(&configuration) == .success,
+            let configuration
+        else {
+            failure = "Mirroring could not be changed"
+            return
+        }
+        let main = CGMainDisplayID()
+        for display in displays where display.id != main {
+            CGConfigureDisplayMirrorOfDisplay(
+                configuration, display.id, on ? main : kCGNullDirectDisplay)
+        }
+        guard CGCompleteDisplayConfiguration(configuration, .forSession)
+            == .success
+        else {
+            failure = "Mirroring could not be changed"
+            return
+        }
+        // The display list changes shape when mirroring turns on, and the
+        // system takes a moment to settle before it reports the new one.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+            self?.refresh()
+        }
+    }
+
     // MARK: - Brightness
 
     func setBrightness(_ value: Float, on display: DisplayInfo) {
@@ -121,7 +248,8 @@ final class DisplayManager: ObservableObject {
         if let index = displays.firstIndex(where: { $0.id == display.id }) {
             displays[index] = DisplayInfo(
                 id: display.id, name: display.name,
-                isBuiltIn: display.isBuiltIn, brightness: clamped)
+                isBuiltIn: display.isBuiltIn, brightness: clamped,
+                resolution: display.resolution)
         }
     }
 

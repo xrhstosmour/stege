@@ -107,7 +107,7 @@ displayed = [
 | `default.stayawake` | A cup, while something is keeping the display awake |
 | `default.notifications` | A bell listing the notifications macOS is holding, and the Focus modes |
 | `default.audio` | Output volume |
-| `default.display` | Screen brightness, with Night Shift and True Tone in the popup |
+| `default.display` | The screen: brightness, resolution, mirroring, Night Shift, True Tone |
 | `default.updates` | A mark while macOS or Homebrew has something waiting |
 | `default.microphone` | The microphone on its own |
 | `default.keyboardlayout` | The current input source, with a popup for switching |
