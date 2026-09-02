@@ -152,6 +152,12 @@ class IconCache {
     /// that is not running was rescanned for on every render of every row it
     /// appeared in.
     private var misses: Set<String> = []
+    /// `NSCache` is thread safe, a Swift `Set` is not, and this one is touched
+    /// from both ends: the window list is decoded on the workspace queue and
+    /// asks for an icon per window, while the notification rows ask for one per
+    /// row as SwiftUI draws them on the main thread. Two threads mutating the
+    /// same set is a corrupted set, not a stale one.
+    private let lock = NSLock()
     private init() {}
 
     /// Resolved by bundle identifier where possible. `NSWorkspace` can map a
@@ -162,7 +168,10 @@ class IconCache {
         let key = (bundleID ?? appName ?? "") as NSString
         guard key.length > 0 else { return nil }
         if let cached = cache.object(forKey: key) { return cached }
-        if misses.contains(key as String) { return nil }
+        lock.lock()
+        let missed = misses.contains(key as String)
+        lock.unlock()
+        if missed { return nil }
 
         let workspace = NSWorkspace.shared
         var url: URL?
@@ -175,7 +184,9 @@ class IconCache {
                 .bundleURL
         }
         guard let url else {
+            lock.lock()
             misses.insert(key as String)
+            lock.unlock()
             return nil
         }
 
@@ -191,6 +202,8 @@ class IconCache {
     /// Applications come and go, so a name that failed once may resolve later.
     /// Called when the set of running applications changes.
     func forgetMisses() {
+        lock.lock()
         misses.removeAll()
+        lock.unlock()
     }
 }
