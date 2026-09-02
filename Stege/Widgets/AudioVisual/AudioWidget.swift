@@ -156,28 +156,12 @@ struct AudioPopup: View {
             {
                 PopupSeparator()
                 VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
-                    PopupSectionTitle("Playing").popupStaticRow()
-                    ForEach(manager.sources) { source in
-                        HStack(spacing: 10) {
-                            Group {
-                                if let icon = source.icon {
-                                    Image(nsImage: icon).resizable()
-                                } else {
-                                    Image(systemName: "app.dashed")
-                                        .resizable()
-                                        .scaledToFit()
-                                }
-                            }
-                            .frame(
-                                width: PopupStyle.iconColumn,
-                                height: PopupStyle.iconColumn)
-                            Text(source.name)
-                                .font(.system(size: PopupStyle.bodySize))
-                                .lineLimit(1)
-                            Spacer(minLength: 8)
-                        }
+                    // "Playing  Spotify", not "Playing" with a row under it
+                    // saying Spotify. The application is the rest of the
+                    // sentence the heading starts, and it cost a whole row to
+                    // say it on its own.
+                    PopupSectionTitle(title: "Playing") { playingIn }
                         .popupStaticRow()
-                    }
 
                     // Under the application making the sound, not above the
                     // volume slider. The track belongs to that application,
@@ -206,6 +190,31 @@ struct AudioPopup: View {
             guard scope == .output else { return }
             manager.stopWatchingSources()
             playing.stopWatching()
+        }
+    }
+
+    /// The applications making sound, beside the heading.
+    ///
+    /// Read from `CoreAudio`, which knows about every one of them, so a
+    /// browser playing something from a website is named here even though
+    /// nothing can be read about what it is playing.
+    @ViewBuilder
+    private var playingIn: some View {
+        if let first = manager.sources.first {
+            HStack(spacing: 5) {
+                if let icon = first.icon {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .frame(width: 13, height: 13)
+                }
+                Text(
+                    manager.sources.map(\.name).joined(separator: ", ")
+                )
+                .font(.system(size: PopupStyle.captionSize, weight: .semibold))
+                .opacity(0.75)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            }
         }
     }
 

@@ -93,16 +93,7 @@ struct UpdatesPopup: View {
             // title this popup used to open with and the empty-state line that
             // sat under it saying much the same thing.
             PopupSectionTitle(title: countText) {
-                if manager.isReading {
-                    ProgressView().controlSize(.mini)
-                } else {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 10, weight: .semibold))
-                        .opacity(0.5)
-                        .contentShape(Rectangle())
-                        .onTapGesture { manager.refresh() }
-                        .help("Look again")
-                }
+                PopupRefresh(isBusy: manager.isReading) { manager.refresh() }
             }
             .popupStaticRow()
 

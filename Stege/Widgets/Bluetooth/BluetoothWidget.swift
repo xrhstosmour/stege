@@ -218,19 +218,10 @@ struct BluetoothPopup: View {
     private var nearby: some View {
         VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
             PopupSectionTitle(title: "Other Devices") {
-                if manager.isScanning {
-                    ProgressView().controlSize(.mini)
-                    Text("Stop")
-                        .font(.system(size: PopupStyle.captionSize))
-                        .opacity(0.7)
-                        .contentShape(Rectangle())
-                        .onTapGesture { manager.stopScan() }
-                } else {
-                    Text("Scan")
-                        .font(.system(size: PopupStyle.captionSize))
-                        .opacity(0.7)
-                        .contentShape(Rectangle())
-                        .onTapGesture { manager.startScan() }
+                PopupRefresh(
+                    isBusy: manager.isScanning, help: "Look for devices again"
+                ) {
+                    manager.startScan()
                 }
             }
             .popupStaticRow()

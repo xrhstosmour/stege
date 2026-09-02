@@ -91,6 +91,14 @@ struct MenuBarView: View {
         case "default.notifications":
             NotificationsWidget().environmentObject(config)
 
+        // Kept as a case so it does not fall through to the unknown-widget
+        // marker. There was a now playing widget and there is not any more:
+        // what is playing, with its artwork and transport, is in the sound
+        // popup. This says so rather than leaving a red `?default.nowplaying?`
+        // suggesting the name was mistyped.
+        case "default.nowplaying":
+            NowPlayingMovedMarker()
+
         case "spacer":
             Spacer().frame(minWidth: 50, maxWidth: .infinity)
 

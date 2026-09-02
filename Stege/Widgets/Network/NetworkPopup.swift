@@ -113,8 +113,11 @@ struct NetworkPopup: View {
     private var nearby: some View {
         VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
             PopupSectionTitle(title: "Other Networks") {
-                if viewModel.isScanning {
-                    ProgressView().controlSize(.mini)
+                PopupRefresh(
+                    isBusy: viewModel.isScanning,
+                    help: "Look for networks again"
+                ) {
+                    viewModel.scanForNetworks()
                 }
             }
             .popupStaticRow()

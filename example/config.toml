@@ -76,7 +76,7 @@ modifier-key = "option"     # option, command, control, shift, function
 [widgets.default.reveal]
 mode = "extras"                # append the other apps' status items, or "collapse"
 icon-size = 15                 # extras only: how big those icons are drawn
-icon-style = "monochrome"      # extras only: or "colour" to leave them as they ship
+icon-style = "colour"          # extras only: as the apps ship them, or "monochrome"
 always-show = []               # extras only: bundle ids kept in the bar permanently
 hidden = []                    # extras only: bundle ids that never appear
 sticky = true                  # collapse only: stay away until the corner button is pressed
