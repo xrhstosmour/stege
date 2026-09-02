@@ -83,8 +83,6 @@ showing only its own display's.
 **The frontmost application's menus**, drawn in the bar and opened as real
 `NSMenu`s, so arrows, Return, Escape and type-select all work.
 
-![The File menu open](.github/assets/appmenu.png)
-
 **The other applications' status items**, appended behind a chevron and read
 through the Accessibility API rather than photographed, so it needs no Screen
 Recording. Right-click one to hide it for good.
@@ -99,9 +97,17 @@ of each, Night Shift and True Tone. It says when the lid is shut.
 
 ![The display popup](.github/assets/display.png)
 
-**Wi-Fi**, **Bluetooth**, **battery**, **the clock and calendar**, **notifications
-and Focus**, **updates waiting**, **CPU and memory**, **the input source**, and
-**microphone and camera in-use indicators**.
+**The battery**, with health, cycle count and Low Power Mode.
+
+![The battery popup](.github/assets/battery.png)
+
+**The clock and calendar**, with the month and the day's events.
+
+![The calendar popup](.github/assets/calendar.png)
+
+**Wi-Fi**, **Bluetooth**, **notifications and Focus**, **updates waiting**, **CPU
+and memory**, **the input source**, and **microphone and camera in-use
+indicators**.
 
 ## Permissions
 
