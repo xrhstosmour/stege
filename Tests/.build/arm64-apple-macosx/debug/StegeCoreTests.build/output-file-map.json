@@ -1,0 +1,26 @@
+{
+  "": {
+    "swift-dependencies": "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build/primary.swiftdeps"
+  },
+  "/Users/xrhstosmour/Developer/stege/Tests/Tests/StegeCoreTests/BatteryReadingTests.swift": {
+    "dependencies": "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build/BatteryReadingTests.d",
+    "object": "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build/BatteryReadingTests.swift.o",
+    "swiftmodule": "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build/BatteryReadingTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build/BatteryReadingTests.swiftdeps",
+    "diagnostics": "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build/BatteryReadingTests.dia"
+  },
+  "/Users/xrhstosmour/Developer/stege/Tests/Tests/StegeCoreTests/ConfigMigrationTests.swift": {
+    "dependencies": "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build/ConfigMigrationTests.d",
+    "object": "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build/ConfigMigrationTests.swift.o",
+    "swiftmodule": "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build/ConfigMigrationTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build/ConfigMigrationTests.swiftdeps",
+    "diagnostics": "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build/ConfigMigrationTests.dia"
+  },
+  "/Users/xrhstosmour/Developer/stege/Tests/Tests/StegeCoreTests/DisplayDataChannelMessageTests.swift": {
+    "dependencies": "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build/DisplayDataChannelMessageTests.d",
+    "object": "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build/DisplayDataChannelMessageTests.swift.o",
+    "swiftmodule": "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build/DisplayDataChannelMessageTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build/DisplayDataChannelMessageTests.swiftdeps",
+    "diagnostics": "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build/DisplayDataChannelMessageTests.dia"
+  }
+}
