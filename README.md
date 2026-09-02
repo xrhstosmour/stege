@@ -106,8 +106,8 @@ of each, Night Shift and True Tone. It says when the lid is shut.
 ![The calendar popup](.github/assets/calendar.png)
 
 **Wi-Fi**, **Bluetooth**, **notifications and Focus**, **updates waiting**, **CPU
-and memory**, **the input source**, and **microphone and camera in-use
-indicators**.
+and memory**, **the input source**, and **microphone, camera and screen
+recording in-use indicators**.
 
 ## Permissions
 
@@ -144,8 +144,6 @@ that.
   entitlement, so the sound and display popups open Control Center's own picker
   rather than drawing a list they cannot fill. A receiver already connected is an
   ordinary output device and is listed and selectable like any other.
-- **No screen recording indicator.** No public API detects another application
-  capturing the screen.
 - **An external monitor may not answer DDC**, in which case it is listed without
   a brightness slider rather than given one that does nothing.
 

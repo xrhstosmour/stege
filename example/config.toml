@@ -61,7 +61,7 @@ hidden = false
 #   default.applicationMenu  the frontmost application's menus
 #   default.reveal           a chevron that appends the other apps' status items
 #   default.monitor          CPU and memory, disk and throughput in the popup
-#   default.privacy          microphone and camera in-use indicators
+#   default.privacy          microphone, camera and screen recording indicators
 #   default.stayawake        a cup, while something keeps the display awake
 #   default.notifications    a bell, the held notifications and every Focus
 #   default.updates          a mark while macOS or Homebrew has something waiting
@@ -169,7 +169,7 @@ warning-level = 80
 
 [widgets.default.privacy]
 # macOS only shows its own dot while a device is in use, which is the default
-# here. Set always-show to keep both indicators visible, dimmed when idle.
+# here. Set always-show to keep all three indicators visible, dimmed when idle.
 always-show = false
 # "icon" | "dot", dot matching the system indicator
 style = "icon"
