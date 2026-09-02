@@ -83,10 +83,24 @@ enum MusicApp: String, CaseIterable {
     case spotify = "Spotify"
     case music = "Music"
 
+    /// Five seconds, against the two minutes an Apple Event waits by default.
+    ///
+    /// A player that has stopped answering, which `Spotify` does from time to
+    /// time, otherwise holds the one script lock for those two minutes. The
+    /// timer behind this fires every second, so every tick in between queues up
+    /// behind it on a thread of its own and the widget never recovers.
+    private func timed(_ body: String) -> String {
+        """
+        with timeout of 5 seconds
+        \(body)
+        end timeout
+        """
+    }
+
     /// AppleScript to fetch the now playing song.
     var nowPlayingScript: String {
         if self == .music {
-            return """
+            return timed("""
                 if application "Music" is running then
                     tell application "Music"
                         if player state is playing or player state is paused then
@@ -110,9 +124,9 @@ enum MusicApp: String, CaseIterable {
                 else
                     return "stopped"
                 end if
-                """
+                """)
         } else {
-            return """
+            return timed("""
                 if application "\(rawValue)" is running then
                     tell application "\(rawValue)"
                         if player state is playing then
@@ -128,20 +142,20 @@ enum MusicApp: String, CaseIterable {
                 else
                     return "stopped"
                 end if
-                """
+                """)
         }
     }
 
     var previousTrackCommand: String {
-        "tell application \"\(rawValue)\" to previous track"
+        timed("tell application \"\(rawValue)\" to previous track")
     }
 
     var togglePlayPauseCommand: String {
-        "tell application \"\(rawValue)\" to playpause"
+        timed("tell application \"\(rawValue)\" to playpause")
     }
 
     var nextTrackCommand: String {
-        "tell application \"\(rawValue)\" to next track"
+        timed("tell application \"\(rawValue)\" to next track")
     }
 }
 
@@ -150,17 +164,47 @@ enum MusicApp: String, CaseIterable {
 /// Provides functionality to fetch the now playing song and execute playback commands.
 final class NowPlayingProvider {
 
+    /// Why the last read came back with nothing, when the reason was not
+    /// simply that nothing is playing.
+    ///
+    /// Without this a refused Automation prompt, a player that has stopped
+    /// answering and a paused queue all look the same from the bar: the widget
+    /// is not there. That is the one failure mode worth telling someone about,
+    /// because it is the only one they can do something about.
+    private(set) static var failure: String?
+
     /// Returns the current playing song from any supported music application.
     static func fetchNowPlaying() -> NowPlayingSong? {
         // Skip applications that are not running. The scripts already guard
         // with `if application "X" is running`, but reaching that guard still
         // costs a full Apple Event round trip.
+        var reason: String?
         for app in MusicApp.allCases where isAppRunning(app) {
             if let song = fetchNowPlaying(from: app) {
+                failure = nil
                 return song
             }
+            if let error = lastError {
+                reason = reason ?? describe(error, from: app)
+            }
         }
+        failure = reason
         return nil
+    }
+
+    /// The two that are worth naming. Everything else is reported with its
+    /// number, because guessing at what an unfamiliar `AppleScript` error means
+    /// is how a widget ends up telling someone the wrong thing to fix.
+    private static func describe(_ error: Int, from app: MusicApp) -> String {
+        switch error {
+        case -1743:
+            return
+                "Stege is not allowed to control \(app.rawValue). Privacy & Security, then Automation."
+        case -1712:
+            return "\(app.rawValue) did not answer in time."
+        case let number:
+            return "\(app.rawValue) could not be read, error \(number)."
+        }
     }
 
     /// Returns the now playing song for a specific music application.
@@ -198,6 +242,9 @@ final class NowPlayingProvider {
         return script
     }
 
+    /// The error number from the last run, or nil if it succeeded.
+    private static var lastError: Int?
+
     /// Executes the provided AppleScript and returns the trimmed result.
     @discardableResult
     static func runAppleScript(_ script: String) -> String? {
@@ -210,10 +257,11 @@ final class NowPlayingProvider {
         defer { scriptLock.unlock() }
         var error: NSDictionary?
         let outputDescriptor = appleScript.executeAndReturnError(&error)
-        if let error = error {
-            print("AppleScript Error: \(error)")
+        if let error {
+            lastError = error[NSAppleScript.errorNumber] as? Int ?? 0
             return nil
         }
+        lastError = nil
         return outputDescriptor.stringValue?.trimmingCharacters(
             in: .whitespacesAndNewlines)
     }
@@ -237,6 +285,12 @@ final class NowPlayingManager: ObservableObject {
     static let shared = NowPlayingManager()
 
     @Published private(set) var nowPlaying: NowPlayingSong?
+    /// Why there is nothing playing, when the reason is worth acting on.
+    @Published private(set) var failure: String?
+    /// One read at a time. The timer fires every second and a read can take
+    /// longer than that, so without this a slow player is answered by a
+    /// growing pile of threads all waiting on the same lock.
+    private var isReading = false
     /// Whether artwork may be fetched over the network.
     ///
     /// The only outbound request this application makes. `MediaRemote` hands
@@ -264,10 +318,14 @@ final class NowPlayingManager: ObservableObject {
     /// no Automation grant. Where macOS withholds it the AppleScript path still
     /// covers `Spotify` and `Music`, which is what this did before.
     private func updateNowPlaying() {
+        guard !isReading else { return }
+        isReading = true
         MediaRemoteSource.read { [weak self] snapshot in
             guard let self else { return }
             if let snapshot {
                 self.nowPlaying = Self.song(from: snapshot)
+                self.failure = nil
+                self.isReading = false
                 return
             }
             DispatchQueue.global(qos: .background).async {
@@ -282,8 +340,12 @@ final class NowPlayingManager: ObservableObject {
                         duration: stripped.duration)
                     song = stripped
                 }
+                let reason = NowPlayingProvider.failure
                 DispatchQueue.main.async { [weak self] in
-                    self?.nowPlaying = song
+                    guard let self else { return }
+                    self.nowPlaying = song
+                    self.failure = reason
+                    self.isReading = false
                 }
             }
         }

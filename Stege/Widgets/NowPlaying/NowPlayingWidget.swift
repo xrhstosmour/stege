@@ -38,6 +38,8 @@ struct NowPlayingWidget: View {
                             NowPlayingPopup(configProvider: configProvider)
                         }
                     }
+            } else if let failure = playingManager.failure {
+                unreachable(failure)
             }
         }
         .background(
@@ -54,6 +56,36 @@ struct NowPlayingWidget: View {
         .onAppear {
             playingManager.fetchesArtwork = fetchesArtwork
         }
+    }
+
+    /// A player is running and Stege cannot read what it is playing.
+    ///
+    /// Drawn rather than left blank. Nothing playing and cannot see what is
+    /// playing looked identical from the bar, which is the worst way to report
+    /// a permission that was never granted: the widget simply is not there and
+    /// there is nothing to click to find out why.
+    ///
+    /// It is the same shape as any other mark in the bar rather than the
+    /// capsule a playing track gets, because there is nothing to put in a
+    /// capsule.
+    private func unreachable(_ reason: String) -> some View {
+        Image(systemName: "music.note")
+            .barGlyphBox()
+            .opacity(0.6)
+            .overlay(alignment: .bottomTrailing) {
+                Image(systemName: "exclamationmark.circle.fill")
+                    .font(.system(size: BarStyle.badgeSize))
+                    .foregroundStyle(.orange)
+            }
+            .frame(maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .background(.black.opacity(0.001))
+            .help(reason)
+            .onTapGesture {
+                openSettings(
+                    "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation"
+                )
+            }
     }
 }
 
