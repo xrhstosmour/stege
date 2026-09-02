@@ -13,7 +13,8 @@ class YabaiSpacesProvider: SpacesProvider, SwitchableSpacesProvider {
         do {
             try process.run()
         } catch {
-            print("Yabai error: \(error)")
+            Log.spaces.error(
+                "yabai could not be run: \(error.localizedDescription, privacy: .public)")
             return nil
         }
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
@@ -32,7 +33,8 @@ class YabaiSpacesProvider: SpacesProvider, SwitchableSpacesProvider {
             let spaces = try decoder.decode([YabaiSpace].self, from: data)
             return spaces
         } catch {
-            print("Decode yabai spaces error: \(error)")
+            Log.spaces.error(
+                "yabai returned unreadable spaces: \(error.localizedDescription, privacy: .public)")
             return nil
         }
     }
@@ -48,7 +50,8 @@ class YabaiSpacesProvider: SpacesProvider, SwitchableSpacesProvider {
             let windows = try decoder.decode([YabaiWindow].self, from: data)
             return windows
         } catch {
-            print("Decode yabai windows error: \(error)")
+            Log.spaces.error(
+                "yabai returned unreadable windows: \(error.localizedDescription, privacy: .public)")
             return nil
         }
     }

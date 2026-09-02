@@ -121,7 +121,7 @@ class CalendarManager: ObservableObject {
             let endOfDay = calendar.date(
                 bySettingHour: 23, minute: 59, second: 59, of: now)
         else {
-            print("Failed to get end of day.")
+            Log.calendar.error("Could not work out the end of the day")
             return
         }
         let predicate = eventStore.predicateForEvents(
@@ -146,7 +146,7 @@ class CalendarManager: ObservableObject {
             let endOfDay = calendar.date(
                 bySettingHour: 23, minute: 59, second: 59, of: now)
         else {
-            print("Failed to get end of day.")
+            Log.calendar.error("Could not work out the end of the day")
             return
         }
         let predicate = eventStore.predicateForEvents(
@@ -171,7 +171,7 @@ class CalendarManager: ObservableObject {
             let endOfTomorrow = calendar.date(
                 bySettingHour: 23, minute: 59, second: 59, of: startOfTomorrow)
         else {
-            print("Failed to get tomorrow's date range.")
+            Log.calendar.error("Could not work out tomorrow's range")
             return
         }
         let predicate = eventStore.predicateForEvents(

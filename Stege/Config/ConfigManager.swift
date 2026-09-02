@@ -32,7 +32,8 @@ final class ConfigManager: ObservableObject {
                 chosenPath = path1
             } catch {
                 initError = "Error creating default config: \(error.localizedDescription)"
-                print("Error when creating default config:", error)
+                Log.configuration.error(
+                    "Could not write a default configuration: \(error.localizedDescription, privacy: .public)")
                 return
             }
         }
@@ -57,7 +58,8 @@ final class ConfigManager: ObservableObject {
             // queue, so it has to hop to the main thread like `config` does.
             let message = "Error parsing TOML file: \(error.localizedDescription)"
             DispatchQueue.main.async { self.initError = message }
-            print("Error when parsing TOML file:", error)
+            Log.configuration.error(
+                "Could not parse the configuration: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -161,7 +163,7 @@ final class ConfigManager: ObservableObject {
 
     func updateConfigValue(key: String, newValue: String) {
         guard let path = configFilePath else {
-            print("Config file path is not set")
+            Log.configuration.error("No configuration file path is set")
             return
         }
         do {
@@ -179,7 +181,8 @@ final class ConfigManager: ObservableObject {
                 self.parseConfigFile(at: path)
             }
         } catch {
-            print("Error updating config:", error)
+            Log.configuration.error(
+                "Could not update the configuration: \(error.localizedDescription, privacy: .public)")
         }
     }
 

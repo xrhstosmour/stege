@@ -211,7 +211,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     makePanel(
                         frame: frame,
                         level: Self.barLevel,
-                        hostingRootView: AnyView(MenuBarView()),
+                        hostingRootView: AnyView(
+                            MenuBarView(screenIndex: index + 1)),
                         show: shouldShow))
                 // Above the menu bar rather than behind it, because the whole
                 // point is to stay reachable while the real menu bar is the

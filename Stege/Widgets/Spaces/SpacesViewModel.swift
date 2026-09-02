@@ -15,17 +15,26 @@ class SpacesViewModel: ObservableObject {
     private let safetyNetInterval: TimeInterval = 1.0
 
     init() {
-        let runningApps = NSWorkspace.shared.runningApplications.compactMap {
+        resolveProvider()
+        startMonitoring()
+    }
+
+    /// Which window manager is running, asked again when there was none.
+    ///
+    /// This used to run once, in `init`. Stege starts at login alongside the
+    /// window manager, so whichever of them wins the race decided whether the
+    /// bar had any workspaces at all, and losing it meant an empty left half
+    /// until the application was restarted by hand.
+    private func resolveProvider() {
+        guard provider == nil else { return }
+        let running = NSWorkspace.shared.runningApplications.compactMap {
             $0.localizedName?.lowercased()
         }
-        if runningApps.contains("yabai") {
+        if running.contains("yabai") {
             provider = AnySpacesProvider(YabaiSpacesProvider())
-        } else if runningApps.contains("aerospace") {
+        } else if running.contains("aerospace") {
             provider = AnySpacesProvider(AerospaceSpacesProvider())
-        } else {
-            provider = nil
         }
-        startMonitoring()
     }
 
     deinit {
@@ -67,6 +76,7 @@ class SpacesViewModel: ObservableObject {
     }
 
     private func loadSpaces() {
+        resolveProvider()
         // A refresh spawns processes, so overlapping ones would pile up when
         // several notifications arrive together, which they routinely do.
         guard !isLoading else { return }

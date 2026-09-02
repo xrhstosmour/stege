@@ -1,7 +1,25 @@
 import SwiftUI
 
+/// Which display this bar is drawn on, counting `NSScreen.screens` from one.
+///
+/// The same index `AeroSpace` reports for a workspace's monitor, which is what
+/// lets one bar draw its own display's workspaces and leave the other's alone.
+private struct BarScreenKey: EnvironmentKey {
+    static let defaultValue: Int? = nil
+}
+
+extension EnvironmentValues {
+    var barScreenIndex: Int? {
+        get { self[BarScreenKey.self] }
+        set { self[BarScreenKey.self] = newValue }
+    }
+}
+
 struct MenuBarView: View {
     @ObservedObject var configManager = ConfigManager.shared
+    /// One-based, matching `NSScreen.screens`. Nil when there is only one bar
+    /// or the caller did not say, and then nothing is filtered.
+    var screenIndex: Int?
 
     var body: some View {
         let theme: ColorScheme? =
@@ -32,6 +50,7 @@ struct MenuBarView: View {
         // above every window, so without this the clock is drawn through it.
         .padding(.trailing, configManager.config.experimental.foreground.trailingPadding)
         .background(.black.opacity(0.001))
+        .environment(\.barScreenIndex, screenIndex)
         .preferredColorScheme(theme)
     }
 
