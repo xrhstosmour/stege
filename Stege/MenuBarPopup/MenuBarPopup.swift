@@ -121,8 +121,8 @@ class MenuBarPopup {
                 / 1000.0
             let duration = isContentChange ? baseDuration / 2 : baseDuration
             DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
-                panel.contentView = NSHostingView(
-                    rootView: placed(
+                panel.contentView = hosted(
+                    placed(
                         rect: rect, screenFrame: screenFrame, content: content))
                 panel.makeKeyAndOrderFront(nil)
                 DispatchQueue.main.async {
@@ -131,8 +131,8 @@ class MenuBarPopup {
                 }
             }
         } else {
-            panel.contentView = NSHostingView(
-                rootView: placed(
+            panel.contentView = hosted(
+                placed(
                     rect: rect, screenFrame: screenFrame, content: content))
             panel.makeKeyAndOrderFront(nil)
             DispatchQueue.main.async {
@@ -140,6 +140,16 @@ class MenuBarPopup {
                     name: .willShowWindow, object: nil)
             }
         }
+    }
+
+    /// The panel is the whole screen and the popup hangs from its top edge, so
+    /// the safe area has to be the panel's own rather than the display's. On a
+    /// notched built-in display the display's starts 32 points down, which
+    /// pushed every popup that far below the bar it belongs to.
+    private static func hosted<Content: View>(_ view: Content) -> NSHostingView<Content> {
+        let hosting = NSHostingView(rootView: view)
+        hosting.safeAreaRegions = []
+        return hosting
     }
 
     /// The popup, laid against the top edge of the screen-sized panel.
