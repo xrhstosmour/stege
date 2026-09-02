@@ -157,6 +157,16 @@ enum MusicApp: String, CaseIterable {
     var nextTrackCommand: String {
         timed("tell application \"\(rawValue)\" to next track")
     }
+
+    /// Both players take a position in seconds. Interpolating a `Double` in
+    /// Swift always writes a full stop, which matters because `AppleScript`
+    /// itself is happy to read a comma as a separator under a Greek locale and
+    /// would then land somewhere else in the track.
+    func seekCommand(to seconds: Double) -> String {
+        timed(
+            "tell application \"\(rawValue)\" to set player position to "
+                + "\(seconds)")
+    }
 }
 
 // MARK: - Now Playing Provider
@@ -405,6 +415,12 @@ final class NowPlayingManager: ObservableObject {
             position: snapshot.position,
             duration: snapshot.duration,
             artwork: snapshot.artwork)
+    }
+
+    /// Moves the playhead. The bar under the artwork was a `ProgressView`,
+    /// which reports and cannot be moved.
+    func seek(to seconds: Double) {
+        NowPlayingProvider.executeCommand { $0.seekCommand(to: seconds) }
     }
 
     /// Skips to the previous track.

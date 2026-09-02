@@ -107,6 +107,8 @@ struct AudioPopup: View {
     /// and what is coming out of it, and the second used to need a widget of
     /// its own in the bar to answer.
     @ObservedObject private var playing = NowPlayingManager.shared
+    /// Where the playhead has been dragged to, while it is being dragged.
+    @State private var scrubbedTo: Double?
     let scope: AudioScope
     /// Whether the artwork may be fetched over the network. Read from the
     /// audio widget's own settings now that the now playing widget, which used
@@ -266,11 +268,8 @@ struct AudioPopup: View {
                 }
                 .popupStaticRow()
 
-                if let elapsed = progress {
-                    ProgressView(value: elapsed)
-                        .progressViewStyle(.linear)
-                        .controlSize(.small)
-                        .popupStaticRow()
+                if let duration = song.duration, duration > 0 {
+                    scrubber(for: song, duration: duration)
                 }
             }
         } else if let failure = playing.failure {
@@ -282,13 +281,51 @@ struct AudioPopup: View {
         }
     }
 
-    /// Where the track has got to, when the player reports both numbers.
-    private var progress: Double? {
-        guard let song = playing.nowPlaying,
-            let position = song.position,
-            let duration = song.duration, duration > 0
-        else { return nil }
-        return min(1, max(0, position / duration))
+    /// Where the track has got to, and a way of moving it.
+    ///
+    /// While a drag is in progress the slider shows the dragged value rather
+    /// than the polled one, because the poll is a second behind and would drag
+    /// the knob back out from under the pointer. The seek is sent once, on
+    /// release, not on every frame of the drag: each one is an Apple Event.
+    private func scrubber(for song: NowPlayingSong, duration: Double)
+        -> some View
+    {
+        let elapsed = scrubbedTo ?? min(duration, max(0, song.position ?? 0))
+        return HStack(spacing: 8) {
+            Text(Self.time(elapsed))
+                .font(.system(size: PopupStyle.captionSize))
+                .monospacedDigit()
+                .opacity(0.6)
+                .frame(width: 34, alignment: .leading)
+
+            Slider(
+                value: Binding(
+                    get: { elapsed },
+                    set: { scrubbedTo = $0 }),
+                in: 0...duration,
+                onEditingChanged: { isEditing in
+                    guard !isEditing, let target = scrubbedTo else { return }
+                    playing.seek(to: target)
+                    // Held a moment longer than the poll interval, so the knob
+                    // does not snap back to the old position for one tick
+                    // before the player reports the new one.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                        scrubbedTo = nil
+                    }
+                })
+
+            Text(Self.time(duration))
+                .font(.system(size: PopupStyle.captionSize))
+                .monospacedDigit()
+                .opacity(0.6)
+                .frame(width: 34, alignment: .trailing)
+        }
+        .popupStaticRow()
+    }
+
+    private static func time(_ seconds: Double) -> String {
+        let total = Int(seconds.rounded())
+        return String(format: "%d:%02d", total / 60, total % 60)
     }
 
     /// One half of the popup.
