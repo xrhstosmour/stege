@@ -113,11 +113,19 @@ struct BatteryWidget: View {
     private var symbolTint: Color {
         if isCharging { return .green }
         if level <= criticalLevel { return .red }
-        if level <= warningLevel { return .yellow }
+        if level <= warningLevel { return .orange }
         return Color("Foreground Outside")
     }
 
     /// The outline, the level filled in behind it, and the number in the body.
+    ///
+    /// The number is drawn once, in the bar's own foreground, over a fill kept
+    /// dark enough to read it against. It used to be drawn twice, each copy
+    /// clipped to one side of the fill edge, dark on the filled part and light
+    /// on the empty part, because the fill was full-strength white. That meant
+    /// a battery at anything but nearly full or nearly empty put the edge
+    /// through the middle of the digits and drew half of each one in each
+    /// colour, which is the least legible place the edge could be.
     private var insideBody: some View {
         ZStack(alignment: .leading) {
             BatteryBodyView(mask: false)
@@ -126,16 +134,7 @@ struct BatteryWidget: View {
                 .clipShape(Rectangle().path(in: fillRect))
                 .foregroundStyle(batteryColor)
 
-            // The number is drawn twice, each copy clipped to the side of the
-            // fill edge it falls on: dark where it sits on the level, light
-            // where it sits on the empty part of the body. One colour cannot
-            // do both. It used to be dark everywhere, which was legible only
-            // because the fill was pale, and a battery down to a fifth put its
-            // number on the empty part where dark on dark says nothing.
             batteryText.foregroundStyle(Color("Foreground Outside"))
-            batteryText
-                .foregroundStyle(Color("Foreground Outside Invert"))
-                .clipShape(Rectangle().path(in: fillRect))
         }
         .frame(width: 30, height: 10)
     }
@@ -179,16 +178,19 @@ struct BatteryWidget: View {
 
     /// The level behind the number.
     ///
-    /// Green while charging, red past the critical level, yellow past the
-    /// warning, and otherwise the bar's own foreground at full strength. It
-    /// used to be dimmed to 35% so the battery would not be the brightest
-    /// thing in the bar, which made a healthy battery read as an empty one at
-    /// a glance. The number sitting inside it is what keeps it legible.
+    /// Every one of these is dark enough that white digits read on top of it,
+    /// which is the constraint the whole thing is drawn under: the number sits
+    /// inside the battery, so the fill is a background before it is anything
+    /// else. Yellow is the one this rules out, since white on yellow is barely
+    /// two to one, and it is orange here for that reason and no other.
+    ///
+    /// It is still bright enough against the empty part of the body, which is
+    /// the bar's black, that the level reads at a glance.
     private var batteryColor: Color {
-        if isCharging { return .green }
+        if isCharging { return .green.opacity(0.7) }
         if level <= criticalLevel { return .red }
-        if level <= warningLevel { return .yellow }
-        return Color("Foreground Outside")
+        if level <= warningLevel { return .orange.opacity(0.8) }
+        return Color("Foreground Outside").opacity(0.5)
     }
 }
 
@@ -204,8 +206,12 @@ private struct BatteryText: View {
     var body: some View {
         HStack(alignment: .center, spacing: -1) {
             if showPercentage {
+                // Ten, not twelve. At twelve the digits stood taller than the
+                // ten point body they sit in, so they crossed the outline top
+                // and bottom and the number read as printed over the battery
+                // rather than inside it.
                 Text("\(level)")
-                    .font(.system(size: 12))
+                    .font(.system(size: 10))
                     .transition(.blurReplace)
             }
 
@@ -214,19 +220,19 @@ private struct BatteryText: View {
             // made the one unambiguous state the only one with nothing to say.
             if isCharging {
                 Image(systemName: "bolt.fill")
-                    .font(.system(size: showPercentage ? 8 : 10))
+                    .font(.system(size: showPercentage ? 7 : 10))
             }
 
             if !isCharging && isPluggedIn {
                 Image(systemName: "powerplug.portrait.fill")
-                    .font(.system(size: 8))
+                    .font(.system(size: 7))
                     .padding(.leading, 1)
             }
         }
         .fontWeight(.semibold)
         .transition(.blurReplace)
         .animation(.smooth, value: isCharging)
-        .frame(width: 26, height: 15)
+        .frame(width: 26, height: 10)
     }
 }
 
