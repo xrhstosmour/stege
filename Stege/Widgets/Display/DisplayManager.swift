@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import CoreGraphics
+import IOKit
 import Darwin
 
 /// One display attached to the machine.
@@ -60,6 +61,13 @@ final class DisplayManager: ObservableObject {
     @Published private(set) var isTrueToneOn = false
     /// Whether the displays are showing the same picture.
     @Published private(set) var isMirrored = false
+    /// Whether this is a laptop running with the lid shut.
+    ///
+    /// The built-in panel is still there, it is simply not online, so it is
+    /// missing from the list rather than listed as off. Worth saying: a laptop
+    /// in clamshell has no brightness slider, no True Tone, and nothing here
+    /// can explain why unless it says the lid is closed.
+    @Published private(set) var isLidClosed = false
     /// Set when a control could not be reached at all, so the popup can say so
     /// rather than drawing a switch that does nothing.
     @Published private(set) var failure: String?
@@ -105,6 +113,7 @@ final class DisplayManager: ObservableObject {
     func refresh() {
         displays = Self.activeDisplays()
         isMirrored = CGDisplayIsInMirrorSet(CGMainDisplayID()) != 0
+        isLidClosed = Self.readLidClosed()
         isNightShiftOn = Self.readNightShift()
         nightShiftStrength = Self.readNightShiftStrength()
         isTrueToneAvailable = Self.readTrueToneAvailable()
@@ -132,6 +141,26 @@ final class DisplayManager: ObservableObject {
         // The built-in panel first, which is the one a laptop's brightness keys
         // act on and the one most people mean.
         .sorted { $0.isBuiltIn && !$1.isBuiltIn }
+    }
+
+    /// Whether the lid is shut, straight from the power management root.
+    ///
+    /// `AppleClamshellState` is published by `IOPMrootDomain` and is 1 while
+    /// the lid is closed. Its absence is the answer for a desktop, which has no
+    /// lid to ask about, so no separate laptop test is needed. Inferring it
+    /// from a missing built-in display in `CGGetOnlineDisplayList` would work
+    /// too, but `hw.model` on Apple Silicon is `Mac16,12` with nothing in it to
+    /// say whether the machine is a laptop, so there would be no way to tell a
+    /// closed lid from a Mac mini.
+    private static func readLidClosed() -> Bool {
+        let root = IOServiceGetMatchingService(
+            kIOMainPortDefault, IOServiceMatching("IOPMrootDomain"))
+        guard root != 0 else { return false }
+        defer { IOObjectRelease(root) }
+        let value = IORegistryEntryCreateCFProperty(
+            root, "AppleClamshellState" as CFString, kCFAllocatorDefault, 0)
+        return (value?.takeRetainedValue() as? Bool) == true
+            || (value?.takeRetainedValue() as? Int) == 1
     }
 
     /// The name macOS shows in System Settings, where it publishes one.
