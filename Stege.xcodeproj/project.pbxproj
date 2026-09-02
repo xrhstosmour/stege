@@ -302,10 +302,10 @@
 				INFOPLIST_FILE = Stege/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Stege;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
-				INFOPLIST_KEY_NSAppleEventsUsageDescription = "We need this permission for control of third-party media players via an interactive widget";
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Stege reads what Spotify and Music are playing, and passes on play, pause and skip.";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Stege shows today's events in the clock popup and counts down to the next one.";
-				INFOPLIST_KEY_NSHumanReadableCopyright = Pansy;
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "This app uses location permission for display WiFi network name";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "macOS only reveals the name of the Wi-Fi network you are on to an app with this permission.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -336,10 +336,10 @@
 				INFOPLIST_FILE = Stege/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Stege;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
-				INFOPLIST_KEY_NSAppleEventsUsageDescription = "We need this permission for control of third-party media players via an interactive widget";
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Stege reads what Spotify and Music are playing, and passes on play, pause and skip.";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Stege shows today's events in the clock popup and counts down to the next one.";
-				INFOPLIST_KEY_NSHumanReadableCopyright = Pansy;
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "This app uses location permission for display WiFi network name";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "macOS only reveals the name of the Wi-Fi network you are on to an app with this permission.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
