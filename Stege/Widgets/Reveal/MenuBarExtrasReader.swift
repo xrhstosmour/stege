@@ -138,7 +138,7 @@ final class MenuBarExtrasReader: ObservableObject {
                         id: "\(application.bundleIdentifier ?? "\(pid)")-\(index)",
                         name: application.localizedName ?? "",
                         bundleIdentifier: application.bundleIdentifier,
-                        icon: glyph ?? application.icon,
+                        icon: glyph ?? flattenedIcon(for: application),
                         isMenuBarGlyph: glyph != nil,
                         position: position(of: item).x,
                         element: item))
@@ -182,6 +182,42 @@ final class MenuBarExtrasReader: ObservableObject {
     }
 
     // MARK: - Accessibility
+
+    /// The application's own icon, drawn once into a plain bitmap.
+    ///
+    /// `NSRunningApplication.icon` hands back an image carrying more than
+    /// thirty `NSISIconImageRep`s, macOS 26's compiled icon representation, at
+    /// every size from 16 to 2048 points. Handed straight to SwiftUI at bar
+    /// size, one of those was picking the wrong representation and drawing a
+    /// smeared band of colour instead of the icon: `Docker` in particular came
+    /// out as coloured noise in a rounded frame. Rasterising it here, once,
+    /// through `NSImage.draw` picks the representation the same way every
+    /// other part of macOS does and leaves SwiftUI a single flat bitmap to
+    /// scale.
+    ///
+    /// 64 points rather than the 18 the bar draws, so a larger `icon-size`
+    /// still has pixels to work with.
+    private static func flattenedIcon(
+        for application: NSRunningApplication
+    ) -> NSImage? {
+        let key = (application.bundleIdentifier
+            ?? application.bundleURL?.path ?? "") as NSString
+        if let cached = iconCache.object(forKey: key) { return cached }
+        guard let icon = application.icon else { return nil }
+
+        let size = NSSize(width: 64, height: 64)
+        let flat = NSImage(size: size)
+        flat.lockFocus()
+        NSGraphicsContext.current?.imageInterpolation = .high
+        icon.draw(in: NSRect(origin: .zero, size: size))
+        flat.unlockFocus()
+
+        iconCache.setObject(flat, forKey: key)
+        return flat
+    }
+
+    /// One rasterisation per application, for the same reason as `glyphCache`.
+    private static let iconCache = NSCache<NSString, NSImage>()
 
     /// The glyph the application actually draws in the menu bar, when it can
     /// be found at all.

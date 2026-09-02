@@ -253,6 +253,7 @@ struct RevealWidget: View {
                     Image(systemName: "app.dashed").resizable()
                 }
             }
+            .scaledToFit()
             .frame(width: iconSize, height: iconSize)
             .grayscale(isMonochrome ? 1 : 0)
             // Enough contrast to read against black, but not lifted towards
