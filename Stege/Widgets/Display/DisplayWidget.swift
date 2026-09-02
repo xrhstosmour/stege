@@ -173,32 +173,17 @@ struct DisplayPopup: View {
                     .popupStaticRow()
             }
 
-            if manager.displays.count > 1 {
-                PopupSeparator()
-
-                HStack(spacing: 10) {
-                    Image(systemName: "rectangle.on.rectangle")
-                        .font(.system(size: PopupStyle.bodySize))
-                        .foregroundStyle(
-                            manager.isMirrored ? Color.blue : .secondary
-                        )
-                        .frame(width: PopupStyle.iconColumn)
-                    Text("Mirror Displays")
-                        .font(.system(size: PopupStyle.bodySize))
-                    Spacer(minLength: 8)
-                    PopupSwitch(isOn: manager.isMirrored) {
-                        manager.setMirroring(!manager.isMirrored)
-                    }
-                }
-                .popupStaticRow()
-            }
-
             ForEach(manager.displays) { display in
                 resolutions(for: display)
             }
 
             PopupSeparator()
 
+            // Where AirPlay lives too. macOS keeps the receiver list behind an
+            // Apple-only entitlement: every system output context,
+            // `sharedSystemScreenContext` among them, answers an ordinary
+            // application with nil, so there is nothing to draw a list from,
+            // and this pane is where those receivers are offered.
             PopupSettingsRow(title: "Display Settings") {
                 openSettings(
                     "x-apple.systempreferences:com.apple.Displays-Settings.extension"

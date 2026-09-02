@@ -155,19 +155,20 @@ refresh-interval = 30          # minutes; reading Homebrew forks a process
 
 # The screen. Brightness in the bar and on the scroll wheel, and in the popup
 # a brightness slider per display, the resolution and refresh rate of each one,
-# a mirror switch when there is more than one, Night Shift and True Tone. A
-# resolution picked here is applied for the login session only, never written
-# permanently.
+# Night Shift and True Tone. A resolution picked here is applied for the login
+# session only, never written permanently.
 #
 # An external monitor's slider talks DDC/CI over the display cable, the same
 # protocol its own buttons use, so it moves the backlight rather than dimming
 # the picture in software. A monitor that does not answer says so instead of
 # showing a slider that does nothing.
 #
-# AirPlay screen mirroring is not here. macOS keeps the receiver list behind
-# an Apple-only entitlement: every system output context answers an ordinary
-# application with nothing, so there is no honest way to list or pick one.
-# Display Settings at the bottom of the popup is where that lives.
+# There is no mirror switch. Mirroring two attached monitors onto each other is
+# not what people mean by screen mirroring, and AirPlay, which is, cannot be
+# offered: macOS keeps the receiver list behind an Apple-only entitlement, so
+# every system output context answers an ordinary application with nothing.
+# Display Settings at the bottom of the popup is where AirPlay receivers are
+# offered, under Add Display.
 [widgets.default.display]
 # Brightness in the bar, with Night Shift and True Tone in the popup. All three
 # are set directly, so nothing opens a system panel. Scrolling the icon changes

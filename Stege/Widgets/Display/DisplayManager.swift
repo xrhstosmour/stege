@@ -60,6 +60,10 @@ final class DisplayManager: ObservableObject {
     @Published private(set) var isTrueToneAvailable = false
     @Published private(set) var isTrueToneOn = false
     /// Whether the displays are showing the same picture.
+    ///
+    /// Read only. The switch that set it is gone: mirroring two attached
+    /// monitors is not what people mean by screen mirroring, and System
+    /// Settings can still turn it on, in which case the bar should say so.
     @Published private(set) var isMirrored = false
     /// Whether this is a laptop running with the lid shut.
     ///
@@ -250,35 +254,6 @@ final class DisplayManager: ObservableObject {
             return
         }
         refresh()
-    }
-
-    // MARK: - Mirroring
-
-    /// Every display shows what the main one shows, or none of them do.
-    func setMirroring(_ on: Bool) {
-        var configuration: CGDisplayConfigRef?
-        guard CGBeginDisplayConfiguration(&configuration) == .success,
-            let configuration
-        else {
-            failure = "Mirroring could not be changed"
-            return
-        }
-        let main = CGMainDisplayID()
-        for display in displays where display.id != main {
-            CGConfigureDisplayMirrorOfDisplay(
-                configuration, display.id, on ? main : kCGNullDirectDisplay)
-        }
-        guard CGCompleteDisplayConfiguration(configuration, .forSession)
-            == .success
-        else {
-            failure = "Mirroring could not be changed"
-            return
-        }
-        // The display list changes shape when mirroring turns on, and the
-        // system takes a moment to settle before it reports the new one.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
-            self?.refresh()
-        }
     }
 
     // MARK: - Brightness
