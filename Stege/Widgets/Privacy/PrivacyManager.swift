@@ -12,8 +12,13 @@ import Foundation
 final class PrivacyManager: ObservableObject {
     @Published private(set) var isMicrophoneActive = false
     @Published private(set) var isCameraActive = false
+    /// Read a different way from the other two, because macOS exposes no
+    /// device property for it. See `ScreenRecordingReader`.
+    @Published private(set) var isScreenRecordingActive = false
 
     private var timer: Timer?
+    /// One read at a time. A slow answer must not queue the next tick behind it.
+    private var isReadingScreenRecording = false
 
     /// CoreAudio and CoreMediaIO expose "is something using this device" as a
     /// property but post no notification when it changes, so this is polled.
@@ -36,10 +41,31 @@ final class PrivacyManager: ObservableObject {
     private func refresh() {
         let microphone = PrivacyManager.isAnyAudioInputRunning()
         let camera = PrivacyManager.isAnyCameraRunning()
-        guard microphone != isMicrophoneActive || camera != isCameraActive
-        else { return }
-        isMicrophoneActive = microphone
-        isCameraActive = camera
+        if microphone != isMicrophoneActive || camera != isCameraActive {
+            isMicrophoneActive = microphone
+            isCameraActive = camera
+        }
+        refreshScreenRecording()
+    }
+
+    /// Off the main thread, unlike the two above.
+    ///
+    /// Those are in-process property lookups. This one crosses into Control
+    /// Center over the accessibility API, several round trips of it, and an
+    /// application that is slow to answer would stall the bar for as long as it
+    /// took, every two seconds.
+    private func refreshScreenRecording() {
+        guard !isReadingScreenRecording else { return }
+        isReadingScreenRecording = true
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let recording = ScreenRecordingReader.isRecording()
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.isReadingScreenRecording = false
+                guard recording != self.isScreenRecordingActive else { return }
+                self.isScreenRecordingActive = recording
+            }
+        }
     }
 
     // MARK: - Microphone

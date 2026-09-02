@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// Orange when the microphone is in use, green when the camera is, mirroring the
-/// indicators macOS draws in the menu bar that Stege covers up.
+/// Orange when the microphone is in use, green when the camera is, purple when
+/// the screen is being recorded, mirroring the indicators macOS draws in the
+/// menu bar that Stege covers up.
 struct PrivacyWidget: View {
     @EnvironmentObject var configProvider: ConfigProvider
     var config: ConfigData { configProvider.config }
@@ -33,10 +34,22 @@ struct PrivacyWidget: View {
                     .help(
                         manager.isCameraActive ? "Camera in use" : "Camera idle")
             }
+            if manager.isScreenRecordingActive || alwaysShow {
+                // Purple, which is the colour macOS uses for it.
+                indicator(
+                    symbol: "rectangle.dashed.badge.record", color: .purple
+                )
+                .opacity(manager.isScreenRecordingActive ? 1 : 0.3)
+                .help(
+                    manager.isScreenRecordingActive
+                        ? "Screen being recorded" : "Screen not being recorded")
+            }
         }
         .frame(maxHeight: .infinity)
         .animation(.smooth(duration: 0.2), value: manager.isMicrophoneActive)
         .animation(.smooth(duration: 0.2), value: manager.isCameraActive)
+        .animation(
+            .smooth(duration: 0.2), value: manager.isScreenRecordingActive)
     }
 
     @ViewBuilder
