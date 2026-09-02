@@ -205,7 +205,13 @@ struct VisibleNowPlayingContent: View {
         NowPlayingContent(song: song, style: style)
             .frame(width: width)
             .frame(maxHeight: .infinity)
-            .animation(.smooth(duration: 0.1), value: song)
+            // Keyed on what is drawn, not on the whole song. A song carries
+            // its own playback position, which moves every second, so
+            // animating on the song ran a tenth of a second of animation over
+            // the whole item once a second, for ever, while nothing about it
+            // had changed.
+            .animation(.smooth(duration: 0.1), value: song.id)
+            .animation(.smooth(duration: 0.1), value: song.state)
             .transition(.blurReplace)
     }
 }
