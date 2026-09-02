@@ -157,7 +157,7 @@ final class AppMenusReveal: ObservableObject {
                 $0.frame.contains(location)
             }) ?? NSScreen.main
         else { return false }
-        let height = ConfigManager.shared.config.experimental.foreground
+        let height = ConfigManager.shared.config.bar.foreground
             .resolveHeight()
         guard screen.frame.maxY - location.y <= height else { return false }
         return spans.values.contains { $0.contains(location.x) }

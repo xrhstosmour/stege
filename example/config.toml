@@ -20,16 +20,16 @@ hidden = false
 # The bar, left to right. Remove an entry to hide that widget entirely.
 # "spacer" pushes everything after it to the right, "divider" draws a separator.
 displayed = [
-    "default.applemenu",
+    "default.appleMenu",
     "default.spaces",
-    "default.appmenus",
+    "default.applicationMenu",
     "spacer",
     "default.reveal",
     "default.monitor",
     "default.privacy",
     "default.stayawake",
     "default.updates",
-    "default.keyboardlayout",
+    "default.keyboardLayout",
     "default.display",
     "default.audio",
     "default.microphone",
@@ -43,7 +43,7 @@ displayed = [
 
 # --- Left ------------------------------------------------------------------
 
-[widgets.default.applemenu]
+[widgets.default.appleMenu]
 icon-size = 14
 # The short menu, drawn in the bar's own style, with About This Mac,
 # System Information, Log Out, Restart and Shut Down. Set to false to hand
@@ -58,7 +58,7 @@ window.title.max-length = 50
 # Always show the app name rather than the window title for these.
 window.title.always-display-app-name-for = ["Mail", "Chrome", "Arc"]
 
-[widgets.default.appmenus]
+[widgets.default.applicationMenu]
 max-menus = 6                  # Chrome exposes 11, which crowds a laptop bar
 # Draws the application's own name menu, the first one, in bold, as macOS
 # does. That menu is always shown either way, since it holds About and Quit.
@@ -78,7 +78,9 @@ mode = "extras"                # append the other apps' status items, or "collap
 icon-size = 18                 # extras only: how big those icons are drawn
 icon-style = "colour"          # extras only: as the apps ship them, or "monochrome"
 always-show = []               # extras only: bundle ids kept in the bar permanently
-hidden = []                    # extras only: bundle ids that never appear
+# Bundle ids that never appear, behind the chevron or otherwise. Right-clicking
+# an icon in the row and choosing Hide adds it here, so it stays gone.
+hidden = []
 sticky = true                  # collapse only: stay away until the corner button is pressed
 return-threshold = 80          # collapse + sticky = false: points the pointer must drop first
 timeout = 10                   # collapse + sticky = false: seconds before it returns
@@ -151,7 +153,7 @@ show-percentage = false        # the icon already conveys the level
 # can be refused.
 fetch-artwork = true
 
-[widgets.default.keyboardlayout]
+[widgets.default.keyboardLayout]
 show-full-name = false         # "Greek" rather than "GR"
 
 [widgets.default.bluetooth]
@@ -191,20 +193,20 @@ view-variant = "box"
 
 # --- Appearance ------------------------------------------------------------
 
-[experimental.background]
+[bar.background]
 displayed = true
 # 1 to 6 blur the desktop behind the bar. 7 is solid black, which makes the
 # notch disappear into the bar on a notched display.
 blur = 7
 height = "menu-bar"            # menu-bar, default, or a number of points
 
-[experimental.foreground]
+[bar.foreground]
 height = "menu-bar"
 horizontal-padding = 12
-# Extra clearance on the right only. macOS draws its recording dot in the top
-# corner above every window, including this one, and nothing can cover it, so
-# the bar stops short of it rather than having the clock drawn through. Set to
-# 0 to reclaim the space.
-trailing-padding = 26
+# Extra clearance on the right only, on top of horizontal-padding. macOS draws
+# its recording dot in the top corner above every window, including this one,
+# and nothing can cover it. The dot sits 6 to 11 points in from the edge, so
+# horizontal-padding already clears it and this only buys a visible gap.
+trailing-padding = 4
 spacing = 10
 

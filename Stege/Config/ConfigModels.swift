@@ -7,7 +7,7 @@ struct RootToml: Decodable {
     var toggleShortcut: String?
     var yabai: YabaiConfig?
     var aerospace: AerospaceConfig?
-    var experimental: ExperimentalConfig?
+    var bar: BarConfig?
     var widgets: WidgetsSection
 
     enum CodingKeys: String, CodingKey {
@@ -16,7 +16,7 @@ struct RootToml: Decodable {
         case toggleShortcut = "toggle-shortcut"
         case yabai
         case aerospace
-        case experimental
+        case bar
         case widgets
     }
 
@@ -65,8 +65,8 @@ struct Config {
         rootToml.aerospace ?? AerospaceConfig()
     }
     
-    var experimental: ExperimentalConfig {
-        rootToml.experimental ?? ExperimentalConfig()
+    var bar: BarConfig {
+        rootToml.bar ?? BarConfig()
     }
 }
 
@@ -276,7 +276,7 @@ struct AerospaceConfig: Decodable {
     }
 }
 
-struct ExperimentalConfig: Decodable {
+struct BarConfig: Decodable {
     let foreground: ForegroundConfig
     let background: BackgroundConfig
     

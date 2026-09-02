@@ -12,7 +12,7 @@ struct BackgroundView: View {
             }
         }()
         
-        let height = configManager.config.experimental.background.resolveHeight()
+        let height = configManager.config.bar.background.resolveHeight()
         
         return Color.clear
             .frame(height: height ?? geometry.size.height)
@@ -21,15 +21,15 @@ struct BackgroundView: View {
     }
     
     var body: some View {
-        if configManager.config.experimental.background.displayed {
+        if configManager.config.bar.background.displayed {
             GeometryReader { geometry in
-                if configManager.config.experimental.background.black {
+                if configManager.config.bar.background.black {
                     spacer(geometry)
                         .background(.black)
                         .id("black")
                 } else {
                     spacer(geometry)
-                        .background(configManager.config.experimental.background.blur)
+                        .background(configManager.config.bar.background.blur)
                         .id("blur")
                 }
             }

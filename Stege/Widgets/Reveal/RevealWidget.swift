@@ -93,6 +93,22 @@ struct RevealWidget: View {
         config[key]?.arrayValue?.compactMap { $0.stringValue } ?? []
     }
 
+    /// Adds the item's application to the `hidden` list in the configuration
+    /// file, which is what makes it stay gone. The file is watched, so the row
+    /// redraws without it as soon as the write lands.
+    ///
+    /// This is the one thing macOS's own Menu Bar settings do that the row
+    /// otherwise could not: pick an item and never see it again.
+    private func hide(_ item: MenuBarExtraItem) {
+        guard let bundle = item.bundleIdentifier, !hidden.contains(bundle) else {
+            return
+        }
+        let updated = (hidden + [bundle]).map { "\"\($0)\"" }
+            .joined(separator: ", ")
+        ConfigManager.shared.updateConfigValue(
+            key: "widgets.default.reveal.hidden", rawValue: "[\(updated)]")
+    }
+
     private func matches(_ item: MenuBarExtraItem, _ list: [String]) -> Bool {
         guard let bundle = item.bundleIdentifier else { return false }
         return list.contains(bundle)
@@ -129,7 +145,7 @@ struct RevealWidget: View {
     /// The gap the rest of the bar uses, so the appended icons keep the row's
     /// rhythm rather than sitting closer together than everything else.
     private var spacing: CGFloat {
-        ConfigManager.shared.config.experimental.foreground.spacing
+        ConfigManager.shared.config.bar.foreground.spacing
     }
 
     var body: some View {
@@ -244,7 +260,7 @@ struct RevealWidget: View {
                 .scaledToFit()
                 .frame(width: iconSize, height: iconSize)
                 .foregroundStyle(Color("Foreground Outside"))
-                .modifier(ExtraIconInteraction(item: item, reader: reader))
+                .modifier(ExtraIconInteraction(item: item, reader: reader, hide: hide))
         } else {
             Group {
                 if let icon = item.icon {
@@ -253,6 +269,7 @@ struct RevealWidget: View {
                     Image(systemName: "app.dashed").resizable()
                 }
             }
+            .scaledToFit()
             .frame(width: iconSize, height: iconSize)
             .grayscale(isMonochrome ? 1 : 0)
             // Enough contrast to read against black, but not lifted towards
@@ -261,7 +278,7 @@ struct RevealWidget: View {
             // borrowed half of the row the brightest thing in it.
             .contrast(isMonochrome ? 1.2 : 1)
             .opacity(isMonochrome ? 0.85 : 1)
-            .modifier(ExtraIconInteraction(item: item, reader: reader))
+            .modifier(ExtraIconInteraction(item: item, reader: reader, hide: hide))
         }
     }
 }
@@ -271,12 +288,18 @@ struct RevealWidget: View {
 private struct ExtraIconInteraction: ViewModifier {
     let item: MenuBarExtraItem
     let reader: MenuBarExtrasReader
+    let hide: (MenuBarExtraItem) -> Void
 
     func body(content: Content) -> some View {
         content
             .contentShape(Rectangle())
             .onTapGesture { reader.press(item) }
             .help(item.name)
+            .contextMenu {
+                if item.bundleIdentifier != nil {
+                    Button("Hide \(item.name)") { hide(item) }
+                }
+            }
     }
 }
 

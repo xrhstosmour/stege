@@ -55,7 +55,7 @@ final class PermissionsModel: ObservableObject {
                 settingsURL:
                     "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
                 isGranted: AppMenuReader.isTrusted,
-                isRequired: uses(["default.appmenus", "default.applemenu"])),
+                isRequired: uses(["default.applicationMenu", "default.appleMenu"])),
             PermissionItem(
                 id: .bluetooth,
                 title: "Bluetooth",

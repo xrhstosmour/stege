@@ -105,7 +105,7 @@ final class ConfigManager: ObservableObject {
             [widgets.default.time.popup]
             view-variant = "box"
 
-            [experimental.background]
+            [bar.background]
             displayed = true
             """
         try defaultTOML.write(toFile: path, atomically: true, encoding: .utf8)
@@ -162,6 +162,12 @@ final class ConfigManager: ObservableObject {
     }
 
     func updateConfigValue(key: String, newValue: String) {
+        updateConfigValue(key: key, rawValue: "\"\(newValue)\"")
+    }
+
+    /// Writes the value exactly as given, for anything that is not a string:
+    /// an array, a number, a boolean.
+    func updateConfigValue(key: String, rawValue: String) {
         guard let path = configFilePath else {
             Log.configuration.error("No configuration file path is set")
             return
@@ -169,7 +175,7 @@ final class ConfigManager: ObservableObject {
         do {
             let currentText = try String(contentsOfFile: path, encoding: .utf8)
             let updatedText = updatedTOMLString(
-                original: currentText, key: key, newValue: newValue)
+                original: currentText, key: key, rawValue: rawValue)
             // Atomically, because this is the user's own file and it is
             // rewritten whole. A failure part way through a direct write leaves
             // it truncated, and the file watcher would then reload whatever
@@ -187,7 +193,7 @@ final class ConfigManager: ObservableObject {
     }
 
     private func updatedTOMLString(
-        original: String, key: String, newValue: String
+        original: String, key: String, rawValue: String
     ) -> String {
         if key.contains(".") {
             let components = key.split(separator: ".").map(String.init)
@@ -209,7 +215,7 @@ final class ConfigManager: ObservableObject {
                 let trimmed = line.trimmingCharacters(in: .whitespaces)
                 if trimmed.hasPrefix("[") && trimmed.hasSuffix("]") {
                     if insideTargetTable && !updatedKey {
-                        newLines.append("\(actualKey) = \"\(newValue)\"")
+                        newLines.append("\(actualKey) = \(rawValue)")
                         updatedKey = true
                     }
                     if trimmed == tableHeader {
@@ -226,7 +232,7 @@ final class ConfigManager: ObservableObject {
                         if line.range(of: pattern, options: .regularExpression)
                             != nil
                         {
-                            newLines.append("\(actualKey) = \"\(newValue)\"")
+                            newLines.append("\(actualKey) = \(rawValue)")
                             updatedKey = true
                             continue
                         }
@@ -236,13 +242,13 @@ final class ConfigManager: ObservableObject {
             }
 
             if foundTable && insideTargetTable && !updatedKey {
-                newLines.append("\(actualKey) = \"\(newValue)\"")
+                newLines.append("\(actualKey) = \(rawValue)")
             }
 
             if !foundTable {
                 newLines.append("")
                 newLines.append("[\(tablePath)]")
-                newLines.append("\(actualKey) = \"\(newValue)\"")
+                newLines.append("\(actualKey) = \(rawValue)")
             }
             return newLines.joined(separator: "\n")
         } else {
@@ -258,7 +264,7 @@ final class ConfigManager: ObservableObject {
                     if line.range(of: pattern, options: .regularExpression)
                         != nil
                     {
-                        newLines.append("\(key) = \"\(newValue)\"")
+                        newLines.append("\(key) = \(rawValue)")
                         updatedAtLeastOnce = true
                         continue
                     }
@@ -266,7 +272,7 @@ final class ConfigManager: ObservableObject {
                 newLines.append(line)
             }
             if !updatedAtLeastOnce {
-                newLines.append("\(key) = \"\(newValue)\"")
+                newLines.append("\(key) = \(rawValue)")
             }
             return newLines.joined(separator: "\n")
         }
