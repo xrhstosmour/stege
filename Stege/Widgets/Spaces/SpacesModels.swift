@@ -10,8 +10,15 @@ protocol WindowModel: Identifiable, Equatable, Codable {
     var id: Int { get }
     var title: String { get }
     var appName: String? { get }
+    var bundleID: String? { get }
     var isFocused: Bool { get }
     var appIcon: NSImage? { get set }
+}
+
+extension WindowModel {
+    /// Not every window manager reports one. `yabai` gives the display name
+    /// only, which is what its windows fall back to for their icon.
+    var bundleID: String? { nil }
 }
 
 protocol SpacesProvider {
@@ -28,20 +35,40 @@ struct AnyWindow: Identifiable, Equatable {
     let id: Int
     let title: String
     let appName: String?
+    let bundleID: String?
     let isFocused: Bool
+    /// Put back from memory rather than reported by the window manager. See
+    /// `MinimizedWindowMemory`.
+    let isMinimized: Bool
     let appIcon: NSImage?
 
     init<W: WindowModel>(_ window: W) {
         self.id = window.id
         self.title = window.title
         self.appName = window.appName
+        self.bundleID = window.bundleID
         self.isFocused = window.isFocused
+        self.isMinimized = false
         self.appIcon = window.appIcon
+    }
+
+    init(
+        id: Int, title: String, appName: String?, bundleID: String?,
+        isFocused: Bool, isMinimized: Bool, appIcon: NSImage?
+    ) {
+        self.id = id
+        self.title = title
+        self.appName = appName
+        self.bundleID = bundleID
+        self.isFocused = isFocused
+        self.isMinimized = isMinimized
+        self.appIcon = appIcon
     }
 
     static func == (lhs: AnyWindow, rhs: AnyWindow) -> Bool {
         return lhs.id == rhs.id && lhs.title == rhs.title
             && lhs.appName == rhs.appName && lhs.isFocused == rhs.isFocused
+            && lhs.isMinimized == rhs.isMinimized
     }
 }
 
@@ -67,6 +94,16 @@ struct AnySpace: Identifiable, Equatable {
         }
         self.isFocused = space.isFocused
         self.windows = space.windows.map { AnyWindow($0) }
+    }
+
+    init(
+        id: String, isFocused: Bool, windows: [AnyWindow],
+        monitorScreenID: Int?
+    ) {
+        self.id = id
+        self.isFocused = isFocused
+        self.windows = windows
+        self.monitorScreenID = monitorScreenID
     }
 
     static func == (lhs: AnySpace, rhs: AnySpace) -> Bool {
