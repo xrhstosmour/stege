@@ -323,17 +323,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.collectionBehavior = [
             .canJoinAllSpaces, .fullScreenAuxiliary, .stationary,
         ]
-        let hostingView = NSHostingView(rootView: hostingRootView)
+        // Top aligned inside the panel, because the panel is the whole screen
+        // and the bar is a fixed height. Without this SwiftUI centres it, and
+        // the bar would be drawn halfway down the display.
+        let hostingView = NSHostingView(
+            rootView: AnyView(
+                hostingRootView.frame(
+                    maxWidth: .infinity, maxHeight: .infinity, alignment: .top)))
+        // The panel keeps the frame it is given. `NSHostingView` publishes its
+        // root view's intrinsic size by default, and AppKit resizes the window
+        // to match, so the screen-sized menu bar panel shrank to the 44 points
+        // its content wanted. A window that small is then subject to
+        // `constrainFrameRect`, which pushes it clear of the menu bar area: on
+        // a notched built-in display that is 32 points, and the whole bar was
+        // drawn 32 points too low with its bottom edge cut off. Measured, not
+        // guessed: the panel reported (0, 880, 1470, 44) instead of
+        // (0, 0, 1470, 956).
+        hostingView.sizingOptions = []
         hostingView.wantsLayer = true
         hostingView.layer?.isOpaque = false
-        // The panel is the whole screen and the bar is drawn against its top
-        // edge, so the safe area has to be the panel's own, not the display's.
-        // On a notched built-in display the safe area starts below the notch,
-        // 32 points down, and the entire bar was pushed down with it: with an
-        // external monitor attached the bar sat at the top of the screen, and
-        // on the laptop alone it sat under the menu bar with its bottom half
-        // cut off.
-        hostingView.safeAreaRegions = []
         panel.contentView = hostingView
         if show { panel.orderFront(nil) }
         return panel

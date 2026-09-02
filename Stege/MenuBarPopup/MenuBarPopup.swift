@@ -143,12 +143,13 @@ class MenuBarPopup {
     }
 
     /// The panel is the whole screen and the popup hangs from its top edge, so
-    /// the safe area has to be the panel's own rather than the display's. On a
-    /// notched built-in display the display's starts 32 points down, which
-    /// pushed every popup that far below the bar it belongs to.
+    /// the panel has to keep the frame it was given. `NSHostingView` publishes
+    /// its root view's intrinsic size by default and AppKit resizes the window
+    /// to match, which is what shrank the bar's own panel and had it pushed
+    /// clear of the menu bar area. See `AppDelegate.makePanel`.
     private static func hosted<Content: View>(_ view: Content) -> NSHostingView<Content> {
         let hosting = NSHostingView(rootView: view)
-        hosting.safeAreaRegions = []
+        hosting.sizingOptions = []
         return hosting
     }
 
