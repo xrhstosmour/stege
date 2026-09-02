@@ -27,6 +27,15 @@ final class BarVisibility: ObservableObject {
     /// a small button on screen, because nothing else would bring the bar back.
     @Published private(set) var isCollapsed = false
 
+    /// Whether the other applications' status items are appended to the bar.
+    ///
+    /// Here rather than in `RevealWidget` because a keyboard shortcut has to
+    /// reach it, and a shortcut cannot touch a view's own `@State`. The widget
+    /// reads and writes this instead of holding its own copy, so both routes
+    /// drive one piece of state rather than a click and a key press
+    /// disagreeing about whether the row is open.
+    @Published var isShowingExtras = false
+
     /// How far down the pointer must travel before the bar comes back. Slightly
     /// more than the menu bar's own height by default, so the bar does not
     /// reappear while the pointer is still inside a menu the user just opened.

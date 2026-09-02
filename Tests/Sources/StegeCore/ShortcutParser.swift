@@ -1,0 +1,1 @@
+../../../Stege/Core/ShortcutParser.swift

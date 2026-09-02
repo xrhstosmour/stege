@@ -40,6 +40,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/xrhstosmour/Developer/stege/Tests/Sources/StegeCore/ShortcutParser.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/swift-version--1AB21518FC5DEDBE.txt"
         },
         {
@@ -53,7 +57,8 @@
       "objects" : [
         "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCore.build/BatteryReading.swift.o",
         "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCore.build/ConfigMigration.swift.o",
-        "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCore.build/DisplayDataChannelMessage.swift.o"
+        "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCore.build/DisplayDataChannelMessage.swift.o",
+        "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCore.build/ShortcutParser.swift.o"
       ],
       "otherArguments" : [
         "-target",
@@ -116,6 +121,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCore.build/ShortcutParser.swift.o"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/Modules/StegeCore.swiftmodule"
         }
       ],
@@ -123,7 +132,8 @@
       "sources" : [
         "/Users/xrhstosmour/Developer/stege/Tests/Sources/StegeCore/BatteryReading.swift",
         "/Users/xrhstosmour/Developer/stege/Tests/Sources/StegeCore/ConfigMigration.swift",
-        "/Users/xrhstosmour/Developer/stege/Tests/Sources/StegeCore/DisplayDataChannelMessage.swift"
+        "/Users/xrhstosmour/Developer/stege/Tests/Sources/StegeCore/DisplayDataChannelMessage.swift",
+        "/Users/xrhstosmour/Developer/stege/Tests/Sources/StegeCore/ShortcutParser.swift"
       ],
       "tempsPath" : "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCore.build",
       "wholeModuleOptimization" : false
@@ -238,6 +248,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/xrhstosmour/Developer/stege/Tests/Tests/StegeCoreTests/ShortcutParserTests.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/swift-version--1AB21518FC5DEDBE.txt"
         },
         {
@@ -255,7 +269,8 @@
       "objects" : [
         "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build/BatteryReadingTests.swift.o",
         "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build/ConfigMigrationTests.swift.o",
-        "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build/DisplayDataChannelMessageTests.swift.o"
+        "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build/DisplayDataChannelMessageTests.swift.o",
+        "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build/ShortcutParserTests.swift.o"
       ],
       "otherArguments" : [
         "-target",
@@ -317,6 +332,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build/ShortcutParserTests.swift.o"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/Modules/StegeCoreTests.swiftmodule"
         }
       ],
@@ -324,7 +343,8 @@
       "sources" : [
         "/Users/xrhstosmour/Developer/stege/Tests/Tests/StegeCoreTests/BatteryReadingTests.swift",
         "/Users/xrhstosmour/Developer/stege/Tests/Tests/StegeCoreTests/ConfigMigrationTests.swift",
-        "/Users/xrhstosmour/Developer/stege/Tests/Tests/StegeCoreTests/DisplayDataChannelMessageTests.swift"
+        "/Users/xrhstosmour/Developer/stege/Tests/Tests/StegeCoreTests/DisplayDataChannelMessageTests.swift",
+        "/Users/xrhstosmour/Developer/stege/Tests/Tests/StegeCoreTests/ShortcutParserTests.swift"
       ],
       "tempsPath" : "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build",
       "wholeModuleOptimization" : false
@@ -344,6 +364,7 @@
       "/Users/xrhstosmour/Developer/stege/Tests/Sources/StegeCore/BatteryReading.swift",
       "/Users/xrhstosmour/Developer/stege/Tests/Sources/StegeCore/ConfigMigration.swift",
       "/Users/xrhstosmour/Developer/stege/Tests/Sources/StegeCore/DisplayDataChannelMessage.swift",
+      "/Users/xrhstosmour/Developer/stege/Tests/Sources/StegeCore/ShortcutParser.swift",
       "-I",
       "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/Modules",
       "-target",
@@ -458,6 +479,7 @@
       "/Users/xrhstosmour/Developer/stege/Tests/Tests/StegeCoreTests/BatteryReadingTests.swift",
       "/Users/xrhstosmour/Developer/stege/Tests/Tests/StegeCoreTests/ConfigMigrationTests.swift",
       "/Users/xrhstosmour/Developer/stege/Tests/Tests/StegeCoreTests/DisplayDataChannelMessageTests.swift",
+      "/Users/xrhstosmour/Developer/stege/Tests/Tests/StegeCoreTests/ShortcutParserTests.swift",
       "-I",
       "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/Modules",
       "-target",
@@ -558,6 +580,10 @@
         {
           "kind" : "file",
           "name" : "/Users/xrhstosmour/Developer/stege/Tests/Sources/StegeCore/DisplayDataChannelMessage.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/xrhstosmour/Developer/stege/Tests/Sources/StegeCore/ShortcutParser.swift"
         }
       ],
       "outputFilePath" : "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCore.build/sources"
@@ -597,6 +623,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCore.build/ShortcutParser.swift.o"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCorePackageTests.build/runner.swift.o"
         },
         {
@@ -610,6 +640,10 @@
         {
           "kind" : "file",
           "name" : "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build/DisplayDataChannelMessageTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build/ShortcutParserTests.swift.o"
         }
       ],
       "outputFilePath" : "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCorePackageTests.product/Objects.LinkFileList"
@@ -632,6 +666,10 @@
         {
           "kind" : "file",
           "name" : "/Users/xrhstosmour/Developer/stege/Tests/Tests/StegeCoreTests/DisplayDataChannelMessageTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/xrhstosmour/Developer/stege/Tests/Tests/StegeCoreTests/ShortcutParserTests.swift"
         }
       ],
       "outputFilePath" : "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCoreTests.build/sources"

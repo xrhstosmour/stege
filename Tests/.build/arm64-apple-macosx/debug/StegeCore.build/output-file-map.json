@@ -22,5 +22,12 @@
     "swiftmodule": "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCore.build/DisplayDataChannelMessage~partial.swiftmodule",
     "swift-dependencies": "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCore.build/DisplayDataChannelMessage.swiftdeps",
     "diagnostics": "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCore.build/DisplayDataChannelMessage.dia"
+  },
+  "/Users/xrhstosmour/Developer/stege/Tests/Sources/StegeCore/ShortcutParser.swift": {
+    "dependencies": "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCore.build/ShortcutParser.d",
+    "object": "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCore.build/ShortcutParser.swift.o",
+    "swiftmodule": "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCore.build/ShortcutParser~partial.swiftmodule",
+    "swift-dependencies": "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCore.build/ShortcutParser.swiftdeps",
+    "diagnostics": "/Users/xrhstosmour/Developer/stege/Tests/.build/arm64-apple-macosx/debug/StegeCore.build/ShortcutParser.dia"
   }
 }

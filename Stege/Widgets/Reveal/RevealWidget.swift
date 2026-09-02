@@ -138,9 +138,9 @@ struct RevealWidget: View {
     /// Unused in sticky mode.
     var timeout: Double { Double(config["timeout"]?.intValue ?? 10) }
 
-    private let visibility = BarVisibility.shared
+    @ObservedObject private var visibility = BarVisibility.shared
     @ObservedObject private var reader = MenuBarExtrasReader.shared
-    @State private var isShowingExtras = false
+    private var isShowingExtras: Bool { visibility.isShowingExtras }
 
     /// The gap the rest of the bar uses, so the appended icons keep the row's
     /// rhythm rather than sitting closer together than everything else.
@@ -224,7 +224,7 @@ struct RevealWidget: View {
         switch mode {
         case .extras:
             if !isShowingExtras { reader.refresh() }
-            isShowingExtras.toggle()
+            visibility.isShowingExtras.toggle()
         case .collapse:
             if sticky {
                 visibility.toggleCollapsed()

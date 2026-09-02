@@ -16,10 +16,26 @@ theme = "system"
 # flipping it takes effect immediately with no restart.
 hidden = false
 
-# A system-wide shortcut that hides and shows the bar, so you do not have to
-# reach for the reveal chevron. Modifiers then a key, joined with "+". Leave it
-# out to register nothing.
+# System-wide shortcuts. Modifiers then a key, joined with "+". At least one
+# modifier is required, because a bare key would be swallowed everywhere in the
+# system. Leave one out to register nothing.
+#
+# cmd, command / opt, option, alt / ctrl, control / shift, then a letter, a
+# digit, a punctuation key, space, return, tab, escape, delete, an arrow, or f1
+# through f12.
+
+# Hides and shows the bar, so you do not have to reach for the reveal chevron.
 # toggle-shortcut = "cmd+alt+b"
+
+# Appends the other applications' status items to the bar, and takes them away
+# again. The same thing the reveal chevron does.
+# reveal-shortcut = "cmd+alt+m"
+
+# Opens the frontmost application's first menu, its File menu in most
+# applications. From there macOS itself takes over: arrows move, Return
+# activates, Escape closes, and typing jumps to an entry, because these are real
+# menus rather than a drawing of one.
+# menu-shortcut = "cmd+alt+f"
 
 [widgets]
 # The bar, left to right. Remove an entry to hide that widget entirely.
