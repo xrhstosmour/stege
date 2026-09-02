@@ -55,6 +55,15 @@ struct PopupSurface: View {
     var body: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
             .fill(BarStyle.surface)
+            // A hairline, because macOS puts one on every menu. Against a dark
+            // window a near-white popup has an edge anyway and this is barely
+            // visible, which is the point; against a light one it is the only
+            // thing separating the popup from what is behind it.
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(BarStyle.ink.opacity(0.12), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.22), radius: 12, y: 4)
     }
 }
 
