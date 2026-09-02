@@ -50,11 +50,24 @@ struct DisplayWidget: View {
         .help(tooltip)
     }
 
-    /// Two displays are two rectangles, which is what macOS puts on its own
-    /// screen mirroring item, and mirroring gets the symbol that says so.
+    /// What is actually lit, not just how many displays there are.
+    ///
+    /// The laptop panel on its own is a laptop; anything else is one screen or
+    /// several. With the lid shut the built-in panel is not among the active
+    /// displays at all, so a machine driving one external monitor from a closed
+    /// laptop correctly draws a single screen rather than two.
+    ///
+    /// Laptop-plus-external is drawn as two screens rather than as a laptop
+    /// beside a monitor, because SF Symbols has no such mark. Checked:
+    /// `laptopcomputer.and.display`, `macbook.and.display`,
+    /// `display.and.laptopcomputer` and `laptopcomputer.and.monitor` are all
+    /// absent. The popup names each display, which is where that distinction
+    /// actually matters.
     private var symbol: String {
         if manager.isMirrored { return "rectangle.on.rectangle" }
-        return manager.displays.count > 1 ? "display.2" : "display"
+        let displays = manager.displays
+        if displays.count == 1, displays[0].isBuiltIn { return "laptopcomputer" }
+        return displays.count > 1 ? "display.2" : "display"
     }
 
     private func showPopup() {
@@ -69,6 +82,7 @@ struct DisplayWidget: View {
             parts.append("Brightness \(Int((level * 100).rounded()))%")
         }
         if manager.isMirrored { parts.append("Mirroring") }
+        if manager.isLidClosed { parts.append("lid closed") }
         if let first = manager.displays.first, first.resolution.width > 0 {
             parts.append(
                 "\(Int(first.resolution.width)) × "
