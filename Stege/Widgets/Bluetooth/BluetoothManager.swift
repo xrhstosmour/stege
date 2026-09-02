@@ -42,6 +42,8 @@ final class BluetoothManager: NSObject, ObservableObject {
     /// Devices found by an inquiry that are not paired yet.
     @Published private(set) var discovered: [BluetoothDevice] = []
     @Published private(set) var isScanning = false
+    /// Ends a scan that the radio never reports the end of. See `startScan`.
+    private var scanDeadline: Timer?
     /// The address a connect, disconnect or pair is in flight for.
     /// The device an action is in flight for, and which action it is, so a row
     /// can say `Connecting…` rather than only spinning. Wi-Fi keeps its scan
@@ -112,6 +114,7 @@ final class BluetoothManager: NSObject, ObservableObject {
 
     deinit {
         timer?.invalidate()
+        scanDeadline?.invalidate()
         activeInquiry?.stop()
         connectNotification?.unregister()
         disconnectNotifications.forEach { $0.unregister() }
@@ -428,10 +431,24 @@ final class BluetoothManager: NSObject, ObservableObject {
 
     // MARK: - Discovery
 
+    /// How long a scan runs before it is stopped here.
+    ///
+    /// Longer than the eight second inquiry, because the inquiry is only the
+    /// first half: `updateNewDeviceNames` then sends a name request to each
+    /// device it found, and each of those has its own timeout. Two seconds of
+    /// slack, and then it is over whatever the radio thinks.
+    private static let scanDuration: TimeInterval = 10
+
     /// Looks for devices that are not paired yet.
     ///
     /// Stopped as soon as the popup goes away: an inquiry keeps the radio busy,
     /// and one left running would degrade whatever is already connected.
+    ///
+    /// It is stopped on a deadline as well. `deviceInquiryComplete` is the
+    /// documented way to learn a scan has ended and it does not always arrive:
+    /// observed here spinning past twelve seconds with an eight second inquiry
+    /// length and nothing found, which leaves the popup saying `Looking…` for
+    /// as long as it is open and the radio busy for as long as that.
     func startScan() {
         guard !isScanning else { return }
         discovered = []
@@ -442,6 +459,12 @@ final class BluetoothManager: NSObject, ObservableObject {
         activeInquiry = inquiry
         if inquiry?.start() == kIOReturnSuccess {
             isScanning = true
+            scanDeadline?.invalidate()
+            scanDeadline = Timer.scheduledTimer(
+                withTimeInterval: Self.scanDuration, repeats: false
+            ) { [weak self] _ in
+                self?.stopScan()
+            }
         } else {
             failure = "Could not start scanning"
             activeInquiry = nil
@@ -449,6 +472,8 @@ final class BluetoothManager: NSObject, ObservableObject {
     }
 
     func stopScan() {
+        scanDeadline?.invalidate()
+        scanDeadline = nil
         activeInquiry?.stop()
         activeInquiry = nil
         isScanning = false
@@ -503,6 +528,8 @@ extension BluetoothManager: IOBluetoothDeviceInquiryDelegate {
     func deviceInquiryComplete(
         _ sender: IOBluetoothDeviceInquiry!, error: IOReturn, aborted: Bool
     ) {
+        scanDeadline?.invalidate()
+        scanDeadline = nil
         isScanning = false
         activeInquiry = nil
     }
