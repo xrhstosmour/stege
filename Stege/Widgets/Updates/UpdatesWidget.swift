@@ -65,11 +65,6 @@ struct UpdatesWidget: View {
                 UpdatesPopup(manager: manager)
             }
         }
-        .barFocusable {
-            MenuBarPopup.show(rect: rect, id: "updates") {
-                UpdatesPopup(manager: manager)
-            }
-        }
         .help(tooltip)
     }
 
@@ -94,9 +89,10 @@ struct UpdatesPopup: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: PopupStyle.spacing) {
-            PopupHeader(
-                symbol: "arrow.down.circle.fill", title: "Updates"
-            ) {
+            // The count, not the word "Updates". It stands in for both the
+            // title this popup used to open with and the empty-state line that
+            // sat under it saying much the same thing.
+            PopupSectionTitle(title: countText) {
                 if manager.isReading {
                     ProgressView().controlSize(.mini)
                 } else {
@@ -108,13 +104,7 @@ struct UpdatesPopup: View {
                         .help("Look again")
                 }
             }
-
-            if manager.updates.isEmpty {
-                Text(manager.isReading ? "Looking…" : "Everything is up to date")
-                    .font(.system(size: PopupStyle.bodySize))
-                    .opacity(0.6)
-                    .popupStaticRow()
-            }
+            .popupStaticRow()
 
             if !system.isEmpty {
                 VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
@@ -183,6 +173,15 @@ struct UpdatesPopup: View {
             }
         }
         .popupStaticRow()
+    }
+
+    private var countText: String {
+        if manager.isReading && manager.updates.isEmpty { return "Looking…" }
+        switch manager.updates.count {
+        case 0: return "Everything is up to date"
+        case 1: return "1 update"
+        case let count: return "\(count) updates"
+        }
     }
 
     private static func relative(_ date: Date) -> String {

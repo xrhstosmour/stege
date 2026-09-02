@@ -11,11 +11,12 @@ struct BatteryPopup: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: PopupStyle.spacing) {
-            PopupHeader(
-                symbol: headerSymbol, title: "\(manager.batteryLevel)%",
-                tint: headerTint)
-
             VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
+                // The charge is a reading like the three under it rather than
+                // a heading over them. It used to open the popup as a large
+                // number next to a symbol, which is the same charge the glyph
+                // that was just clicked is already drawing.
+                detail("Charge", chargeText)
                 if let estimate = estimateText {
                     detail("Time remaining", estimate)
                 } else {
@@ -52,17 +53,14 @@ struct BatteryPopup: View {
         .popupContainer()
     }
 
-    private var headerSymbol: String {
-        if manager.isCharging { return "bolt.fill" }
-        if manager.isPluggedIn { return "powerplug.portrait.fill" }
-        return manager.isLowPowerMode ? "battery.50" : "battery.100"
-    }
-
-    private var headerTint: Color {
-        if manager.isCharging { return .green }
-        if manager.batteryLevel <= criticalLevel { return .red }
-        if manager.batteryLevel <= warningLevel { return .yellow }
-        return .primary
+    /// The charge, and what is happening to it. Charging and merely plugged
+    /// in are different states and the glyph in the bar draws them
+    /// differently, so the reading says which.
+    private var chargeText: String {
+        let charge = "\(manager.batteryLevel)%"
+        if manager.isCharging { return "\(charge), charging" }
+        if manager.isPluggedIn { return "\(charge), plugged in" }
+        return charge
     }
 
     /// The switch is a toggle, not a setter: the state to move to is whichever

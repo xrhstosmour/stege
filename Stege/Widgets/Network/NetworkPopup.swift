@@ -53,14 +53,14 @@ struct NetworkPopup: View {
     // MARK: - Current connection
 
     private var current: some View {
-        PopupHeader(
-            symbol: wifiSymbol,
-            // The switch says whether the radio is on, so the header says
-            // which network instead, or nothing more than the name of the
-            // thing when there is no network to name.
-            title: viewModel.isPoweredOn ? viewModel.ssid : "Wi-Fi",
-            tint: isConnected ? .blue : .secondary
-        ) {
+        // The connection, not the word "Wi-Fi". Clicking the Wi-Fi glyph is
+        // already the answer to which popup this is, so the row spends its
+        // width on the network instead.
+        PopupPowerRow(state: viewModel.isPoweredOn ? viewModel.ssid : "Off") {
+            Image(systemName: wifiSymbol)
+                .font(.system(size: PopupStyle.bodySize))
+                .foregroundStyle(isConnected ? Color.blue : .secondary)
+        } trailing: {
             PopupSwitch(isOn: viewModel.isPoweredOn) {
                 viewModel.setPower(!viewModel.isPoweredOn)
             }

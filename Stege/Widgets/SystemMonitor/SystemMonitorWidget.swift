@@ -32,12 +32,6 @@ struct SystemMonitorWidget: View {
                     SystemMonitorPopup(manager: manager)
                 }
             }
-            .barFocusable {
-                manager.updateDisk()
-                MenuBarPopup.show(rect: rect, id: "monitor") {
-                    SystemMonitorPopup(manager: manager)
-                }
-            }
     }
 
     private var content: some View {
@@ -98,8 +92,6 @@ struct SystemMonitorPopup: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: PopupStyle.spacing) {
-            PopupHeader(symbol: "gauge.with.dots.needle.50percent", title: "System")
-
             VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
                 meter("Processor", symbol: "cpu", value: manager.cpuUsage)
                 meter("Memory", symbol: "memorychip", value: manager.memoryUsage)

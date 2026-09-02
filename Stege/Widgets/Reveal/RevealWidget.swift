@@ -117,8 +117,14 @@ struct RevealWidget: View {
     @ObservedObject private var reader = MenuBarExtrasReader.shared
     @State private var isShowingExtras = false
 
+    /// The gap the rest of the bar uses, so the appended icons keep the row's
+    /// rhythm rather than sitting closer together than everything else.
+    private var spacing: CGFloat {
+        ConfigManager.shared.config.experimental.foreground.spacing
+    }
+
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: spacing) {
             // The chevron only when there is something behind it. With
             // everything pinned or hidden it would open onto nothing.
             if mode == .collapse || !collapsedItems.isEmpty || !reader.isTrusted
@@ -126,8 +132,20 @@ struct RevealWidget: View {
                 chevron
             }
             if mode == .extras {
-                if isShowingExtras { extras(collapsedItems) }
-                extras(pinnedItems)
+                if !reader.isTrusted {
+                    permissionLock
+                } else {
+                    // Each list only when it has something in it. An empty
+                    // `HStack` is still a subview, so the row spaced past it
+                    // and the chevron sat one gap further from the widget on
+                    // its right than every other pair in the bar.
+                    if isShowingExtras, !collapsedItems.isEmpty {
+                        extras(collapsedItems)
+                    }
+                    if !pinnedItems.isEmpty {
+                        extras(pinnedItems)
+                    }
+                }
             }
         }
         .animation(.smooth(duration: 0.2), value: isShowingExtras)
@@ -192,17 +210,16 @@ struct RevealWidget: View {
         }
     }
 
-    @ViewBuilder
+    private var permissionLock: some View {
+        Image(systemName: "lock.fill")
+            .font(.system(size: 10))
+            .help("Stege needs Accessibility permission to read these")
+    }
+
     private func extras(_ items: [MenuBarExtraItem]) -> some View {
-        if !reader.isTrusted {
-            Image(systemName: "lock.fill")
-                .font(.system(size: 10))
-                .help("Stege needs Accessibility permission to read these")
-        } else {
-            HStack(spacing: 6) {
-                ForEach(items) { item in
-                    extraIcon(item)
-                }
+        HStack(spacing: spacing) {
+            ForEach(items) { item in
+                extraIcon(item)
             }
         }
     }

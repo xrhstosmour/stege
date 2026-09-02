@@ -32,7 +32,6 @@ enum PopupStyle {
     /// much.
     static let cornerRadius: CGFloat = 13
 
-    static let titleSize: CGFloat = 13
     static let bodySize: CGFloat = 12
     static let captionSize: CGFloat = 11
     /// Every row's leading icon is laid out in the same column, so the labels
@@ -173,36 +172,32 @@ struct PopupSwitch: View {
     }
 }
 
-/// A popup's title line: a symbol, a name, and whatever control belongs on the
-/// right, such as a power switch.
-struct PopupHeader<Trailing: View>: View {
-    let symbol: String
-    let title: String
-    var tint: Color = .primary
+/// The row a popup's power switch sits on: what the radio is attached to, and
+/// the switch that turns it off.
+///
+/// This is what is left of the title line every popup used to open with. A
+/// popup is opened by clicking the thing it is about, so a first line naming
+/// that thing said nothing the click had not already said, and it cost a row
+/// of height in every popup to say it. What could not go is the switch, so the
+/// switch keeps a row and the text beside it now carries the connection rather
+/// than the name.
+struct PopupPowerRow<Leading: View, Trailing: View>: View {
+    let state: String
+    @ViewBuilder var leading: Leading
     @ViewBuilder var trailing: Trailing
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: symbol)
-                .font(.system(size: PopupStyle.titleSize))
-                .foregroundStyle(tint)
-                .frame(width: 18)
-            Text(title)
-                .font(.system(size: PopupStyle.titleSize, weight: .semibold))
+        HStack(spacing: 10) {
+            leading
+                .frame(width: PopupStyle.iconColumn)
+            Text(state)
+                .font(.system(size: PopupStyle.bodySize, weight: .medium))
                 .lineLimit(1)
                 .truncationMode(.tail)
             Spacer(minLength: 8)
             trailing
         }
-        // The same inset as a row, so the title lines up with the list under
-        // it rather than sitting eight points to its left.
-        .padding(.horizontal, PopupStyle.rowHorizontalPadding)
-    }
-}
-
-extension PopupHeader where Trailing == EmptyView {
-    init(symbol: String, title: String, tint: Color = .primary) {
-        self.init(symbol: symbol, title: title, tint: tint) { EmptyView() }
+        .popupStaticRow()
     }
 }
 

@@ -37,11 +37,6 @@ struct KeyboardLayoutWidget: View {
                     KeyboardLayoutPopup(manager: manager)
                 }
             }
-            .barFocusable {
-                MenuBarPopup.show(rect: rect, id: "keyboardlayout") {
-                    KeyboardLayoutPopup(manager: manager)
-                }
-            }
             .help(manager.name)
     }
 }
@@ -55,8 +50,6 @@ struct KeyboardLayoutPopup: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: PopupStyle.spacing) {
-            PopupHeader(symbol: "keyboard", title: "Input Sources")
-
             VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
                 ForEach(manager.sources) { source in
                     row(source)

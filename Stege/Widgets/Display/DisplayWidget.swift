@@ -47,7 +47,6 @@ struct DisplayWidget: View {
                 onScroll: { manager.nudgeBrightness(by: Float($0) * 0.05) },
                 onRightClick: {})
         )
-        .barFocusable { showPopup() }
         .help(tooltip)
     }
 
@@ -70,8 +69,6 @@ struct DisplayPopup: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: PopupStyle.spacing) {
-            PopupHeader(symbol: "sun.max.fill", title: "Display")
-
             VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
                 ForEach(manager.displays) { display in
                     brightnessRow(display)

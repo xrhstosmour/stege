@@ -55,6 +55,7 @@ whatever is still missing.
 | Bluetooth | The Bluetooth widget | The glyph shows a small lock and opens the settings pane |
 | Location | The Wi-Fi network name and the nearby network list | The name is hidden, everything else still works |
 | Calendars | Events in the clock widget and calendar popup | Events are omitted |
+| Automation | Reading and controlling `Spotify` and `Music` for the now playing widget | The widget draws a music note with a warning mark, and its tooltip says which player it could not reach |
 
 Stege is not sandboxed, because the Accessibility API is unavailable to sandboxed apps.
 
@@ -188,22 +189,24 @@ horizontal-padding = 12
 spacing = 10
 ```
 
+### Now playing
+
+`default.nowplaying` reads `Spotify` and `Music` over `AppleScript`, which is why it wants
+Automation. It also asks `MediaRemote`, the system's own now-playing service that Control Center
+reads, which would cover anything playing in a browser. On macOS 26 that returns an empty answer
+to any caller without Apple's own entitlement, and an empty answer is indistinguishable from
+nothing playing, so in practice the two scriptable applications are the coverage.
+
+When a player is running and cannot be read, the widget draws a music note with a warning mark
+rather than disappearing, and clicking it opens Privacy & Security, Automation. Nothing playing
+and cannot see what is playing used to look the same from the bar, which is the worst way to
+report a permission that was never granted.
+
 ### Hiding the bar
 
 `hidden = true` takes the bar away entirely, leaving the real macOS menu bar and every
 third-party status item reachable. `toggle-shortcut` gives the same switch from the keyboard,
 written as modifiers then a key joined with `+`, at least one modifier required.
-
-### The keyboard
-
-`focus-shortcut` puts a ring on the bar. The arrow keys or tab walk it, wrapping at both ends,
-`return` or `space` opens what is under the ring, and `escape` puts it away. Clicking anywhere
-else puts it away too, since the pointer has taken over.
-
-Keys are read by a panel of Stege's own rather than by the bar. The bar deliberately never takes
-focus, because one that stole it whenever the pointer crossed the top of the screen would be
-unusable, and a window that cannot become key cannot receive a key press. The panel that does is
-one point across, off in a corner, and exists only while the ring is up.
 
 The `default.reveal` chevron works from the bar and has two modes. `extras`, the default, appends
 the other applications' status items to the bar, read through the Accessibility API under

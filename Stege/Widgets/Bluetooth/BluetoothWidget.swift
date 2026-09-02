@@ -101,19 +101,6 @@ struct BluetoothWidget: View {
                 BluetoothPopup(manager: manager)
             }
         }
-        .barFocusable {
-            guard manager.isAuthorized else {
-                NSWorkspace.shared.open(
-                    URL(
-                        string:
-                            "x-apple.systempreferences:com.apple.preference.security?Privacy_Bluetooth"
-                    )!)
-                return
-            }
-            MenuBarPopup.show(rect: rect, id: "bluetooth") {
-                BluetoothPopup(manager: manager)
-            }
-        }
     }
 }
 
@@ -178,28 +165,19 @@ struct BluetoothPopup: View {
         .onDisappear { manager.stopScan() }
     }
 
-    /// The glyph is drawn rather than an SF Symbol, so the header is built by
-    /// hand instead of using `PopupHeader`.
+    /// What the radio is attached to, and the switch. Not the word
+    /// "Bluetooth": the glyph that opened this popup already said that.
     private var header: some View {
-        HStack(spacing: 8) {
+        PopupPowerRow(state: connectionText) {
             BluetoothGlyph(
-                height: 15,
+                height: 13,
                 slashed: !(manager.isPoweredOn && manager.isAuthorized)
             )
             .foregroundStyle(
                 manager.isPoweredOn && manager.isAuthorized
                     ? Color.blue : .secondary
             )
-            .frame(width: 18)
-
-            // Not "Bluetooth on" or "Bluetooth off". The switch beside it
-            // already says which, and a header that repeats the control next
-            // to it is a header saying nothing.
-            Text(manager.isAuthorized ? "Bluetooth" : "Bluetooth unavailable")
-                .font(.system(size: PopupStyle.titleSize, weight: .semibold))
-
-            Spacer(minLength: 8)
-
+        } trailing: {
             if manager.isSwitchingPower {
                 ProgressView().controlSize(.mini)
             } else if manager.isAuthorized {
@@ -208,7 +186,19 @@ struct BluetoothPopup: View {
                 }
             }
         }
-        .padding(.horizontal, PopupStyle.rowHorizontalPadding)
+    }
+
+    /// One device is named, several are counted. Naming three of them would
+    /// take more width than the popup has.
+    private var connectionText: String {
+        guard manager.isAuthorized else { return "Unavailable" }
+        guard manager.isPoweredOn else { return "Off" }
+        let connected = manager.devices.filter { $0.isConnected }
+        switch connected.count {
+        case 0: return "Not Connected"
+        case 1: return connected[0].name
+        case let count: return "\(count) Connected"
+        }
     }
 
     private func note(_ text: String) -> some View {
