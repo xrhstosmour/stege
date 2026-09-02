@@ -68,7 +68,12 @@ final class DisplayManager: ObservableObject {
         NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
             object: nil, queue: .main
-        ) { [weak self] _ in self?.refresh() }
+        ) { [weak self] _ in
+            // A monitor unplugged and plugged back in can land on a different
+            // port, so the cached mapping has to go with it.
+            DisplayDataChannel.forget()
+            self?.refresh()
+        }
     }
 
     deinit {
@@ -237,35 +242,86 @@ final class DisplayManager: ObservableObject {
     // MARK: - Brightness
 
     func setBrightness(_ value: Float, on display: DisplayInfo) {
+        let clamped = min(1, max(0, value))
+        if !display.isBuiltIn {
+            Self.externalBrightness[display.id] = clamped
+            store(clamped, on: display)
+            // The write waits on the monitor, so it does not belong in front of
+            // a slider being dragged.
+            DispatchQueue.global(qos: .userInitiated).async {
+                DisplayDataChannel.setBrightness(clamped, on: display.id)
+            }
+            return
+        }
         guard let set = Self.setBrightnessFunction else {
             failure = "Brightness cannot be set on this system"
             return
         }
-        let clamped = min(1, max(0, value))
         guard set(display.id, clamped) == 0 else { return }
-        // Written straight back rather than waiting for the next poll, so the
-        // slider does not spring back under the pointer.
-        if let index = displays.firstIndex(where: { $0.id == display.id }) {
-            displays[index] = DisplayInfo(
-                id: display.id, name: display.name,
-                isBuiltIn: display.isBuiltIn, brightness: clamped,
-                resolution: display.resolution)
-        }
+        store(clamped, on: display)
     }
 
-    /// Moves the built-in display by `delta`, for the widget's scroll wheel.
-    func nudgeBrightness(by delta: Float) {
-        guard let display = displays.first(where: { $0.brightness != nil }),
-            let current = display.brightness
+    /// Written straight back rather than waiting for the next poll, so the
+    /// slider does not spring back under the pointer.
+    private func store(_ value: Float, on display: DisplayInfo) {
+        guard let index = displays.firstIndex(where: { $0.id == display.id })
         else { return }
+        displays[index] = DisplayInfo(
+            id: display.id, name: display.name,
+            isBuiltIn: display.isBuiltIn, brightness: value,
+            resolution: display.resolution)
+    }
+
+    /// Moves one display by `delta`, for the widget's scroll wheel.
+    ///
+    /// The built-in panel when there is one, because that is what the
+    /// brightness keys act on and what a scroll over the bar most obviously
+    /// means. With the lid shut there is none, so the first monitor that
+    /// answers over the cable takes it instead.
+    func nudgeBrightness(by delta: Float) {
+        let display = displays.first { $0.isBuiltIn && $0.brightness != nil }
+            ?? displays.first { $0.brightness != nil }
+        guard let display, let current = display.brightness else { return }
         setBrightness(current + delta, on: display)
     }
 
+    /// The built-in panel answers `DisplayServices` directly. An external one
+    /// only answers over the cable, which costs a round trip and cannot be on
+    /// the once-a-second poll, so the last reading is used and
+    /// `readExternalBrightness` is what refreshes it.
     private static func brightness(of id: CGDirectDisplayID) -> Float? {
+        if CGDisplayIsBuiltin(id) == 0 { return externalBrightness[id] }
         guard let get = getBrightnessFunction else { return nil }
         var value: Float = 0
         guard get(id, &value) == 0 else { return nil }
         return value
+    }
+
+    /// What each external monitor last said its backlight was set to.
+    nonisolated(unsafe) private static var externalBrightness:
+        [CGDirectDisplayID: Float] = [:]
+
+    /// Asks every external monitor over the cable, off the main thread.
+    ///
+    /// Called when the popup opens, not on the poll: a DDC exchange waits on
+    /// the monitor and takes tens of milliseconds even when it goes well, and
+    /// three times that when the first reply lands early.
+    func readExternalBrightness() {
+        let ids = displays.filter { !$0.isBuiltIn }.map(\.id)
+        guard !ids.isEmpty, DisplayDataChannel.isAvailable else { return }
+        DispatchQueue.global(qos: .userInitiated).async {
+            var found: [CGDirectDisplayID: Float] = [:]
+            for id in ids {
+                if let value = DisplayDataChannel.brightness(of: id) {
+                    found[id] = value
+                }
+            }
+            guard !found.isEmpty else { return }
+            DispatchQueue.main.async {
+                for (id, value) in found { Self.externalBrightness[id] = value }
+                self.refresh()
+            }
+        }
     }
 
     private typealias GetBrightness = @convention(c) (

@@ -191,7 +191,10 @@ struct DisplayPopup: View {
             }
         }
         .popupContainer()
-        .onAppear { manager.startPolling() }
+        .onAppear {
+            manager.startPolling()
+            manager.readExternalBrightness()
+        }
         .onDisappear { manager.stopPolling() }
     }
 
