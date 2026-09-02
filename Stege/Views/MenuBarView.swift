@@ -85,10 +85,6 @@ struct MenuBarView: View {
         case "default.appmenus":
             AppMenusWidget().environmentObject(config)
 
-        case "default.nowplaying":
-            NowPlayingWidget()
-                .environmentObject(config)
-
         case "default.reveal":
             RevealWidget().environmentObject(config)
 
