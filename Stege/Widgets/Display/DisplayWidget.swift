@@ -84,6 +84,21 @@ struct DisplayPopup: View {
     var body: some View {
         VStack(alignment: .leading, spacing: PopupStyle.spacing) {
             VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
+                if manager.isLidClosed {
+                    HStack(spacing: 10) {
+                        Image(systemName: "macbook.slash")
+                            .font(.system(size: PopupStyle.bodySize))
+                            .foregroundStyle(.secondary)
+                            .frame(width: PopupStyle.iconColumn)
+                        Text("Lid closed")
+                            .font(.system(size: PopupStyle.bodySize))
+                        Spacer(minLength: 8)
+                        Text("built-in display off")
+                            .font(.system(size: PopupStyle.captionSize))
+                            .opacity(0.5)
+                    }
+                    .popupStaticRow()
+                }
                 ForEach(manager.displays) { display in
                     brightnessRow(display)
                 }
@@ -191,7 +206,10 @@ struct DisplayPopup: View {
             }
         }
         .popupContainer()
-        .onAppear { manager.startPolling() }
+        .onAppear {
+            manager.startPolling()
+            manager.readExternalBrightness()
+        }
         .onDisappear { manager.stopPolling() }
     }
 
@@ -234,6 +252,12 @@ struct DisplayPopup: View {
                             .font(.system(size: PopupStyle.bodySize))
                             .monospacedDigit()
                         Spacer(minLength: 8)
+                        if let rate = mode.refreshLabel {
+                            Text(rate)
+                                .font(.system(size: PopupStyle.captionSize))
+                                .monospacedDigit()
+                                .opacity(0.5)
+                        }
                         if mode.isRetina {
                             Text("Retina")
                                 .font(.system(size: PopupStyle.captionSize))

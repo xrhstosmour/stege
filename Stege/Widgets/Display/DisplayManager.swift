@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import CoreGraphics
+import IOKit
 import Darwin
 
 /// One display attached to the machine.
@@ -24,13 +25,19 @@ struct DisplayMode: Identifiable, Equatable {
     /// Two pixels per point. Worth saying, because a display offers the same
     /// point size both ways and one of them is blurry.
     let isRetina: Bool
+    /// Hertz, rounded. Zero for a mode that does not report one, which is what
+    /// a display driven at its native timing does.
+    let refreshRate: Int
     let mode: CGDisplayMode
 
     var id: String {
-        "\(Int(size.width))x\(Int(size.height))\(isRetina ? "@2x" : "")"
+        "\(Int(size.width))x\(Int(size.height))\(isRetina ? "@2x" : "")@\(refreshRate)"
     }
     var label: String {
         "\(Int(size.width)) × \(Int(size.height))"
+    }
+    var refreshLabel: String? {
+        refreshRate > 0 ? "\(refreshRate) Hz" : nil
     }
 }
 
@@ -54,6 +61,13 @@ final class DisplayManager: ObservableObject {
     @Published private(set) var isTrueToneOn = false
     /// Whether the displays are showing the same picture.
     @Published private(set) var isMirrored = false
+    /// Whether this is a laptop running with the lid shut.
+    ///
+    /// The built-in panel is still there, it is simply not online, so it is
+    /// missing from the list rather than listed as off. Worth saying: a laptop
+    /// in clamshell has no brightness slider, no True Tone, and nothing here
+    /// can explain why unless it says the lid is closed.
+    @Published private(set) var isLidClosed = false
     /// Set when a control could not be reached at all, so the popup can say so
     /// rather than drawing a switch that does nothing.
     @Published private(set) var failure: String?
@@ -68,7 +82,12 @@ final class DisplayManager: ObservableObject {
         NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
             object: nil, queue: .main
-        ) { [weak self] _ in self?.refresh() }
+        ) { [weak self] _ in
+            // A monitor unplugged and plugged back in can land on a different
+            // port, so the cached mapping has to go with it.
+            DisplayDataChannel.forget()
+            self?.refresh()
+        }
     }
 
     deinit {
@@ -94,6 +113,7 @@ final class DisplayManager: ObservableObject {
     func refresh() {
         displays = Self.activeDisplays()
         isMirrored = CGDisplayIsInMirrorSet(CGMainDisplayID()) != 0
+        isLidClosed = Self.readLidClosed()
         isNightShiftOn = Self.readNightShift()
         nightShiftStrength = Self.readNightShiftStrength()
         isTrueToneAvailable = Self.readTrueToneAvailable()
@@ -121,6 +141,26 @@ final class DisplayManager: ObservableObject {
         // The built-in panel first, which is the one a laptop's brightness keys
         // act on and the one most people mean.
         .sorted { $0.isBuiltIn && !$1.isBuiltIn }
+    }
+
+    /// Whether the lid is shut, straight from the power management root.
+    ///
+    /// `AppleClamshellState` is published by `IOPMrootDomain` and is 1 while
+    /// the lid is closed. Its absence is the answer for a desktop, which has no
+    /// lid to ask about, so no separate laptop test is needed. Inferring it
+    /// from a missing built-in display in `CGGetOnlineDisplayList` would work
+    /// too, but `hw.model` on Apple Silicon is `Mac16,12` with nothing in it to
+    /// say whether the machine is a laptop, so there would be no way to tell a
+    /// closed lid from a Mac mini.
+    private static func readLidClosed() -> Bool {
+        let root = IOServiceGetMatchingService(
+            kIOMainPortDefault, IOServiceMatching("IOPMrootDomain"))
+        guard root != 0 else { return false }
+        defer { IOObjectRelease(root) }
+        let value = IORegistryEntryCreateCFProperty(
+            root, "AppleClamshellState" as CFString, kCFAllocatorDefault, 0)
+        return (value?.takeRetainedValue() as? Bool) == true
+            || (value?.takeRetainedValue() as? Int) == 1
     }
 
     /// The name macOS shows in System Settings, where it publishes one.
@@ -163,12 +203,19 @@ final class DisplayManager: ObservableObject {
                 size: size,
                 isCurrent: mode.ioDisplayModeID == current?.ioDisplayModeID,
                 isRetina: isRetina,
+                refreshRate: Int(mode.refreshRate.rounded()),
                 mode: mode)
             // The current mode always wins its slot, so the tick is never on a
-            // row that is not the one in use. Otherwise the sharper of the two.
+            // row that is not the one in use. Otherwise the sharper of the two,
+            // then the faster: a display offering the same size at 60 and 120
+            // should be listed at 120.
             if let existing = best[key] {
                 if existing.isCurrent { continue }
-                if candidate.isCurrent || (isRetina && !existing.isRetina) {
+                if candidate.isCurrent
+                    || (isRetina && !existing.isRetina)
+                    || (isRetina == existing.isRetina
+                        && candidate.refreshRate > existing.refreshRate)
+                {
                     best[key] = candidate
                 }
             } else {
@@ -237,35 +284,86 @@ final class DisplayManager: ObservableObject {
     // MARK: - Brightness
 
     func setBrightness(_ value: Float, on display: DisplayInfo) {
+        let clamped = min(1, max(0, value))
+        if !display.isBuiltIn {
+            Self.externalBrightness[display.id] = clamped
+            store(clamped, on: display)
+            // The write waits on the monitor, so it does not belong in front of
+            // a slider being dragged.
+            DispatchQueue.global(qos: .userInitiated).async {
+                DisplayDataChannel.setBrightness(clamped, on: display.id)
+            }
+            return
+        }
         guard let set = Self.setBrightnessFunction else {
             failure = "Brightness cannot be set on this system"
             return
         }
-        let clamped = min(1, max(0, value))
         guard set(display.id, clamped) == 0 else { return }
-        // Written straight back rather than waiting for the next poll, so the
-        // slider does not spring back under the pointer.
-        if let index = displays.firstIndex(where: { $0.id == display.id }) {
-            displays[index] = DisplayInfo(
-                id: display.id, name: display.name,
-                isBuiltIn: display.isBuiltIn, brightness: clamped,
-                resolution: display.resolution)
-        }
+        store(clamped, on: display)
     }
 
-    /// Moves the built-in display by `delta`, for the widget's scroll wheel.
-    func nudgeBrightness(by delta: Float) {
-        guard let display = displays.first(where: { $0.brightness != nil }),
-            let current = display.brightness
+    /// Written straight back rather than waiting for the next poll, so the
+    /// slider does not spring back under the pointer.
+    private func store(_ value: Float, on display: DisplayInfo) {
+        guard let index = displays.firstIndex(where: { $0.id == display.id })
         else { return }
+        displays[index] = DisplayInfo(
+            id: display.id, name: display.name,
+            isBuiltIn: display.isBuiltIn, brightness: value,
+            resolution: display.resolution)
+    }
+
+    /// Moves one display by `delta`, for the widget's scroll wheel.
+    ///
+    /// The built-in panel when there is one, because that is what the
+    /// brightness keys act on and what a scroll over the bar most obviously
+    /// means. With the lid shut there is none, so the first monitor that
+    /// answers over the cable takes it instead.
+    func nudgeBrightness(by delta: Float) {
+        let display = displays.first { $0.isBuiltIn && $0.brightness != nil }
+            ?? displays.first { $0.brightness != nil }
+        guard let display, let current = display.brightness else { return }
         setBrightness(current + delta, on: display)
     }
 
+    /// The built-in panel answers `DisplayServices` directly. An external one
+    /// only answers over the cable, which costs a round trip and cannot be on
+    /// the once-a-second poll, so the last reading is used and
+    /// `readExternalBrightness` is what refreshes it.
     private static func brightness(of id: CGDirectDisplayID) -> Float? {
+        if CGDisplayIsBuiltin(id) == 0 { return externalBrightness[id] }
         guard let get = getBrightnessFunction else { return nil }
         var value: Float = 0
         guard get(id, &value) == 0 else { return nil }
         return value
+    }
+
+    /// What each external monitor last said its backlight was set to.
+    nonisolated(unsafe) private static var externalBrightness:
+        [CGDirectDisplayID: Float] = [:]
+
+    /// Asks every external monitor over the cable, off the main thread.
+    ///
+    /// Called when the popup opens, not on the poll: a DDC exchange waits on
+    /// the monitor and takes tens of milliseconds even when it goes well, and
+    /// three times that when the first reply lands early.
+    func readExternalBrightness() {
+        let ids = displays.filter { !$0.isBuiltIn }.map(\.id)
+        guard !ids.isEmpty, DisplayDataChannel.isAvailable else { return }
+        DispatchQueue.global(qos: .userInitiated).async {
+            var found: [CGDirectDisplayID: Float] = [:]
+            for id in ids {
+                if let value = DisplayDataChannel.brightness(of: id) {
+                    found[id] = value
+                }
+            }
+            guard !found.isEmpty else { return }
+            DispatchQueue.main.async {
+                for (id, value) in found { Self.externalBrightness[id] = value }
+                self.refresh()
+            }
+        }
     }
 
     private typealias GetBrightness = @convention(c) (
