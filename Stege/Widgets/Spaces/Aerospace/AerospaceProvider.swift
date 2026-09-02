@@ -51,6 +51,12 @@ class AerospaceSpacesProvider: SpacesProvider, SwitchableSpacesProvider {
         _ = runAerospaceCommand(arguments: ["focus", "--window-id", windowId])
     }
 
+    func moveWindow(windowId: String, toSpace spaceId: String) {
+        _ = runAerospaceCommand(arguments: [
+            "move-node-to-workspace", "--window-id", windowId, "--", spaceId,
+        ])
+    }
+
     private func runAerospaceCommand(arguments: [String]) -> Data? {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executablePath)
