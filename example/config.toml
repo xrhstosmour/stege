@@ -78,7 +78,9 @@ mode = "extras"                # append the other apps' status items, or "collap
 icon-size = 18                 # extras only: how big those icons are drawn
 icon-style = "colour"          # extras only: as the apps ship them, or "monochrome"
 always-show = []               # extras only: bundle ids kept in the bar permanently
-hidden = []                    # extras only: bundle ids that never appear
+# Bundle ids that never appear, behind the chevron or otherwise. Right-clicking
+# an icon in the row and choosing Hide adds it here, so it stays gone.
+hidden = []
 sticky = true                  # collapse only: stay away until the corner button is pressed
 return-threshold = 80          # collapse + sticky = false: points the pointer must drop first
 timeout = 10                   # collapse + sticky = false: seconds before it returns
