@@ -73,13 +73,27 @@ struct NowPlayingSong: Equatable, Identifiable {
         self.state = state
         self.title = components[1]
         self.artist = components[2]
-        self.albumArtURL = URL(string: components[3])
+        self.albumArtURL = Self.artworkURL(components[3])
         self.position = position
         if application == MusicApp.spotify.rawValue {
             self.duration = duration / 1000
         } else {
             self.duration = duration
         }
+    }
+
+    /// The artwork link, if it is one worth following.
+    ///
+    /// The player hands this over as text and it is the one thing Stege
+    /// fetches, so the scheme is checked rather than trusted. `https` is what
+    /// `Spotify` returns and `file` is what `Music` returns for a local
+    /// library. Anything else, `http` included, is dropped: a cleartext
+    /// request would say what is playing to everything on the path, and no
+    /// player has a reason to ask for one.
+    private static func artworkURL(_ text: String) -> URL? {
+        guard let url = URL(string: text), let scheme = url.scheme?.lowercased()
+        else { return nil }
+        return scheme == "https" || scheme == "file" ? url : nil
     }
 }
 
