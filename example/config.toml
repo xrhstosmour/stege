@@ -2,8 +2,22 @@
 #
 # Read from ~/.config/stege/config.toml, falling back to ~/.stege-config.toml.
 # The file is watched, so saving it applies immediately with no restart.
+#
+# This file is the reference: every setting Stege understands is here, with the
+# values it accepts written above it. Anything not listed here is not a setting.
+#
+# Types, so the notation below is unambiguous:
+#   "a" | "b"     one of these strings, quoted
+#   true | false  a boolean, unquoted
+#   0 to 100      an integer in that range
+#   []            a list, of strings unless it says otherwise
+#
+# A setting left out falls back to the default shown. A configuration written
+# for an older version is rewritten in place on first launch, with the original
+# kept beside it as config.toml.backup.
 
-# system follows System Settings, or force it with light or dark.
+# "system" | "light" | "dark"
+# system follows System Settings, or force it with one of the other two.
 #
 # light draws the bar and every popup the way the Dock is drawn: a near-white
 # surface with near-black marks on it. Set background.blur to 7 for a solid
@@ -11,6 +25,7 @@
 # through.
 theme = "system"
 
+# true | false
 # Hides the bar entirely, leaving the real macOS menu bar and every
 # third-party status item on it reachable. This file is watched, so
 # flipping it takes effect immediately with no restart.
@@ -38,8 +53,33 @@ hidden = false
 # menu-shortcut = "cmd+alt+f"
 
 [widgets]
-# The bar, left to right. Remove an entry to hide that widget entirely.
-# "spacer" pushes everything after it to the right, "divider" draws a separator.
+# The bar, left to right. Remove an entry to hide that widget entirely, reorder
+# the list to move things around. Every identifier Stege understands:
+#
+#   default.appleMenu        the Apple logo, opening the Apple menu
+#   default.spaces           the window manager's workspaces, an icon per window
+#   default.applicationMenu  the frontmost application's menus
+#   default.reveal           a chevron that appends the other apps' status items
+#   default.monitor          CPU and memory, disk and throughput in the popup
+#   default.privacy          microphone and camera in-use indicators
+#   default.stayawake        a cup, while something keeps the display awake
+#   default.notifications    a bell, the held notifications and every Focus
+#   default.updates          a mark while macOS or Homebrew has something waiting
+#   default.keyboardLayout   the current input source, with a switcher
+#   default.display          brightness, resolution, Night Shift, True Tone
+#   default.audio            output volume, and what is playing
+#   default.microphone       the microphone on its own
+#   default.bluetooth        Bluetooth state and connected device battery
+#   default.network          Wi-Fi and Ethernet state
+#   default.battery          charge, with health and cycles in the popup
+#   default.time             the clock, with a calendar popup
+#   spacer                   pushes everything after it to the right
+#   divider                  a thin vertical separator
+#
+# default.nowplaying is still accepted so an older configuration is not broken,
+# but it is not in the list above because it no longer draws anything useful:
+# what is playing moved into the sound popup. It leaves a dimmed note that opens
+# that popup and says so. Remove the entry to drop the mark.
 displayed = [
     "default.appleMenu",
     "default.spaces",
@@ -65,6 +105,7 @@ displayed = [
 # --- Left ------------------------------------------------------------------
 
 [widgets.default.appleMenu]
+# any number of points, default 14
 icon-size = 14
 # The short menu, drawn in the bar's own style, with About This Mac,
 # System Information, Log Out, Restart and Shut Down. Set to false to hand
@@ -80,7 +121,8 @@ window.title.max-length = 50
 window.title.always-display-app-name-for = ["Mail", "Chrome", "Arc"]
 
 [widgets.default.applicationMenu]
-max-menus = 6                  # Chrome exposes 11, which crowds a laptop bar
+# any whole number, default 6. Chrome exposes 11, which crowds a laptop bar.
+max-menus = 6
 # Draws the application's own name menu, the first one, in bold, as macOS
 # does. That menu is always shown either way, since it holds About and Quit.
 show-application-name = true
@@ -90,31 +132,47 @@ show-application-name = true
 #   modifier in place of the pills, while modifier-key is held
 # hover uses the pills as its target, so keep default.spaces in the bar for it.
 visibility = "always"
-modifier-key = "option"     # option, command, control, shift, function
+# "option" | "command" | "control" | "shift" | "function"
+modifier-key = "option"
 
 # --- Right -----------------------------------------------------------------
 
 [widgets.default.reveal]
-mode = "extras"                # append the other apps' status items, or "collapse"
-icon-size = 18                 # extras only: how big those icons are drawn
-icon-style = "colour"          # extras only: as the apps ship them, or "monochrome"
-always-show = []               # extras only: bundle ids kept in the bar permanently
+# "extras" | "collapse"
+mode = "extras"
+# any number of points, default 18. extras only: how big those icons are drawn.
+icon-size = 18
+# "colour" | "monochrome". extras only: as the applications ship them, or
+# flattened to one colour.
+icon-style = "colour"
+# A list of bundle identifiers, kept in the bar permanently rather than behind
+# the chevron. extras only.
+always-show = []
 # Bundle ids that never appear, behind the chevron or otherwise. Right-clicking
 # an icon in the row and choosing Hide adds it here, so it stays gone.
 hidden = []
-sticky = true                  # collapse only: stay away until the corner button is pressed
-return-threshold = 80          # collapse + sticky = false: points the pointer must drop first
-timeout = 10                   # collapse + sticky = false: seconds before it returns
+# true | false, default true. collapse only: stay away until the corner button
+# is pressed, rather than coming back when the pointer moves.
+sticky = true
+# Points the pointer must drop before the bar returns. collapse with
+# sticky = false only.
+return-threshold = 80
+# Seconds before it returns even if the pointer never moves. collapse with
+# sticky = false only.
+timeout = 10
 
 [widgets.default.monitor]
+# true | false
 show-network = false           # upload and download throughput
-warning-level = 80             # percent at which the reading turns orange
+# 0 to 100, the percentage at which the reading turns orange
+warning-level = 80
 
 [widgets.default.privacy]
 # macOS only shows its own dot while a device is in use, which is the default
 # here. Set always-show to keep both indicators visible, dimmed when idle.
 always-show = false
-style = "icon"                 # icon, or dot to match the system indicator
+# "icon" | "dot", dot matching the system indicator
+style = "icon"
 
 [widgets.default.stayawake]
 # Only shows while something is holding the display awake, which is the
@@ -148,7 +206,8 @@ always-show = false
 show-count = false             # the popup says what, the bar says whether
 macos = true                   # what macOS found the last time it looked
 homebrew = true                # `brew outdated`, which reads local data only
-refresh-interval = 30          # minutes; reading Homebrew forks a process
+# Minutes between checks, default 30. Reading Homebrew forks a process.
+refresh-interval = 30
 # Neither source checks anything: Stege makes no outbound network requests, so
 # the macOS half reads the result of the system's own last check and says how
 # old it is.
@@ -177,7 +236,8 @@ refresh-interval = 30          # minutes; reading Homebrew forks a process
 show-percentage = false
 
 [widgets.default.audio]
-glyph = "speaker"              # or "waveform"
+# "speaker" | "waveform"
+glyph = "speaker"
 show-percentage = false        # the icon already conveys the level
 # What is playing sits in this popup, under the application making the sound,
 # with previous, play and next. Album artwork is fetched from the player's own
@@ -203,8 +263,13 @@ show-name = false
 hide-when-disconnected = false
 
 [widgets.default.battery]
-style = "inside"               # number in the battery, or "plain" for beside it
+# "inside" | "plain", inside putting the number in the battery and plain beside
+# it, which is what macOS does
+style = "inside"
+# true | false
 show-percentage = true
+# 0 to 100. At or below warning-level the fill turns orange, at or below
+# critical-level red. Charging is green whatever the level.
 warning-level = 30
 critical-level = 10
 
@@ -222,6 +287,7 @@ calendar.countdown = true
 # calendar.deny-list = ["Work"]
 
 [widgets.default.time.popup]
+# "box" | "vertical" | "horizontal"
 view-variant = "box"
 
 # --- Appearance ------------------------------------------------------------
@@ -232,9 +298,11 @@ displayed = true
 # black in the dark theme, near-white in the light one, which makes the notch
 # disappear into the bar on a notched display.
 blur = 7
-height = "menu-bar"            # menu-bar, default, or a number of points
+# "menu-bar" | "default" | a number of points
+height = "menu-bar"
 
 [bar.foreground]
+# "menu-bar" | "default" | a number of points
 height = "menu-bar"
 horizontal-padding = 12
 # Extra clearance on the right only, on top of horizontal-padding. macOS draws
