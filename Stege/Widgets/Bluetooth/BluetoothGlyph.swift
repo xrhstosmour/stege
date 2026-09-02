@@ -76,14 +76,20 @@ struct BluetoothGlyph: View {
     }
 }
 
-#Preview {
-    HStack(spacing: 16) {
-        BluetoothGlyph()
-        BluetoothGlyph(slashed: true)
-        BluetoothGlyph(height: 24)
-        BluetoothGlyph(height: 24, slashed: true)
+/// Written as a `PreviewProvider` rather than with the `#Preview` macro, like
+/// every other preview here. The macro needs Xcode's plugin to expand, and
+/// there is no Xcode on the machine this is checked on, so it failed to expand
+/// and stopped the compiler before it type-checked anything else in the app.
+struct BluetoothGlyph_Previews: PreviewProvider {
+    static var previews: some View {
+        HStack(spacing: 16) {
+            BluetoothGlyph()
+            BluetoothGlyph(slashed: true)
+            BluetoothGlyph(height: 24)
+            BluetoothGlyph(height: 24, slashed: true)
+        }
+        .padding()
+        .foregroundStyle(.white)
+        .background(.black)
     }
-    .padding()
-    .foregroundStyle(.white)
-    .background(.black)
 }
