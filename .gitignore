@@ -221,3 +221,8 @@ xcuserdata/
 
 # Throwaway probes used to verify behaviour before it lands in the app.
 .prototypes/
+
+# Swift Package Manager build output. This was committed by accident when the
+# test package was added: 1441 files and 120 MB of compiler artifacts, in every
+# clone and every CI checkout.
+.build/
