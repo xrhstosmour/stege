@@ -39,10 +39,17 @@ struct RevealWidget: View {
 
     /// How the appended icons are drawn.
     ///
-    /// `monochrome` is the default, because a row of full-colour application
-    /// icons next to Stege's own single-weight glyphs looks like two bars
-    /// stapled together, and macOS draws its own menu bar in one colour for the
-    /// same reason. `colour` leaves them as the applications ship them.
+    /// `colour` is the default: the icons are drawn as the applications drew
+    /// them. This was `monochrome` on the argument that a row of full-colour
+    /// application icons next to single-weight glyphs looks like two bars
+    /// stapled together. It does, a little, but greyscaling somebody's icon is
+    /// also the surest way to make it unrecognisable, and recognising them at
+    /// a glance is the entire job of this row. `monochrome` is still there for
+    /// anyone who wants the flatter look.
+    ///
+    /// Neither applies to an application that publishes a real menu bar
+    /// template, which is line art meant for exactly this and is always tinted
+    /// to the bar's own foreground.
     ///
     /// Neither is the glyph the application actually puts in the menu bar, and
     /// there is no way to be. Dumping every accessibility attribute of a
@@ -63,8 +70,8 @@ struct RevealWidget: View {
     }
 
     var iconStyle: IconStyle {
-        IconStyle(rawValue: config["icon-style"]?.stringValue ?? "monochrome")
-            ?? .monochrome
+        IconStyle(rawValue: config["icon-style"]?.stringValue ?? "colour")
+            ?? .colour
     }
 
     private var isMonochrome: Bool { iconStyle == .monochrome }

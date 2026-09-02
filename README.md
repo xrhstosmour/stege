@@ -196,7 +196,15 @@ there was one, a bordered capsule holding artwork and two stacked lines of text,
 row of single-weight glyphs it read as a control that had been dropped into the bar rather than
 part of it. Everything it did is one click away on the speaker.
 
-It reads `Spotify` and `Music` over `AppleScript`, which is why it wants Automation. It also asks `MediaRemote`, the system's own now-playing service that Control Center
+It reads `Spotify` and `Music` over `AppleScript`, which is why it wants Automation, and drives
+whichever of the two is actually playing rather than whichever was found first. Anything else,
+a browser playing from a website among them, is named in the `Playing` heading because `CoreAudio`
+knows which processes are producing output, but its track cannot be read: `MediaRemote`, the
+system service that would know, answers an unentitled caller with nothing on macOS 26.
+
+`default.nowplaying` is still understood in `widgets.displayed`, so an old configuration is not
+broken by this. It draws a dimmed music note that opens the sound popup and says where everything
+went. Remove the entry to drop the mark. It also asks `MediaRemote`, the system's own now-playing service that Control Center
 reads, which would cover anything playing in a browser. On macOS 26 that returns an empty answer
 to any caller without Apple's own entitlement, and an empty answer is indistinguishable from
 nothing playing, so in practice the two scriptable applications are the coverage.
@@ -223,7 +231,11 @@ is frequently the image's own name, and applications name the asset conventional
 `StatusBarMenuImage` or `StatusBarItemIcon` or `MenubarIcon`. Asking the bundle for those by name
 reaches the same compiled asset catalog the application uses. Applications naming their assets for
 the state they show, or shipping no menu bar template at all, keep their application icon instead,
-so the row is a mix.
+so the row is a mix. Those application icons are drawn in colour, as the applications drew them,
+because greyscaling somebody's icon is the surest way to make it unrecognisable and recognising
+them at a glance is the whole job of this row. `icon-style = "monochrome"` flattens them for
+anyone who would rather the bar were one colour throughout. Neither applies to a real menu bar
+template, which is line art and is always tinted to the bar's foreground.
 `collapse` takes Stege away so the real menu bar underneath becomes reachable, and leaves a small
 button just left of the notch to bring it back.
 
@@ -231,7 +243,7 @@ button just left of the notch to bring it back.
 [widgets.default.reveal]
 mode = "extras"            # or "collapse"
 icon-size = 15             # `extras` only
-icon-style = "monochrome"  # `extras` only, or "colour"
+icon-style = "colour"      # `extras` only, or "monochrome"
 always-show = []           # `extras` only: bundle ids kept in the bar permanently
 hidden = []                # `extras` only: bundle ids that never appear
 sticky = true              # `collapse` only, false: come back on pointer movement
