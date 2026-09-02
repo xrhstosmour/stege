@@ -44,8 +44,15 @@ struct NowPlayingSong: Equatable, Identifiable {
     /// - Parameters:
     ///   - application: The name of the music application.
     ///   - output: The output string returned by AppleScript.
+    /// ASCII unit separator, which is what it is for and what no track title
+    /// contains. This was a vertical bar, and a track called "A|B" made the
+    /// output six fields instead of five, failed the count check, and took the
+    /// whole readout off the popup.
+    static let fieldSeparator = "\u{001F}"
+
     init?(application: String, from output: String) {
-        let components = output.components(separatedBy: "|")
+        let components = output.components(
+            separatedBy: NowPlayingSong.fieldSeparator)
         guard components.count == 6,
             let state = PlaybackState(rawValue: components[0])
         else {
@@ -116,7 +123,8 @@ enum MusicApp: String, CaseIterable {
                             else if player state is paused then
                                 set stateText to "paused"
                             end if
-                            return stateText & "|" & (name of currentTrack) & "|" & (artist of currentTrack) & "|" & artworkURL & "|" & (player position as text) & "|" & ((duration of currentTrack) as text)
+                            set separator to (character id 31)
+                            return stateText & separator & (name of currentTrack) & separator & (artist of currentTrack) & separator & artworkURL & separator & (player position as text) & separator & ((duration of currentTrack) as text)
                         else
                             return "stopped"
                         end if
@@ -131,10 +139,12 @@ enum MusicApp: String, CaseIterable {
                     tell application "\(rawValue)"
                         if player state is playing then
                             set currentTrack to current track
-                            return "playing|" & (name of currentTrack) & "|" & (artist of currentTrack) & "|" & (artwork url of currentTrack) & "|" & player position & "|" & (duration of currentTrack)
+                            set separator to (character id 31)
+                            return "playing" & separator & (name of currentTrack) & separator & (artist of currentTrack) & separator & (artwork url of currentTrack) & separator & player position & separator & (duration of currentTrack)
                         else if player state is paused then
                             set currentTrack to current track
-                            return "paused|" & (name of currentTrack) & "|" & (artist of currentTrack) & "|" & (artwork url of currentTrack) & "|" & player position & "|" & (duration of currentTrack)
+                            set separator to (character id 31)
+                            return "paused" & separator & (name of currentTrack) & separator & (artist of currentTrack) & separator & (artwork url of currentTrack) & separator & player position & separator & (duration of currentTrack)
                         else
                             return "stopped"
                         end if
