@@ -9,7 +9,7 @@ struct SpacesWidget: View {
     /// the bar shows either the workspaces or the frontmost application's
     /// menus, never both at once.
     @ObservedObject private var reveal = AppMenusReveal.shared
-    var foregroundHeight: CGFloat { configManager.config.experimental.foreground.resolveHeight() }
+    var foregroundHeight: CGFloat { configManager.config.bar.foreground.resolveHeight() }
 
     private var isStandingAside: Bool {
         reveal.swapsSpaces && reveal.isRevealed
@@ -36,7 +36,7 @@ struct SpacesWidget: View {
                 }
             }
         }
-        .experimentalConfiguration(horizontalPadding: 5, cornerRadius: 10)
+        .widgetBackground(horizontalPadding: 5, cornerRadius: 10)
         .animation(.smooth(duration: 0.3), value: spaces)
         .animation(.smooth(duration: 0.15), value: isStandingAside)
         .foregroundStyle(Color("Foreground"))
@@ -53,7 +53,7 @@ private struct SpaceView: View {
     var spaceConfig: ConfigData { config["space"]?.dictionaryValue ?? [:] }
 
     @ObservedObject var configManager = ConfigManager.shared
-    var foregroundHeight: CGFloat { configManager.config.experimental.foreground.resolveHeight() }
+    var foregroundHeight: CGFloat { configManager.config.bar.foreground.resolveHeight() }
 
     var showKey: Bool { spaceConfig["show-key"]?.boolValue ?? true }
 

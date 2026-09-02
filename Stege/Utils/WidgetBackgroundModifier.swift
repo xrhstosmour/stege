@@ -1,8 +1,8 @@
 import SwiftUI
 
-private struct ExperimentalConfigurationModifier: ViewModifier {
+private struct WidgetBackgroundModifier: ViewModifier {
     @ObservedObject var configManager = ConfigManager.shared
-    var foregroundHeight: CGFloat { configManager.config.experimental.foreground.resolveHeight() }
+    var foregroundHeight: CGFloat { configManager.config.bar.foreground.resolveHeight() }
     
     let horizontalPadding: CGFloat
     let cornerRadius: CGFloat
@@ -14,7 +14,7 @@ private struct ExperimentalConfigurationModifier: ViewModifier {
     /// broken view chain once.
     @ViewBuilder
     func body(content: Content) -> some View {
-        if !configManager.config.experimental.foreground.widgetsBackground.displayed {
+        if !configManager.config.bar.foreground.widgetsBackground.displayed {
             content
                 .scaleEffect(
                     foregroundHeight < 25 ? 0.9 : 1, anchor: .leading)
@@ -24,7 +24,7 @@ private struct ExperimentalConfigurationModifier: ViewModifier {
                 .padding(.horizontal, foregroundHeight < 45 && horizontalPadding != 15 ? 0 :
                                 foregroundHeight < 30 ? 0 : horizontalPadding
                     )
-                .background(configManager.config.experimental.foreground.widgetsBackground.blur)
+                .background(configManager.config.bar.foreground.widgetsBackground.blur)
                 .cornerRadius(foregroundHeight < 30 ? 0 : cornerRadius)
                 .overlay(
                     foregroundHeight < 30 ? nil :
@@ -37,11 +37,11 @@ private struct ExperimentalConfigurationModifier: ViewModifier {
 }
 
 extension View {
-    func experimentalConfiguration(
+    func widgetBackground(
         horizontalPadding: CGFloat = 15,
         cornerRadius: CGFloat
     ) -> some View {
-        self.modifier(ExperimentalConfigurationModifier(
+        self.modifier(WidgetBackgroundModifier(
             horizontalPadding: horizontalPadding,
             cornerRadius: cornerRadius
         ))

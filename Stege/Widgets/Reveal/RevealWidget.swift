@@ -129,7 +129,7 @@ struct RevealWidget: View {
     /// The gap the rest of the bar uses, so the appended icons keep the row's
     /// rhythm rather than sitting closer together than everything else.
     private var spacing: CGFloat {
-        ConfigManager.shared.config.experimental.foreground.spacing
+        ConfigManager.shared.config.bar.foreground.spacing
     }
 
     var body: some View {

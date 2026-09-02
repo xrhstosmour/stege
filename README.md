@@ -175,14 +175,14 @@ view-variant = "vertical"           # vertical, horizontal, box
 ### Appearance
 
 ```toml
-[experimental.background]
+[bar.background]
 displayed = true
 # 1 to 6 blur the desktop behind the bar. 7 is solid black, which makes the
 # notch disappear into the bar on a notched display.
 blur = 7
 height = "menu-bar"                 # menu-bar, default, or a number of points
 
-[experimental.foreground]
+[bar.foreground]
 height = "menu-bar"
 horizontal-padding = 12
 spacing = 10

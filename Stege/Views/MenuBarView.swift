@@ -35,7 +35,7 @@ struct MenuBarView: View {
         let items = configManager.config.rootToml.widgets.displayed
 
         HStack(spacing: 0) {
-            HStack(spacing: configManager.config.experimental.foreground.spacing) {
+            HStack(spacing: configManager.config.bar.foreground.spacing) {
                 ForEach(0..<items.count, id: \.self) { index in
                     let item = items[index]
                     buildView(for: item)
@@ -43,12 +43,12 @@ struct MenuBarView: View {
             }
         }
         .foregroundStyle(Color("Foreground Outside"))
-        .frame(height: max(configManager.config.experimental.foreground.resolveHeight(), 1.0))
+        .frame(height: max(configManager.config.bar.foreground.resolveHeight(), 1.0))
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, configManager.config.experimental.foreground.horizontalPadding)
+        .padding(.horizontal, configManager.config.bar.foreground.horizontalPadding)
         // Extra on the right only. macOS draws its recording dot in the corner
         // above every window, so without this the clock is drawn through it.
-        .padding(.trailing, configManager.config.experimental.foreground.trailingPadding)
+        .padding(.trailing, configManager.config.bar.foreground.trailingPadding)
         .background(.black.opacity(0.001))
         .environment(\.barScreenIndex, screenIndex)
         .preferredColorScheme(theme)

@@ -42,7 +42,7 @@ struct BatteryWidget: View {
                     }
             }
         )
-        .experimentalConfiguration(cornerRadius: 15)
+        .widgetBackground(cornerRadius: 15)
         .frame(maxHeight: .infinity)
         .background(.black.opacity(0.001))
         .onTapGesture {

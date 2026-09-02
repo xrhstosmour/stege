@@ -191,20 +191,20 @@ view-variant = "box"
 
 # --- Appearance ------------------------------------------------------------
 
-[experimental.background]
+[bar.background]
 displayed = true
 # 1 to 6 blur the desktop behind the bar. 7 is solid black, which makes the
 # notch disappear into the bar on a notched display.
 blur = 7
 height = "menu-bar"            # menu-bar, default, or a number of points
 
-[experimental.foreground]
+[bar.foreground]
 height = "menu-bar"
 horizontal-padding = 12
-# Extra clearance on the right only. macOS draws its recording dot in the top
-# corner above every window, including this one, and nothing can cover it, so
-# the bar stops short of it rather than having the clock drawn through. Set to
-# 0 to reclaim the space.
-trailing-padding = 26
+# Extra clearance on the right only, on top of horizontal-padding. macOS draws
+# its recording dot in the top corner above every window, including this one,
+# and nothing can cover it. The dot sits 6 to 11 points in from the edge, so
+# horizontal-padding already clears it and this only buys a visible gap.
+trailing-padding = 4
 spacing = 10
 
