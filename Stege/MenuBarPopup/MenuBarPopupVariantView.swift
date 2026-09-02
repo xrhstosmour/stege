@@ -116,7 +116,7 @@ struct MenuBarPopupVariantView: View {
             }
         } label: {
             Image(systemName: systemImageName)
-                .foregroundColor(.white.opacity(0.5))
+                .foregroundColor(BarStyle.ink.opacity(0.5))
                 .frame(width: 13, height: 10)
         }
         .buttonStyle(HoverButtonStyle())
@@ -124,7 +124,7 @@ struct MenuBarPopupVariantView: View {
             Group {
                 if selectedVariant == variant {
                     RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                        .stroke(BarStyle.ink.opacity(0.3), lineWidth: 1)
                         .opacity(1 - animationValue * 10)
                 }
             }

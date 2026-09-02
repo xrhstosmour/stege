@@ -25,7 +25,7 @@ struct BackgroundView: View {
             GeometryReader { geometry in
                 if configManager.config.bar.background.black {
                     spacer(geometry)
-                        .background(.black)
+                        .background(BarStyle.surface)
                         .id("black")
                 } else {
                     spacer(geometry)

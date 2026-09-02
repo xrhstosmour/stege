@@ -19,7 +19,7 @@ struct AlbumArtView: View {
         .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 3, style: .continuous)
-                .stroke(.white.opacity(0.15), lineWidth: 0.5)
+                .stroke(BarStyle.ink.opacity(0.18), lineWidth: 0.5)
         }
     }
 }

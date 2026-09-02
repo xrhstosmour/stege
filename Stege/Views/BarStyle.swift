@@ -49,6 +49,24 @@ enum BarStyle {
     /// smaller than the things they act on.
     static let chevronSize: CGFloat = 12
 
+    // MARK: - Colour and hover
+
+    /// The bar's ink. Near-black on a light bar, white on a dark one.
+    ///
+    /// Every mark in the row draws in this rather than in a literal colour, so
+    /// the light theme is a theme rather than white on white.
+    static let ink = Color("Foreground Outside")
+    /// What is knocked out of the ink: the opposite of it, whichever way round
+    /// the theme has them.
+    static let inkInverse = Color("Foreground Outside Invert")
+
+    /// The solid surface the bar and its popups are drawn on.
+    ///
+    /// Black on a dark bar. On a light one, the near-white the Dock and the
+    /// system menu bar use, so a light theme is a light bar rather than a dark
+    /// one with the ink flipped.
+    static let surface = Color("Surface")
+
     static var glyphFont: Font {
         .system(size: glyphSize, weight: glyphWeight)
     }

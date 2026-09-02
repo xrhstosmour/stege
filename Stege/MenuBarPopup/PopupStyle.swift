@@ -41,9 +41,10 @@ enum PopupStyle {
 
 /// The pane every popup is drawn on.
 ///
-/// Solid black, the same as the bar it hangs from. This was briefly a blurred,
-/// gradient-lit surface in the Dock's style, and against a bar that is flat
-/// black the two read as two different materials rather than one control.
+/// The same solid the bar it hangs from is drawn on, whichever way the theme
+/// has it. This was briefly a blurred, gradient-lit surface in the Dock's
+/// style, and against a flat bar the two read as two different materials
+/// rather than one control.
 ///
 /// What it does keep from that attempt is the corner radius. The popup used to
 /// round at 40 points on a pane 260 wide, so the curve ate most of the top and
@@ -53,7 +54,7 @@ struct PopupSurface: View {
 
     var body: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(Color.black)
+            .fill(BarStyle.surface)
     }
 }
 
@@ -98,7 +99,7 @@ extension View {
 struct PopupSeparator: View {
     var body: some View {
         Rectangle()
-            .fill(.white.opacity(0.12))
+            .fill(BarStyle.ink.opacity(0.15))
             .frame(height: 1)
             .padding(.horizontal, PopupStyle.rowHorizontalPadding)
             .padding(.vertical, 2)

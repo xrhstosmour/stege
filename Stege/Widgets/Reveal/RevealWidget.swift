@@ -313,9 +313,9 @@ struct CollapsedRevealView: View {
     var body: some View {
         Image(systemName: "chevron.right")
             .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(.white)
+            .foregroundStyle(BarStyle.ink)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(.black)
+            .background(BarStyle.surface)
             .contentShape(Rectangle())
             .onTapGesture { BarVisibility.shared.toggleCollapsed() }
             .help("Bring Stege back")

@@ -100,15 +100,15 @@ struct CalendarPopup_Previews: PreviewProvider {
         let calendarManager = CalendarManager(configProvider: configProvider)
 
         CalendarBoxPopup(calendarManager)
-            .background(Color.black)
+            .background(BarStyle.surface)
             .previewLayout(.sizeThatFits)
             .previewDisplayName("Box")
         CalendarVerticalPopup(calendarManager)
-            .background(Color.black)
+            .background(BarStyle.surface)
             .frame(height: 600)
             .previewDisplayName("Vertical")
         CalendarHorizontalPopup(calendarManager)
-            .background(Color.black)
+            .background(BarStyle.surface)
             .previewLayout(.sizeThatFits)
             .previewDisplayName("Horizontal")
     }
