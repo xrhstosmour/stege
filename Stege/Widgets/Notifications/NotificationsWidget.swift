@@ -118,15 +118,11 @@ struct NotificationsPopup: View {
 
             VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
                 PopupSectionTitle(title: "Focus") {
-                    if focus.isLoading {
-                        ProgressView().controlSize(.mini)
-                    } else {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 10, weight: .semibold))
-                            .opacity(0.5)
-                            .contentShape(Rectangle())
-                            .onTapGesture { focus.refresh() }
-                            .help("Read the list from Control Center again")
+                    PopupRefresh(
+                        isBusy: focus.isLoading,
+                        help: "Read the list from Control Center again"
+                    ) {
+                        focus.refresh()
                     }
                 }
                 .popupStaticRow()
@@ -190,26 +186,21 @@ struct NotificationsPopup: View {
     private var notifications: some View {
         VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
             PopupSectionTitle(title: "Notifications") {
-                if centre.isReading {
-                    ProgressView().controlSize(.mini)
-                } else {
-                    // The list keeps itself current from the banners as they
-                    // arrive, which cannot see a notification dismissed
-                    // somewhere else. This is the way to ask macOS again.
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 10, weight: .semibold))
-                        .opacity(0.5)
+                if !centre.isReading, !centre.notifications.isEmpty {
+                    Text("Clear All")
+                        .font(.system(size: PopupStyle.captionSize))
+                        .opacity(0.6)
                         .contentShape(Rectangle())
-                        .onTapGesture { centre.refresh() }
-                        .help("Read the list from Notification Center again")
-
-                    if !centre.notifications.isEmpty {
-                        Text("Clear All")
-                            .font(.system(size: PopupStyle.captionSize))
-                            .opacity(0.6)
-                            .contentShape(Rectangle())
-                            .onTapGesture { centre.clearAll() }
-                    }
+                        .onTapGesture { centre.clearAll() }
+                }
+                // The list keeps itself current from the banners as they
+                // arrive, which cannot see a notification dismissed somewhere
+                // else. This is the way to ask macOS again.
+                PopupRefresh(
+                    isBusy: centre.isReading,
+                    help: "Read the list from Notification Center again"
+                ) {
+                    centre.refresh()
                 }
             }
             .popupStaticRow()

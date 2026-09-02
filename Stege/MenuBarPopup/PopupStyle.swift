@@ -201,6 +201,34 @@ struct PopupPowerRow<Leading: View, Trailing: View>: View {
     }
 }
 
+/// The control that repeats a read: a spinner while it runs, an arrow when it
+/// does not.
+///
+/// Four sections had their own spelling of this, and Bluetooth had a fifth
+/// idea: a `Scan` word that became a `Stop` word, which was the only control
+/// in any popup that changed what it did while you looked at it. Nothing
+/// needed stopping. A Bluetooth inquiry runs for eight seconds and ends on its
+/// own, and a Wi-Fi scan is a single call, so both are only ever waiting.
+struct PopupRefresh: View {
+    let isBusy: Bool
+    var help: String = "Look again"
+    let action: () -> Void
+
+    @ViewBuilder
+    var body: some View {
+        if isBusy {
+            ProgressView().controlSize(.mini)
+        } else {
+            Image(systemName: "arrow.clockwise")
+                .font(.system(size: 10, weight: .semibold))
+                .opacity(0.5)
+                .contentShape(Rectangle())
+                .onTapGesture(perform: action)
+                .help(help)
+        }
+    }
+}
+
 /// A round icon button, for controls that are a symbol and nothing else.
 ///
 /// The transport in the sound popup is three of these in a row, where a
