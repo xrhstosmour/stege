@@ -242,7 +242,7 @@ button just left of the notch to bring it back.
 ```toml
 [widgets.default.reveal]
 mode = "extras"            # or "collapse"
-icon-size = 15             # `extras` only
+icon-size = 18             # `extras` only
 icon-style = "colour"      # `extras` only, or "monochrome"
 always-show = []           # `extras` only: bundle ids kept in the bar permanently
 hidden = []                # `extras` only: bundle ids that never appear

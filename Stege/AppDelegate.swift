@@ -143,6 +143,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupPanels()
     }
 
+    /// Just under the real menu bar.
+    ///
+    /// These used to be the desktop level and `backstopMenu`, which is -20, so
+    /// the whole bar sat *behind* every ordinary window. It looked right only
+    /// because a tiling window manager was keeping a gap at the top of the
+    /// screen for it. On a second display with no such gap, or under any
+    /// window placed at the top of the screen, the bar was simply not there.
+    ///
+    /// Below the real menu bar rather than above it, at 24, so moving the
+    /// pointer to the top of the screen still reveals the system's own bar
+    /// over this one. That is what the reveal chevron and the extras row are
+    /// built on.
+    private static var barLevel: Int {
+        Int(CGWindowLevelForKey(.mainMenuWindow)) - 1
+    }
+    private static var backgroundLevel: Int { barLevel - 1 }
+
     /// Creates or updates one background and one menu bar panel per screen.
     ///
     /// Re-run whenever the screen layout changes or the displays wake, which
@@ -173,11 +190,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if index < backgroundPanels.count {
                 reposition(
                     backgroundPanels[index], to: frame,
-                    level: Int(CGWindowLevelForKey(.desktopWindow)),
+                    level: Self.backgroundLevel,
                     show: shouldShow)
                 reposition(
                     menuBarPanels[index], to: frame,
-                    level: Int(CGWindowLevelForKey(.backstopMenu)),
+                    level: Self.barLevel,
                     show: shouldShow)
                 reposition(
                     collapsedPanels[index], to: collapsedFrame(on: screen),
@@ -187,13 +204,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 backgroundPanels.append(
                     makePanel(
                         frame: frame,
-                        level: Int(CGWindowLevelForKey(.desktopWindow)),
+                        level: Self.backgroundLevel,
                         hostingRootView: AnyView(BackgroundView()),
                         show: shouldShow))
                 menuBarPanels.append(
                     makePanel(
                         frame: frame,
-                        level: Int(CGWindowLevelForKey(.backstopMenu)),
+                        level: Self.barLevel,
                         hostingRootView: AnyView(MenuBarView()),
                         show: shouldShow))
                 // Above the menu bar rather than behind it, because the whole
