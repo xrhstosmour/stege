@@ -91,6 +91,13 @@ enum AudioScope {
 
 struct AudioPopup: View {
     @ObservedObject var manager: AudioManager
+    /// What is playing, above the volume it is playing at.
+    ///
+    /// This is where Control Center puts it, and it is where it is worth
+    /// having: the two questions asked of a speaker icon are how loud it is
+    /// and what is coming out of it, and the second used to need a widget of
+    /// its own in the bar to answer.
+    @ObservedObject private var playing = NowPlayingManager.shared
     let scope: AudioScope
 
     /// One block: how loud it is, and which device it is using. No opening
@@ -98,6 +105,10 @@ struct AudioPopup: View {
     /// answer to what this is.
     var body: some View {
         VStack(alignment: .leading, spacing: PopupStyle.spacing) {
+            if scope == .output {
+                nowPlaying
+            }
+
             switch scope {
             case .output:
                 section(
@@ -167,8 +178,93 @@ struct AudioPopup: View {
             }
         }
         .popupContainer()
-        .onAppear { if scope == .output { manager.startWatchingSources() } }
-        .onDisappear { manager.stopWatchingSources() }
+        .onAppear {
+            guard scope == .output else { return }
+            manager.startWatchingSources()
+            playing.startWatching()
+        }
+        .onDisappear {
+            guard scope == .output else { return }
+            manager.stopWatchingSources()
+            playing.stopWatching()
+        }
+    }
+
+    /// The track, and the three controls worth having on it.
+    ///
+    /// Nothing is drawn when nothing is playing, rather than an empty frame
+    /// with dead buttons, so the popup is the same height it always was for
+    /// anyone not playing anything.
+    @ViewBuilder
+    private var nowPlaying: some View {
+        if let song = playing.nowPlaying {
+            VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
+                HStack(spacing: 10) {
+                    AlbumArtView(song: song, side: 34)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(song.title)
+                            .font(
+                                .system(
+                                    size: PopupStyle.bodySize, weight: .medium)
+                            )
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        Text(song.artist)
+                            .font(.system(size: PopupStyle.captionSize))
+                            .opacity(0.6)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                    Spacer(minLength: 4)
+                }
+                .popupStaticRow()
+
+                HStack(spacing: 4) {
+                    Spacer(minLength: 0)
+                    PopupIconButton(symbol: "backward.fill") {
+                        playing.previousTrack()
+                    }
+                    PopupIconButton(
+                        symbol: song.state == .playing
+                            ? "pause.fill" : "play.fill",
+                        size: 14
+                    ) {
+                        playing.togglePlayPause()
+                    }
+                    PopupIconButton(symbol: "forward.fill") {
+                        playing.nextTrack()
+                    }
+                    Spacer(minLength: 0)
+                }
+                .popupStaticRow()
+
+                if let elapsed = progress {
+                    ProgressView(value: elapsed)
+                        .progressViewStyle(.linear)
+                        .controlSize(.small)
+                        .popupStaticRow()
+                }
+            }
+
+            PopupSeparator()
+        } else if let failure = playing.failure {
+            Text(failure)
+                .font(.system(size: PopupStyle.captionSize))
+                .foregroundStyle(.orange)
+                .fixedSize(horizontal: false, vertical: true)
+                .popupStaticRow()
+
+            PopupSeparator()
+        }
+    }
+
+    /// Where the track has got to, when the player reports both numbers.
+    private var progress: Double? {
+        guard let song = playing.nowPlaying,
+            let position = song.position,
+            let duration = song.duration, duration > 0
+        else { return nil }
+        return min(1, max(0, position / duration))
     }
 
     /// One half of the popup.
