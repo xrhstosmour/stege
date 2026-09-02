@@ -27,7 +27,10 @@ class AerospaceSpacesProvider: SpacesProvider, SwitchableSpacesProvider {
 
             var space =
                 spacesByID[workspace]
-                ?? AeroSpace(workspace: workspace, isFocused: window.workspaceIsFocused)
+                ?? AeroSpace(
+                    workspace: workspace,
+                    isFocused: window.workspaceIsFocused,
+                    monitorScreenID: window.monitorScreenID)
             space.isFocused = space.isFocused || window.workspaceIsFocused
             space.windows.append(mutableWindow)
             spacesByID[workspace] = space
@@ -71,7 +74,8 @@ class AerospaceSpacesProvider: SpacesProvider, SwitchableSpacesProvider {
             let data = runAerospaceCommand(arguments: [
                 "list-windows", "--all", "--json", "--format",
                 "%{window-id} %{app-name} %{app-bundle-id} %{window-title} "
-                    + "%{workspace} %{workspace-is-focused}",
+                    + "%{workspace} %{workspace-is-focused} "
+                    + "%{monitor-appkit-nsscreen-screens-id}",
             ])
         else { return nil }
         do {

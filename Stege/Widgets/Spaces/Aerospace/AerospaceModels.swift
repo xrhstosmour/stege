@@ -11,6 +11,11 @@ struct AeroWindow: WindowModel {
     /// Reported alongside every window, which is what removes the need for the
     /// separate `list-workspaces --focused` call.
     let workspaceIsFocused: Bool
+    /// Which display the window's workspace is on, as an index into
+    /// `NSScreen.screens` counting from one. `AeroSpace` assigns workspaces to
+    /// monitors, so without this every bar on every display drew every
+    /// workspace, including the ones belonging to the other screen.
+    let monitorScreenID: Int?
 
     enum CodingKeys: String, CodingKey {
         case id = "window-id"
@@ -19,6 +24,7 @@ struct AeroWindow: WindowModel {
         case bundleID = "app-bundle-id"
         case workspace
         case workspaceIsFocused = "workspace-is-focused"
+        case monitorScreenID = "monitor-appkit-nsscreen-screens-id"
     }
 
     init(from decoder: Decoder) throws {
@@ -31,6 +37,8 @@ struct AeroWindow: WindowModel {
         workspaceIsFocused =
             try container.decodeIfPresent(Bool.self, forKey: .workspaceIsFocused)
             ?? false
+        monitorScreenID = try container.decodeIfPresent(
+            Int.self, forKey: .monitorScreenID)
         isFocused = false
         // Prefer the bundle identifier: looking an icon up by display name has
         // to scan every running application and picks the wrong one when two
@@ -46,6 +54,8 @@ struct AeroSpace: SpaceModel {
     var id: String { workspace }
     var isFocused: Bool = false
     var windows: [AeroWindow] = []
+    /// The display this workspace is on. See `AeroWindow.monitorScreenID`.
+    var monitorScreenID: Int?
 
     enum CodingKeys: String, CodingKey {
         case workspace
@@ -56,10 +66,13 @@ struct AeroSpace: SpaceModel {
         workspace = try container.decode(String.self, forKey: .workspace)
     }
 
-    init(workspace: String, isFocused: Bool = false, windows: [AeroWindow] = [])
-    {
+    init(
+        workspace: String, isFocused: Bool = false,
+        windows: [AeroWindow] = [], monitorScreenID: Int? = nil
+    ) {
         self.workspace = workspace
         self.isFocused = isFocused
         self.windows = windows
+        self.monitorScreenID = monitorScreenID
     }
 }

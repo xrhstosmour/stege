@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SpacesWidget: View {
     @StateObject var viewModel = SpacesViewModel()
+    @Environment(\.barScreenIndex) private var screenIndex
 
     @ObservedObject var configManager = ConfigManager.shared
     /// The app menus widget takes this widget's place while it is revealed, so
@@ -14,16 +15,29 @@ struct SpacesWidget: View {
         reveal.swapsSpaces && reveal.isRevealed
     }
 
+    /// The workspaces on this display.
+    ///
+    /// `AeroSpace` assigns workspaces to monitors, so with two displays every
+    /// bar drew every workspace and both bars were identical, each of them
+    /// half wrong. A workspace whose monitor is unknown, which is every
+    /// workspace under `yabai`, is drawn on all of them as before.
+    private var spaces: [AnySpace] {
+        guard let screenIndex else { return viewModel.spaces }
+        return viewModel.spaces.filter {
+            $0.monitorScreenID == nil || $0.monitorScreenID == screenIndex
+        }
+    }
+
     var body: some View {
         HStack(spacing: foregroundHeight < 30 ? 0 : 8) {
             if !isStandingAside {
-                ForEach(viewModel.spaces) { space in
+                ForEach(spaces) { space in
                     SpaceView(space: space)
                 }
             }
         }
         .experimentalConfiguration(horizontalPadding: 5, cornerRadius: 10)
-        .animation(.smooth(duration: 0.3), value: viewModel.spaces)
+        .animation(.smooth(duration: 0.3), value: spaces)
         .animation(.smooth(duration: 0.15), value: isStandingAside)
         .foregroundStyle(Color("Foreground"))
         .environmentObject(viewModel)

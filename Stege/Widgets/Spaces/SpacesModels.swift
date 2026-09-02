@@ -49,14 +49,21 @@ struct AnySpace: Identifiable, Equatable {
     let id: String
     let isFocused: Bool
     let windows: [AnyWindow]
+    /// Which display this workspace belongs to, counting `NSScreen.screens`
+    /// from one. Nil where the window manager does not say, and a workspace
+    /// that does not say is drawn on every bar.
+    let monitorScreenID: Int?
 
     init<S: SpaceModel>(_ space: S) {
         if let aero = space as? AeroSpace {
             self.id = aero.workspace
+            self.monitorScreenID = aero.monitorScreenID
         } else if let yabai = space as? YabaiSpace {
             self.id = String(yabai.id)
+            self.monitorScreenID = nil
         } else {
             self.id = "0"
+            self.monitorScreenID = nil
         }
         self.isFocused = space.isFocused
         self.windows = space.windows.map { AnyWindow($0) }
@@ -64,6 +71,7 @@ struct AnySpace: Identifiable, Equatable {
 
     static func == (lhs: AnySpace, rhs: AnySpace) -> Bool {
         return lhs.id == rhs.id && lhs.isFocused == rhs.isFocused
+            && lhs.monitorScreenID == rhs.monitorScreenID
             && lhs.windows == rhs.windows
     }
 }
