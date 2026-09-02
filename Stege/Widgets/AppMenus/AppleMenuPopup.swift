@@ -3,10 +3,10 @@ import SwiftUI
 
 /// A short Apple menu drawn in the bar's own style.
 ///
-/// The system Apple menu carries fifteen entries, several of them duplicated
-/// because macOS keeps the Option-key alternates in the same list, which the
-/// Accessibility API gives no way to tell apart. This shows the five that are
-/// actually reached for.
+/// The system Apple menu carries fifteen entries, several of them the Option-key
+/// version of the one above. This shows the five that are actually reached for,
+/// picked out by name rather than filtered, so it does not depend on telling
+/// the alternates apart at all.
 ///
 /// Each row presses the real menu item rather than reimplementing what it does,
 /// so restart, shut down and log out all raise the system's own confirmation

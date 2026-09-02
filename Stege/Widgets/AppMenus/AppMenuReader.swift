@@ -14,6 +14,11 @@ struct AppMenuEntry: Identifiable {
     let isChecked: Bool
     let hasSubmenu: Bool
     let isSeparator: Bool
+    /// Whether this is the Option-key version of the entry above it, the way
+    /// Finder's "Show Inspector" stands in for "Get Info". macOS shows one or
+    /// the other depending on whether Option is held, and both were being
+    /// drawn. See `AppMenuReader.alternates(among:)`.
+    let isAlternate: Bool
     /// The action selector macOS names the item by, such as
     /// `_restartRequested:`. Unlike the title this is not localised, so it
     /// is the only safe way to pick a specific system item out by hand.
@@ -89,6 +94,7 @@ enum AppMenuReader {
             isChecked: false,
             hasSubmenu: true,
             isSeparator: false,
+            isAlternate: false,
             identifier: nil,
             element: first)
     }
@@ -118,6 +124,7 @@ enum AppMenuReader {
                 isChecked: false,
                 hasSubmenu: true,
                 isSeparator: false,
+                isAlternate: false,
                 identifier: nil,
                 element: item)
         }
@@ -136,15 +143,17 @@ enum AppMenuReader {
             let children = attribute(menu, kAXChildrenAttribute, as: [AXUIElement].self)
         else { return [] }
 
-        return children.map { entry in
+        let flags = alternates(among: children)
+
+        return children.enumerated().map { index, entry in
             let title = attribute(entry, kAXTitleAttribute, as: String.self) ?? ""
             // Separators carry no title, which is the only thing distinguishing
             // them through the Accessibility API.
             guard !title.isEmpty else {
                 return AppMenuEntry(
                     title: "", shortcut: nil, isEnabled: false, isChecked: false,
-                    hasSubmenu: false, isSeparator: true, identifier: nil,
-                    element: nil)
+                    hasSubmenu: false, isSeparator: true, isAlternate: false,
+                    identifier: nil, element: nil)
             }
 
             let submenu =
@@ -164,9 +173,35 @@ enum AppMenuReader {
                     .isEmpty,
                 hasSubmenu: !submenuEntries.isEmpty,
                 isSeparator: false,
+                isAlternate: flags[index],
                 identifier: attribute(entry, "AXIdentifier", as: String.self),
                 element: entry)
         }
+    }
+
+    /// Which entries are the Option-key version of the one before them.
+    ///
+    /// The rule is in `MenuAlternates`, which is under test. This only reads
+    /// the three attributes it decides from.
+    ///
+    /// Checked against Finder's File menu, where it picks out "Show Inspector"
+    /// under "Get Info", "Close All" under "Close Window", "Slideshow" under
+    /// "Quick Look", "Delete Immediately…" under "Move to Trash", and the
+    /// second "Compress" and "Always Open With", which carry no shortcut at all
+    /// and are marked with Option and no Command.
+    private static func alternates(among entries: [AXUIElement]) -> [Bool] {
+        MenuAlternates.flags(
+            for: entries.map { entry in
+                MenuAlternates.Item(
+                    title: attribute(entry, kAXTitleAttribute, as: String.self)
+                        ?? "",
+                    character: attribute(
+                        entry, kAXMenuItemCmdCharAttribute, as: String.self)
+                        ?? "",
+                    modifiers: attribute(
+                        entry, kAXMenuItemCmdModifiersAttribute, as: Int.self)
+                        ?? 0)
+            })
     }
 
     private static func shortcut(of entry: AXUIElement) -> AppMenuShortcut? {
