@@ -268,6 +268,24 @@ final class AudioManager: ObservableObject {
         volume = written
     }
 
+    /// Setting a level from a control, which is also a way of unmuting.
+    ///
+    /// The popup's slider was disabled while muted, so the only way back was
+    /// the mute button beside it, and reaching for the slider to turn the
+    /// sound up did nothing at all. macOS lets its own slider be dragged while
+    /// muted and treats the drag as unmuting, which is what someone dragging
+    /// it meant. This is what the scroll wheel over the widget has always
+    /// done.
+    func setOutputLevel(_ newValue: Double) {
+        if newValue > 0.001, isOutputMuted { toggleOutputMute() }
+        setVolume(newValue)
+    }
+
+    func setInputLevel(_ newValue: Double) {
+        if newValue > 0.001, isInputMuted { toggleInputMute() }
+        setInputVolume(newValue)
+    }
+
     /// Input gain. Silently does nothing on a device with no settable gain,
     /// which is why the popup only draws the slider when `inputVolume` is set.
     func setInputVolume(_ newValue: Double) {

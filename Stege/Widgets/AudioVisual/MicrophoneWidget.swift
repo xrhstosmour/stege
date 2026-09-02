@@ -54,7 +54,7 @@ struct MicrophoneWidget: View {
 
     private func showPopup() {
         MenuBarPopup.show(rect: rect, id: "microphone") {
-            AudioPopup(manager: manager, scope: .input)
+            AudioPopup(manager: manager, scope: .input, fetchesArtwork: false)
         }
     }
 

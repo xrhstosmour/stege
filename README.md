@@ -22,8 +22,8 @@ poll.
 **Security.** Upstream's self-updater replaces the app in `/Applications` without checking a
 signature. Stege has no self-updater and installs through Homebrew, which verifies checksums. It
 collects no telemetry. The only request it ever makes is for album artwork, and only when the
-now playing widget is showing a track whose player gave a link rather than the image itself, which
-in practice means `Spotify`. `fetch-artwork = false` refuses even that.
+sound popup is open on a track whose player gave a link rather than the image itself, which in
+practice means `Spotify`. `fetch-artwork = false` refuses even that.
 
 **App menus.** The frontmost app's menus drawn in the bar via the Accessibility API.
 
@@ -114,7 +114,6 @@ displayed = [
 | `default.bluetooth` | Bluetooth state and connected device battery |
 | `default.network` | Wi-Fi and Ethernet state |
 | `default.battery` | Charge, with health and cycles in the popup |
-| `default.nowplaying` | What is playing, also at the top of the sound popup |
 | `default.time` | Clock, with a calendar popup |
 | `spacer` | Pushes everything after it to the right |
 | `divider` | A thin vertical separator |
@@ -191,13 +190,13 @@ spacing = 10
 
 ### Now playing
 
-What is playing, with previous, play and next, is at the top of the sound popup, which is where
-Control Center keeps it. `default.nowplaying` puts the track in the bar as well: the artwork at
-the size of a glyph and the title on one line, dimmed while paused. It used to be a bordered
-capsule holding two stacked lines of text, which read as a control dropped into the bar rather
-than part of the row. Leave it out of `widgets.displayed` if the sound popup is enough.
+What is playing lives in the sound popup, under the application making the sound, with the
+artwork, previous, play, next and how far through the track is. There is no bar widget for it:
+there was one, a bordered capsule holding artwork and two stacked lines of text, and next to a
+row of single-weight glyphs it read as a control that had been dropped into the bar rather than
+part of it. Everything it did is one click away on the speaker.
 
-Both read `Spotify` and `Music` over `AppleScript`, which is why they want Automation. It also asks `MediaRemote`, the system's own now-playing service that Control Center
+It reads `Spotify` and `Music` over `AppleScript`, which is why it wants Automation. It also asks `MediaRemote`, the system's own now-playing service that Control Center
 reads, which would cover anything playing in a browser. On macOS 26 that returns an empty answer
 to any caller without Apple's own entitlement, and an empty answer is indistinguishable from
 nothing playing, so in practice the two scriptable applications are the coverage.

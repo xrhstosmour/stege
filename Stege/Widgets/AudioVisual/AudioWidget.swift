@@ -15,6 +15,13 @@ struct AudioWidget: View {
         SoundGlyphStyle(rawValue: config["glyph"]?.stringValue ?? "speaker")
             ?? .speaker
     }
+    /// Album artwork is fetched from the player's own servers when the system
+    /// does not hand the image over directly, which in practice means
+    /// `Spotify`. It is the only outbound request Stege makes, so it can be
+    /// refused. It moved here with the popup that draws it.
+    var fetchesArtwork: Bool {
+        config["fetch-artwork"]?.boolValue ?? true
+    }
 
     @ObservedObject private var manager = AudioManager.shared
     @State private var rect: CGRect = .zero
@@ -62,7 +69,9 @@ struct AudioWidget: View {
 
     private func showPopup() {
         MenuBarPopup.show(rect: rect, id: "audio") {
-            AudioPopup(manager: manager, scope: .output)
+            AudioPopup(
+                manager: manager, scope: .output,
+                fetchesArtwork: fetchesArtwork)
         }
     }
 
@@ -91,7 +100,7 @@ enum AudioScope {
 
 struct AudioPopup: View {
     @ObservedObject var manager: AudioManager
-    /// What is playing, above the volume it is playing at.
+    /// What is playing, under the application playing it.
     ///
     /// This is where Control Center puts it, and it is where it is worth
     /// having: the two questions asked of a speaker icon are how loud it is
@@ -99,16 +108,16 @@ struct AudioPopup: View {
     /// its own in the bar to answer.
     @ObservedObject private var playing = NowPlayingManager.shared
     let scope: AudioScope
+    /// Whether the artwork may be fetched over the network. Read from the
+    /// audio widget's own settings now that the now playing widget, which used
+    /// to carry it, is gone.
+    let fetchesArtwork: Bool
 
     /// One block: how loud it is, and which device it is using. No opening
     /// line naming the popup, because clicking the speaker is already the
     /// answer to what this is.
     var body: some View {
         VStack(alignment: .leading, spacing: PopupStyle.spacing) {
-            if scope == .output {
-                nowPlaying
-            }
-
             switch scope {
             case .output:
                 section(
@@ -116,7 +125,7 @@ struct AudioPopup: View {
                         ? "speaker.slash.fill" : "speaker.wave.2.fill",
                     isMuted: manager.isOutputMuted,
                     level: manager.volume,
-                    setLevel: { manager.setVolume($0) },
+                    setLevel: { manager.setOutputLevel($0) },
                     toggleMute: { manager.toggleOutputMute() },
                     devices: manager.outputDevices,
                     selected: manager.currentOutputID,
@@ -128,7 +137,7 @@ struct AudioPopup: View {
                             ? "mic.slash.fill" : "mic.fill",
                         isMuted: manager.isInputMuted,
                         level: manager.inputVolume,
-                        setLevel: { manager.setInputVolume($0) },
+                        setLevel: { manager.setInputLevel($0) },
                         toggleMute: { manager.toggleInputMute() },
                         devices: manager.inputDevices,
                         selected: manager.currentInputID,
@@ -141,7 +150,10 @@ struct AudioPopup: View {
                 }
             }
 
-            if scope == .output, !manager.sources.isEmpty {
+            if scope == .output,
+                !manager.sources.isEmpty || playing.nowPlaying != nil
+                    || playing.failure != nil
+            {
                 PopupSeparator()
                 VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
                     PopupSectionTitle("Playing").popupStaticRow()
@@ -166,6 +178,12 @@ struct AudioPopup: View {
                         }
                         .popupStaticRow()
                     }
+
+                    // Under the application making the sound, not above the
+                    // volume slider. The track belongs to that application,
+                    // and putting it at the top of the popup left the two
+                    // halves of one answer at opposite ends of it.
+                    nowPlaying
                 }
             }
 
@@ -181,6 +199,7 @@ struct AudioPopup: View {
         .onAppear {
             guard scope == .output else { return }
             manager.startWatchingSources()
+            playing.fetchesArtwork = fetchesArtwork
             playing.startWatching()
         }
         .onDisappear {
@@ -245,16 +264,12 @@ struct AudioPopup: View {
                         .popupStaticRow()
                 }
             }
-
-            PopupSeparator()
         } else if let failure = playing.failure {
             Text(failure)
                 .font(.system(size: PopupStyle.captionSize))
                 .foregroundStyle(.orange)
                 .fixedSize(horizontal: false, vertical: true)
                 .popupStaticRow()
-
-            PopupSeparator()
         }
     }
 
@@ -293,11 +308,12 @@ struct AudioPopup: View {
                     .help(isMuted ? "Unmute" : "Mute")
 
                 if let level {
+                    // Live while muted. Dragging it up is how the sound comes
+                    // back, so disabling it took away the one control someone
+                    // reaching for the slider was reaching for.
                     Slider(
                         value: Binding(get: { level }, set: setLevel), in: 0...1
                     )
-                    .disabled(isMuted)
-                    .opacity(isMuted ? 0.4 : 1)
 
                     // Muted says muted. The level is still there behind it
                     // and the slider still shows where it will come back to,
