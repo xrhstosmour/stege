@@ -113,10 +113,28 @@ final class PermissionsWindowController {
 
     /// Shows the window only when something is actually missing, so a fully
     /// granted setup never sees it.
+    /// Asked twice, a second and a half apart, before anything is put on
+    /// screen.
+    ///
+    /// Not every authorization is readable the instant the process starts.
+    /// `CBManager.authorization` reports `.notDetermined` until a central
+    /// manager exists, and the calendar and location statuses settle the same
+    /// way, so the first read after launch says a permission is missing that
+    /// has in fact been granted for months. Deciding from that read put a
+    /// window on screen listing four permissions, every one of them marked
+    /// Granted, at every launch.
+    ///
+    /// The cost of the second read is that a window genuinely needed appears a
+    /// second and a half later than it would have.
     func showIfNeeded() {
         model.refresh()
         guard !model.missing.isEmpty else { return }
-        show()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            guard let self else { return }
+            self.model.refresh()
+            guard !self.model.missing.isEmpty else { return }
+            self.show()
+        }
     }
 
     func show() {
