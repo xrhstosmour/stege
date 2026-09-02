@@ -66,9 +66,10 @@ struct BatteryWidget: View {
             }
             BatteryBody(
                 level: level, fill: fillColor, fillOpacity: 1,
-                outline: Color("Foreground Outside")
+                outline: Color("Foreground Outside"),
+                mark: powerMark
             ) {
-                chargingBolt
+                EmptyView()
             }
         }
         .animation(.smooth(duration: 0.2), value: level)
@@ -79,51 +80,41 @@ struct BatteryWidget: View {
     private var insideBody: some View {
         BatteryBody(
             level: level, fill: fillColor, fillOpacity: fillOpacity,
-            outline: Color("Foreground Outside")
+            outline: Color("Foreground Outside"),
+            mark: powerMark
         ) {
             if showPercentage {
                 number
-            } else {
-                chargingBolt
             }
         }
         .animation(.smooth(duration: 0.2), value: level)
         .animation(.smooth(duration: 0.2), value: isCharging)
     }
 
-    /// Drawn in the background colour, so it reads as knocked out of the fill
-    /// rather than laid on top of it. This is the only mark inside the body
-    /// when the number is off, which is what macOS does.
-    @ViewBuilder
-    private var chargingBolt: some View {
-        if isCharging {
-            Image(systemName: "bolt.fill")
-                .font(.system(size: 9))
-                .foregroundStyle(Color("Foreground Outside Invert"))
-        }
+    /// Which power state to draw beside the terminal, if any.
+    ///
+    /// Kept at 100 too. A machine on the charger is charging whether or not it
+    /// has finished, and dropping the mark at exactly full made the one
+    /// unambiguous state the only one with nothing to say.
+    private var powerMark: BatteryPowerMark {
+        if isCharging { return .charging }
+        if isPluggedIn { return .pluggedIn }
+        return .unplugged
     }
 
+    /// The charge, and nothing else. The power mark used to sit beside the
+    /// digits in here, which moved the number every time the charger went in
+    /// or came out, and left three digits and a bolt fighting for a thirty
+    /// point body.
     private var number: some View {
-        HStack(spacing: 0) {
-            // Sized to the body it sits in, which grew with the rest of the
-            // bar. Any larger and the digits cross the outline top and bottom
-            // and read as printed over the battery rather than inside it.
-            Text("\(level)")
-                .font(.system(size: 10.5, weight: .semibold))
-                .monospacedDigit()
-                .transition(.blurReplace)
-            // Kept at 100 too. A machine on the charger is charging whether or
-            // not it has finished, and dropping the mark at exactly full made
-            // the one unambiguous state the only one with nothing to say.
-            if isCharging {
-                Image(systemName: "bolt.fill").font(.system(size: 8))
-            } else if isPluggedIn {
-                Image(systemName: "powerplug.portrait.fill")
-                    .font(.system(size: 8))
-                    .padding(.leading, 1)
-            }
-        }
-        .foregroundStyle(Color("Foreground Outside"))
+        // Sized to the body it sits in. Any larger and the digits cross the
+        // outline top and bottom and read as printed over the battery rather
+        // than inside it.
+        Text("\(level)")
+            .font(.system(size: 9.5, weight: .semibold))
+            .monospacedDigit()
+            .transition(.blurReplace)
+            .foregroundStyle(Color("Foreground Outside"))
     }
 
     /// Colour says something is wrong, or that the machine is on the charger,
@@ -173,6 +164,21 @@ struct BatteryWidget: View {
     }
 }
 
+/// What is drawn beside the terminal: the charger state, or nothing.
+enum BatteryPowerMark {
+    case unplugged
+    case charging
+    case pluggedIn
+
+    var symbol: String? {
+        switch self {
+        case .unplugged: return nil
+        case .charging: return "bolt.fill"
+        case .pluggedIn: return "powerplug.portrait.fill"
+        }
+    }
+}
+
 /// The battery, drawn rather than assembled out of an SF Symbol.
 ///
 /// It used to be `battery.0` with a `Rectangle` laid over it, the rectangle's
@@ -189,11 +195,15 @@ private struct BatteryBody<Overlay: View>: View {
     let fill: Color
     let fillOpacity: Double
     let outline: Color
+    let mark: BatteryPowerMark
     @ViewBuilder var overlay: Overlay
 
     static var width: CGFloat { 30 }
     static var height: CGFloat { 13.5 }
     private static var inset: CGFloat { 1.75 }
+    /// Held open whether or not there is a mark to put in it, so plugging the
+    /// charger in does not shift every widget to the left of the battery.
+    private static var markSlot: CGFloat { 7 }
 
     var body: some View {
         HStack(spacing: 1) {
@@ -223,6 +233,16 @@ private struct BatteryBody<Overlay: View>: View {
             )
             .fill(outline.opacity(0.5))
             .frame(width: 1.75, height: 5)
+
+            Group {
+                if let symbol = mark.symbol {
+                    Image(systemName: symbol)
+                        .font(.system(size: 8))
+                        .foregroundStyle(outline)
+                        .transition(.blurReplace)
+                }
+            }
+            .frame(width: Self.markSlot)
         }
     }
 
