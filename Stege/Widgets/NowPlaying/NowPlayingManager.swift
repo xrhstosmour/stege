@@ -327,7 +327,18 @@ final class NowPlayingManager: ObservableObject {
     /// artwork over as bytes, but the AppleScript path returns a link to the
     /// player's own servers, and following it tells them the track is being
     /// looked at from this machine. Set by the widget from the file.
-    var fetchesArtwork = true
+    /// Whether the artwork link may be followed.
+    ///
+    /// Read from the configuration here rather than pushed in by whichever
+    /// popup drew last. It was a settable property, and the marker standing in
+    /// for the removed now playing widget set it to `true` unconditionally, so
+    /// clicking that mark turned the setting back on for the rest of the
+    /// session. False means the link is dropped before it reaches the view
+    /// that would load it.
+    var fetchesArtwork: Bool {
+        ConfigManager.shared.widgetSettings(for: "default.audio")[
+            "fetch-artwork"]?.boolValue ?? true
+    }
     private var cancellable: AnyCancellable?
 
     /// How many views are showing what is playing.

@@ -15,14 +15,6 @@ struct AudioWidget: View {
         SoundGlyphStyle(rawValue: config["glyph"]?.stringValue ?? "speaker")
             ?? .speaker
     }
-    /// Album artwork is fetched from the player's own servers when the system
-    /// does not hand the image over directly, which in practice means
-    /// `Spotify`. It is the only outbound request Stege makes, so it can be
-    /// refused. It moved here with the popup that draws it.
-    var fetchesArtwork: Bool {
-        config["fetch-artwork"]?.boolValue ?? true
-    }
-
     @ObservedObject private var manager = AudioManager.shared
     @State private var rect: CGRect = .zero
 
@@ -69,9 +61,7 @@ struct AudioWidget: View {
 
     private func showPopup() {
         MenuBarPopup.show(rect: rect, id: "audio") {
-            AudioPopup(
-                manager: manager, scope: .output,
-                fetchesArtwork: fetchesArtwork)
+            AudioPopup(manager: manager, scope: .output)
         }
     }
 
@@ -110,10 +100,6 @@ struct AudioPopup: View {
     /// Where the playhead has been dragged to, while it is being dragged.
     @State private var scrubbedTo: Double?
     let scope: AudioScope
-    /// Whether the artwork may be fetched over the network. Read from the
-    /// audio widget's own settings now that the now playing widget, which used
-    /// to carry it, is gone.
-    let fetchesArtwork: Bool
 
     /// One block: how loud it is, and which device it is using. No opening
     /// line naming the popup, because clicking the speaker is already the
@@ -185,7 +171,6 @@ struct AudioPopup: View {
         .onAppear {
             guard scope == .output else { return }
             manager.startWatchingSources()
-            playing.fetchesArtwork = fetchesArtwork
             playing.startWatching()
         }
         .onDisappear {
