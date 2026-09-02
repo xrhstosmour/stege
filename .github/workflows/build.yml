@@ -1,4 +1,4 @@
-name: Build
+name: Build and test
 
 # Every branch builds, not just pull requests, so a branch pushed before its
 # pull request exists is still verified.
@@ -16,6 +16,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  test:
+    name: Test
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # A SwiftPM package rather than an Xcode test target, so the suite runs
+      # on a machine with only Command Line Tools. Its sources are symlinks
+      # into Stege/Core, so there is one copy of each file and the application
+      # and the tests cannot drift apart.
+      - name: Run the tests
+        working-directory: Tests
+        run: swift test
+
   build:
     name: Build
     runs-on: macos-15

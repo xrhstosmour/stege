@@ -40,8 +40,37 @@ final class ConfigManager: ObservableObject {
 
         if let path = chosenPath {
             configFilePath = path
+            migrateIfNeeded(at: path)
             parseConfigFile(at: path)
             startWatchingFile(at: path)
+        }
+    }
+
+    /// Rewrites a configuration written for an older version, once, in place.
+    ///
+    /// The rename table and the rewriting live in `ConfigMigration`, which
+    /// takes text and returns text, so they can be tested without a file. This
+    /// is the half that touches the disk.
+    ///
+    /// The original is kept beside the file as `.backup` before anything is
+    /// written, because this edits something the user owns.
+    private func migrateIfNeeded(at path: String) {
+        guard let original = try? String(contentsOfFile: path, encoding: .utf8)
+        else { return }
+
+        let result = ConfigMigration.migrate(original)
+        guard result.isChanged else { return }
+
+        let backup = path + ".backup"
+        do {
+            try? FileManager.default.removeItem(atPath: backup)
+            try original.write(toFile: backup, atomically: true, encoding: .utf8)
+            try result.text.write(toFile: path, atomically: true, encoding: .utf8)
+            Log.configuration.notice(
+                "Migrated the configuration: \(result.applied.joined(separator: ", "), privacy: .public). The original is at \(backup, privacy: .public)")
+        } catch {
+            Log.configuration.error(
+                "Could not migrate the configuration: \(error.localizedDescription, privacy: .public)")
         }
     }
 

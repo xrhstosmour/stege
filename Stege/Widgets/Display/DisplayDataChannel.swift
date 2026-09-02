@@ -25,9 +25,6 @@ enum DisplayDataChannel {
     /// transaction starts at.
     private static let address: UInt32 = 0x37
     private static let offset: UInt32 = 0x51
-    /// The VCP feature code for luminance.
-    private static let luminance: UInt8 = 0x10
-
     /// Whether this build can talk to a monitor at all.
     static var isAvailable: Bool { create != nil && write != nil && read != nil }
 
@@ -50,28 +47,22 @@ enum DisplayDataChannel {
         // but the standard does not require it.
         let maximum = maximums[id] ?? readLuminance(service)?.1 ?? 100
         maximums[id] = maximum
-        let level = UInt16((min(1, max(0, value)) * Float(maximum)).rounded())
-
-        var request: [UInt8] = [
-            0x84, 0x03, luminance, UInt8(level >> 8), UInt8(level & 0xFF), 0x00,
-        ]
-        request[5] = checksum(request)
+        var request = DisplayDataChannelMessage.writeRequest(
+            value: DisplayDataChannelMessage.level(
+                for: value, maximum: maximum))
         return write(service, address, offset, &request, UInt32(request.count))
             == KERN_SUCCESS
     }
 
     /// Current and maximum, straight from the monitor.
     ///
-    /// The reply is read on a retry loop because DDC has no handshake: the
-    /// monitor answers when it is ready and a read that lands early comes back
-    /// with a stale header. The payload is checked rather than the header for
-    /// the same reason, which is what the two framing bytes turned out to be
-    /// unreliable about on these monitors.
+    /// Read on a retry loop because DDC has no handshake: the monitor answers
+    /// when it is ready, and a read that lands early comes back with a stale
+    /// header. `DisplayDataChannelMessage.parse` is what tolerates that.
     private static func readLuminance(_ service: CFTypeRef) -> (Int, Int)? {
         guard let write, let read else { return nil }
         for _ in 0..<3 {
-            var request: [UInt8] = [0x82, 0x01, luminance, 0x00]
-            request[3] = checksum(request)
+            var request = DisplayDataChannelMessage.readRequest()
             guard write(service, address, offset, &request,
                         UInt32(request.count)) == KERN_SUCCESS
             else { continue }
@@ -80,22 +71,14 @@ enum DisplayDataChannel {
             var reply = [UInt8](repeating: 0, count: 12)
             guard read(service, address, offset, &reply,
                        UInt32(reply.count)) == KERN_SUCCESS,
-                // Result code 0, and the feature we asked about.
-                reply[3] == 0x00, reply[4] == luminance
+                let reading = DisplayDataChannelMessage.parse(reply)
             else {
                 usleep(40_000)
                 continue
             }
-            let maximum = Int(reply[6]) << 8 | Int(reply[7])
-            let current = Int(reply[8]) << 8 | Int(reply[9])
-            return (current, maximum)
+            return (reading.current, reading.maximum)
         }
         return nil
-    }
-
-    /// DDC/CI checksums by exclusive-or, seeded with the two addresses.
-    private static func checksum(_ bytes: [UInt8]) -> UInt8 {
-        bytes.dropLast().reduce(UInt8(0x6E) ^ UInt8(0x51)) { $0 ^ $1 }
     }
 
     /// One read per display, kept because asking for the scale costs a full

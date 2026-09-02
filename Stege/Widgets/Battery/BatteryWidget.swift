@@ -121,10 +121,12 @@ struct BatteryWidget: View {
     /// and nothing else. A battery that is simply not full is drawn in the
     /// bar's own foreground like every other mark in the row.
     private var fillColor: Color {
-        if isCharging { return .green }
-        if level <= criticalLevel { return .red }
-        if level <= warningLevel { return .orange }
-        return Color("Foreground Outside")
+        switch state {
+        case .charging: return .green
+        case .critical: return .red
+        case .warning: return .orange
+        case .normal: return Color("Foreground Outside")
+        }
     }
 
     /// How solid the level is drawn.
@@ -135,11 +137,14 @@ struct BatteryWidget: View {
     /// level, so the plain white one is held well back. The three that mean
     /// something are not, because they are the ones worth noticing.
     private var fillOpacity: Double {
-        guard showPercentage else { return 1 }
-        if isCharging { return 0.75 }
-        if level <= criticalLevel { return 1 }
-        if level <= warningLevel { return 0.85 }
-        return 0.35
+        BatteryReading.fillOpacity(
+            state: state, showsPercentage: showPercentage)
+    }
+
+    private var state: BatteryReading.State {
+        BatteryReading.state(
+            level: level, isCharging: isCharging,
+            warningLevel: warningLevel, criticalLevel: criticalLevel)
     }
 
     /// The charge is already on the icon, so the useful part on hover is how
@@ -246,11 +251,10 @@ private struct BatteryBody<Overlay: View>: View {
         }
     }
 
-    /// Never quite nothing. A battery that has just run out still has a
-    /// battery's shape, and a fill of zero width reads as a drawing error.
     private var fillWidth: CGFloat {
-        let inner = Self.width - Self.inset * 2
-        return max(1.5, inner * CGFloat(min(100, max(0, level))) / 100)
+        CGFloat(
+            BatteryReading.fillWidth(
+                level: level, innerWidth: Double(Self.width - Self.inset * 2)))
     }
 }
 
