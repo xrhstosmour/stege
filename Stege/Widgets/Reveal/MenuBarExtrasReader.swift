@@ -118,8 +118,16 @@ final class MenuBarExtrasReader: ObservableObject {
 
             let element = AXUIElementCreateApplication(pid)
             AXUIElementSetMessagingTimeout(element, messagingTimeout)
+            // The type is checked before the cast, for the reason
+            // `axValue(of:_:)` below gives. This asks every running
+            // application for an attribute and each answers with whatever
+            // it put there, so a force cast on that took the whole bar down
+            // over one badly behaved status item. The same cast was made
+            // safe in `MenuExtra` and in `axValue`, and this site was
+            // missed.
             guard
                 let bar = copy(element, "AXExtrasMenuBar"),
+                CFGetTypeID(bar as CFTypeRef) == AXUIElementGetTypeID(),
                 let children = copy(
                     bar as! AXUIElement, kAXChildrenAttribute as String)
                     as? [AXUIElement]
