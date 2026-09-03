@@ -171,22 +171,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// lets one take key without activating the application, so the frontmost
     /// application stays frontmost and gets its keyboard back the moment the
     /// row goes away.
+    /// The application whose keyboard the menus row borrowed, so it can have it
+    /// back.
+    private var applicationBeforeMenus: NSRunningApplication?
+
     @objc private func menusLatchDidChange() {
         let latched = AppMenusReveal.shared.isLatched
         // `canBecomeKey` is false on a panel with no title bar, so `makeKey`
-        // was doing nothing at all and the arrows still drove whatever was
-        // behind the bar. `BarPanel` answers true only while this is set, so
-        // clicking a widget at any other time still leaves the key window
+        // did nothing at all. `BarPanel` answers true only while this is set,
+        // so clicking a widget at any other time still leaves the key window
         // where it was.
         for panel in menuBarPanels.compactMap({ $0 as? BarPanel }) {
             panel.acceptsKey = latched
         }
         guard let panel = panelUnderPointer() as? BarPanel else { return }
-        if latched {
-            panel.makeKey()
-        } else {
+
+        guard latched else {
             panel.resignKey()
+            // Whoever was in front gets the keyboard back. Without this Stege
+            // stays active and the application the menus belonged to is left
+            // dimmed and unable to type.
+            applicationBeforeMenus?.activate()
+            applicationBeforeMenus = nil
+            return
         }
+
+        // A panel taking key is not enough on its own: an application that is
+        // not active cannot take the keyboard by asking for it, which is the
+        // whole point of the rule, and `nonactivatingPanel` only means a click
+        // on the bar does not activate Stege. A keyboard-driven menu row has to
+        // be activated like anything else. macOS does exactly this for its own
+        // menu bar under Control-F2, down to dimming the window behind.
+        applicationBeforeMenus = NSWorkspace.shared.frontmostApplication
+        NSApp.activate(ignoringOtherApps: true)
+        panel.makeKeyAndOrderFront(nil)
     }
 
     /// The bar on whichever screen holds the pointer, which is the one whose
