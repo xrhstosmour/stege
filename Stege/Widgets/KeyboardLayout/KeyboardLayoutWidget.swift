@@ -9,7 +9,7 @@ struct KeyboardLayoutWidget: View {
     /// Show the full name, "Greek", rather than the code, "GR".
     var showFullName: Bool { config["show-full-name"]?.boolValue ?? false }
 
-    @StateObject private var manager = KeyboardLayoutManager()
+    @ObservedObject private var manager = KeyboardLayoutManager.shared
     @State private var rect: CGRect = .zero
 
     var body: some View {
