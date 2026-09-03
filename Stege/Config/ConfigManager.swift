@@ -125,8 +125,7 @@ final class ConfigManager: ObservableObject {
             # reveal-shortcut = "cmd+ctrl+u"
             #
             # The frontmost application's menu titles, in place of the workspace
-            # pills and held there. Arrows walk the row, Return opens one,
-            # Escape puts it away.
+            # pills and held there until the shortcut is pressed again.
             # menu-shortcut = "cmd+ctrl+m"
 
             [widgets]

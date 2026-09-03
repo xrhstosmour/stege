@@ -100,8 +100,8 @@ height = "menu-bar"
 Three optional shortcuts, none set by default. `toggle-shortcut` hides and
 shows the bar. `reveal-shortcut` appends the other applications' status items,
 the same thing the chevron does. `menu-shortcut` shows the frontmost
-application's menu titles in place of the workspace pills and holds them there:
-the first is lit, arrows walk the row, Return opens one, Escape puts it away.
+application's menu titles in place of the workspace pills and holds them there
+until you press it again or switch application.
 
 A combination another application already holds is refused by macOS, and Stege
 says which and why in the system log rather than doing nothing:

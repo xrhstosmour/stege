@@ -87,26 +87,9 @@ struct AppMenusWidget: View {
                     // same keeps it clickable rather than an inert label.
                     menuTitle(
                         menu,
-                        emphasised: index == 0 && showApplicationName,
-                        focused: reveal.isLatched
-                            && reveal.focusedIndex == index)
+                        emphasised: index == 0 && showApplicationName)
                 }
             }
-        }
-        .onChange(of: visibleMenus.count) { _, count in
-            reveal.menuCount = count
-        }
-        .onAppear { reveal.menuCount = visibleMenus.count }
-        // Return, pressed while the row is latched, opens the title the
-        // keyboard is on. The frames live here, so the opening does too.
-        .onChange(of: reveal.activationCount) { _, _ in
-            guard reveal.isLatched,
-                visibleMenus.indices.contains(reveal.focusedIndex)
-            else { return }
-            let menu = visibleMenus[reveal.focusedIndex]
-            AppMenuPresenter.present(
-                menu: menu, manager: manager,
-                below: rects[menu.id] ?? .zero)
         }
         .frame(maxHeight: .infinity)
         .background(.black.opacity(0.001))
@@ -195,11 +178,11 @@ struct AppMenusWidget: View {
     }
 
     @ViewBuilder
-    private func menuTitle(
-        _ menu: AppMenuEntry, emphasised: Bool = false, focused: Bool = false
-    ) -> some View {
+    private func menuTitle(_ menu: AppMenuEntry, emphasised: Bool = false)
+        -> some View
+    {
         AppMenuTitle(
-            title: menu.title, emphasised: emphasised, focused: focused,
+            title: menu.title, emphasised: emphasised,
             onFrameChange: {
                 rects[menu.id] = $0
                 manager.titleFrames[menu.id] = $0
@@ -238,10 +221,6 @@ struct AppMenusWidget: View {
 private struct AppMenuTitle: View {
     let title: String
     let emphasised: Bool
-    /// Where the keyboard is while the row is held open by the shortcut. Lit
-    /// the same way the pointer lights a title, because it means the same
-    /// thing: this is the one Return will open.
-    let focused: Bool
     let onFrameChange: (CGRect) -> Void
     let action: () -> Void
 
@@ -255,7 +234,7 @@ private struct AppMenuTitle: View {
             .padding(.vertical, 2)
             .background(
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(isHovered || focused ? BarStyle.hoverFill : .clear)
+                    .fill(isHovered ? BarStyle.hoverFill : .clear)
             )
             .contentShape(Rectangle())
             .background(
@@ -269,7 +248,6 @@ private struct AppMenuTitle: View {
             )
             .onHover { isHovered = $0 }
             .animation(BarStyle.hoverAnimation, value: isHovered)
-            .animation(BarStyle.hoverAnimation, value: focused)
             .onTapGesture(perform: action)
     }
 }

@@ -47,10 +47,10 @@ hidden = false
 # reveal-shortcut = "cmd+alt+m"
 
 # Shows the frontmost application's menu titles in place of the workspace
-# pills, the same row hovering the focused pill gives, and holds it there. The
-# first title is lit, left and right walk the row, Return opens the one under
-# the keyboard, Escape puts it away. So does pressing the shortcut again, or
-# switching application, whose menus these are not.
+# pills, the same row hovering the focused pill gives, and holds it there.
+# Pressing the shortcut again puts it away, so does switching application,
+# whose menus these are not. The titles are clicked rather than walked with the
+# keyboard, see issue 218.
 #
 # A combination another application already holds is refused by macOS. Stege
 # says so in the system log rather than doing nothing:
