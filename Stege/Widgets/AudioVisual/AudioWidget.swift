@@ -167,9 +167,15 @@ struct AudioPopup: View {
                 // and the list of those is behind the same Apple-only
                 // entitlement as the screen mirroring one, so this opens the
                 // picker macOS keeps it in.
+                //
+                // Straight to the Sound extra, which opens onto the output
+                // list with the receivers already in it. This used to go
+                // through Control Center and then press its AirPlay tile, two
+                // panels to reach the same one.
                 PopupSettingsRow(title: "AirPlay", symbol: "airplayaudio") {
-                    MenuExtra.open(
-                        .controlCentre, path: ["controlcenter-airplay"])
+                    let route = MenuExtra.route(
+                        to: .sound, tile: "controlcenter-airplay")
+                    MenuExtra.open(route.extra, path: route.path)
                 }
             }
 
@@ -386,12 +392,16 @@ struct AudioPopup: View {
         _ device: AudioDevice, selected: AudioObjectID, input: Bool
     ) -> some View {
         HStack(spacing: 10) {
+            // The accent colour, matching the resolution list and macOS's own
+            // lists. The device in use is the answer, not another row.
             Image(systemName: "checkmark")
                 .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(Color.accentColor)
                 .opacity(device.id == selected ? 1 : 0)
                 .frame(width: PopupStyle.iconColumn)
             Text(device.name)
                 .font(.system(size: PopupStyle.bodySize))
+                .fontWeight(device.id == selected ? .semibold : .regular)
                 .lineLimit(1)
                 .truncationMode(.tail)
             // What the device is plugged into. A receiver is named by whoever

@@ -207,11 +207,15 @@ struct DisplayPopup: View {
             // them, answers an ordinary application with nil, so there is
             // nothing to draw a list from. Control Center's own picker is where
             // those receivers are, and it opens to a real press.
+            // One press when Screen Mirroring is set to always show in the
+            // menu bar, two through Control Center when it is not.
             PopupSettingsRow(
                 title: "Screen Mirroring", symbol: "airplayvideo"
             ) {
-                MenuExtra.open(
-                    .controlCentre, path: ["controlcenter-screen-mirroring"])
+                let route = MenuExtra.route(
+                    to: .screenMirroring,
+                    tile: "controlcenter-screen-mirroring")
+                MenuExtra.open(route.extra, path: route.path)
             }
 
             PopupSettingsRow(title: "Display Settings") {
@@ -268,7 +272,7 @@ struct DisplayPopup: View {
                 Text(current.label)
                     .font(.system(size: PopupStyle.captionSize))
                     .monospacedDigit()
-                    .opacity(0.5)
+                    .foregroundStyle(Color.accentColor)
             }
             Image(systemName: "chevron.right")
                 .font(.system(size: 9, weight: .semibold))
@@ -288,14 +292,19 @@ struct DisplayPopup: View {
         -> some View
     {
         HStack(spacing: 10) {
+            // The accent colour, the way macOS marks the chosen item in its own
+            // lists. A checkmark that is the same colour as everything else
+            // reads as another row rather than as the answer.
             Image(systemName: "checkmark")
                 .font(
                     .system(size: PopupStyle.captionSize, weight: .semibold))
+                .foregroundStyle(Color.accentColor)
                 .opacity(mode.isCurrent ? 1 : 0)
                 .frame(width: PopupStyle.iconColumn)
             Text(mode.label)
                 .font(.system(size: PopupStyle.bodySize))
                 .monospacedDigit()
+                .fontWeight(mode.isCurrent ? .semibold : .regular)
             Spacer(minLength: 8)
             if let rate = mode.refreshLabel {
                 Text(rate)
