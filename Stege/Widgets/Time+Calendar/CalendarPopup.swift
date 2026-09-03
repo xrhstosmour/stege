@@ -24,6 +24,7 @@ struct CalendarPopup: View {
             vertical: { CalendarVerticalPopup(calendarManager) },
             horizontal: { CalendarHorizontalPopup(calendarManager) }
         )
+        .environmentObject(configProvider)
         .onAppear {
             // Opening the calendar is an unambiguous request to see events, so
             // this is where a first-run install is asked.
@@ -88,16 +89,8 @@ struct CalendarHorizontalPopup: View {
 }
 
 struct CalendarPopup_Previews: PreviewProvider {
-    var configProvider: ConfigProvider = ConfigProvider(config: ConfigData())
-    var calendarManager: CalendarManager
-
-    init() {
-        self.calendarManager = CalendarManager(configProvider: configProvider)
-    }
-
     static var previews: some View {
-        let configProvider = ConfigProvider(config: ConfigData())
-        let calendarManager = CalendarManager(configProvider: configProvider)
+        let calendarManager = CalendarManager.shared
 
         CalendarBoxPopup(calendarManager)
             .background(BarStyle.surface)

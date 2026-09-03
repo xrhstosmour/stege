@@ -3,34 +3,20 @@ import Combine
 import EventKit
 import Foundation
 
-class CalendarManager: ObservableObject {
-    let configProvider: ConfigProvider
-    var config: ConfigData? {
-        configProvider.config["calendar"]?.dictionaryValue
-    }
-    var allowList: [String] { calendarNames(for: "allow-list") }
-    var denyList: [String] { calendarNames(for: "deny-list") }
+final class CalendarManager: ObservableObject {
+    /// One instance. Calendar events are a property of the machine, not of a
+    /// bar, and there is one bar per screen: two managers on a two-monitor
+    /// setup were each holding their own `EKEventStore`, their own 60s timer
+    /// and their own store observer, all reading the same calendars.
+    static let shared = CalendarManager()
 
-    /// Every non-empty name under `key`.
-    ///
-    /// This used `drop(while:)`, which stops at the first entry that is not
-    /// empty, so a blank anywhere after the first real name survived and was
-    /// then matched against calendar titles.
-    private func calendarNames(for key: String) -> [String] {
-        config?[key]?.arrayValue?
-            .compactMap { $0.stringValue }
-            .filter { !$0.isEmpty } ?? []
-    }
-
-    @Published var nextEvent: EKEvent?
     @Published var todaysEvents: [EKEvent] = []
     @Published var tomorrowsEvents: [EKEvent] = []
     private let eventStore = EKEventStore()
     private var timer: Timer?
     private var storeObserver: NSObjectProtocol?
 
-    init(configProvider: ConfigProvider) {
-        self.configProvider = configProvider
+    private init() {
         startMonitoring()
     }
 
@@ -70,7 +56,6 @@ class CalendarManager: ObservableObject {
     private func refresh() {
         fetchTodaysEvents()
         fetchTomorrowsEvents()
-        fetchNextEvent()
     }
 
     private func stopMonitoring() {
@@ -102,7 +87,15 @@ class CalendarManager: ObservableObject {
         }
     }
 
-    private func filterEvents(_ events: [EKEvent]) -> [EKEvent] {
+    /// Applies an allow/deny list of calendar names to a set of events.
+    ///
+    /// Takes the lists as parameters rather than reading them off a stored
+    /// config, because a single shared instance cannot own one screen's
+    /// config over another's: the widget that knows which config applies
+    /// passes the lists in at the point of filtering instead.
+    static func filterEvents(
+        _ events: [EKEvent], allowList: [String], denyList: [String]
+    ) -> [EKEvent] {
         var filtered = events
         if !allowList.isEmpty {
             filtered = filtered.filter { allowList.contains($0.calendar.title) }
@@ -111,30 +104,6 @@ class CalendarManager: ObservableObject {
             filtered = filtered.filter { !denyList.contains($0.calendar.title) }
         }
         return filtered
-    }
-
-    func fetchNextEvent() {
-        let calendars = eventStore.calendars(for: .event)
-        let now = Date()
-        let calendar = Calendar.current
-        guard
-            let endOfDay = calendar.date(
-                bySettingHour: 23, minute: 59, second: 59, of: now)
-        else {
-            Log.calendar.error("Could not work out the end of the day")
-            return
-        }
-        let predicate = eventStore.predicateForEvents(
-            withStart: now, end: endOfDay, calendars: calendars)
-        let events = eventStore.events(matching: predicate).sorted {
-            $0.startDate < $1.startDate
-        }
-        let filteredEvents = filterEvents(events)
-        let regularEvents = filteredEvents.filter { !$0.isAllDay }
-        let next = regularEvents.first ?? filteredEvents.first
-        DispatchQueue.main.async {
-            self.nextEvent = next
-        }
     }
 
     func fetchTodaysEvents() {
@@ -154,9 +123,8 @@ class CalendarManager: ObservableObject {
         let events = eventStore.events(matching: predicate)
             .filter { $0.endDate >= now }
             .sorted { $0.startDate < $1.startDate }
-        let filteredEvents = filterEvents(events)
         DispatchQueue.main.async {
-            self.todaysEvents = filteredEvents
+            self.todaysEvents = events
         }
     }
 
@@ -180,9 +148,8 @@ class CalendarManager: ObservableObject {
         let events = eventStore.events(matching: predicate).sorted {
             $0.startDate < $1.startDate
         }
-        let filteredEvents = filterEvents(events)
         DispatchQueue.main.async {
-            self.tomorrowsEvents = filteredEvents
+            self.tomorrowsEvents = events
         }
     }
 }
@@ -214,7 +181,9 @@ extension CalendarManager {
     ///
     /// All-day events sort first, then by start time, which is the order both
     /// macOS Calendar and the system menu bar use.
-    func events(on date: Date) -> [EKEvent] {
+    func events(
+        on date: Date, allowList: [String] = [], denyList: [String] = []
+    ) -> [EKEvent] {
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: date)
         guard let end = calendar.date(byAdding: .day, value: 1, to: start)
@@ -223,16 +192,21 @@ extension CalendarManager {
         let predicate = eventStore.predicateForEvents(
             withStart: start, end: end,
             calendars: eventStore.calendars(for: .event))
-        return filterEvents(eventStore.events(matching: predicate))
-            .sorted {
-                if $0.isAllDay != $1.isAllDay { return $0.isAllDay }
-                return $0.startDate < $1.startDate
-            }
+        return Self.filterEvents(
+            eventStore.events(matching: predicate),
+            allowList: allowList, denyList: denyList
+        )
+        .sorted {
+            if $0.isAllDay != $1.isAllDay { return $0.isAllDay }
+            return $0.startDate < $1.startDate
+        }
     }
 
     /// Whether a day has anything on it, for the dot under the date in the grid.
-    func hasEvents(on date: Date) -> Bool {
-        !events(on: date).isEmpty
+    func hasEvents(
+        on date: Date, allowList: [String] = [], denyList: [String] = []
+    ) -> Bool {
+        !events(on: date, allowList: allowList, denyList: denyList).isEmpty
     }
 
     /// Opens an event where it belongs: a meeting link in the browser, anything
@@ -316,7 +290,6 @@ extension CalendarManager {
             try eventStore.save(event, span: .thisEvent, commit: true)
             fetchTodaysEvents()
             fetchTomorrowsEvents()
-            fetchNextEvent()
             return true
         } catch {
             return false

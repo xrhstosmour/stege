@@ -22,15 +22,32 @@ struct TimeWidget: View {
 
     @State private var currentTime = Date()
 
-    /// Owned, not handed in. It was built inline by `MenuBarView` and passed as
-    /// a plain property, so every re-evaluation of that view constructed a
-    /// fresh one, each with its own `EKEventStore`, its own timer and its own
-    /// store observer. It was also not observed, so the next event line only
-    /// changed when something else happened to redraw the widget.
-    @StateObject private var calendarManager: CalendarManager
+    /// Shared, not owned. Calendar events are a property of the machine, not
+    /// of a bar, and there is one bar per screen.
+    @ObservedObject private var calendarManager = CalendarManager.shared
 
-    init(calendarManager: @autoclosure @escaping () -> CalendarManager) {
-        _calendarManager = StateObject(wrappedValue: calendarManager())
+    var allowList: [String] { calendarNames(for: "allow-list") }
+    var denyList: [String] { calendarNames(for: "deny-list") }
+
+    /// Every non-empty name under `key`.
+    ///
+    /// This used `drop(while:)`, which stops at the first entry that is not
+    /// empty, so a blank anywhere after the first real name survived and was
+    /// then matched against calendar titles.
+    private func calendarNames(for key: String) -> [String] {
+        calendarConfig?[key]?.arrayValue?
+            .compactMap { $0.stringValue }
+            .filter { !$0.isEmpty } ?? []
+    }
+
+    /// The next event today, allow/deny-list applied. Regular events sort
+    /// before all-day ones, matching the countdown line's preference for
+    /// something with an actual start time to count down to.
+    private var nextEvent: EKEvent? {
+        let filtered = CalendarManager.filterEvents(
+            calendarManager.todaysEvents,
+            allowList: allowList, denyList: denyList)
+        return filtered.first(where: { !$0.isAllDay }) ?? filtered.first
     }
 
     @State private var rect = CGRect()
@@ -42,7 +59,7 @@ struct TimeWidget: View {
         VStack(alignment: .trailing, spacing: 0) {
             Text(formattedTime(pattern: format, from: currentTime))
                 .fontWeight(.semibold)
-            if let event = calendarManager.nextEvent, calendarShowEvents {
+            if let event = nextEvent, calendarShowEvents {
                 Text(eventText(for: event))
                     .opacity(0.8)
                     .font(.subheadline)
@@ -147,10 +164,9 @@ struct TimeWidget: View {
 struct TimeWidget_Previews: PreviewProvider {
     static var previews: some View {
         let provider = ConfigProvider(config: ConfigData())
-        let manager = CalendarManager(configProvider: provider)
 
         ZStack {
-            TimeWidget(calendarManager: manager)
+            TimeWidget()
                 .environmentObject(provider)
         }.frame(width: 500, height: 100)
     }
