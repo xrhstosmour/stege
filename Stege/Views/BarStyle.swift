@@ -119,28 +119,31 @@ extension View {
             .frame(width: BarStyle.glyphWidth)
     }
 
-    /// One size, one weight, and a width that holds still: as wide as the
-    /// widest symbol this particular mark ever draws, and no wider.
+    /// One size, one weight, and a width that holds still: as wide as the ink
+    /// of the widest symbol this particular mark ever draws, and no wider.
+    ///
+    /// Two things at once, and both are needed for an even row.
     ///
     /// Reserving the widest state is what stops a widget resizing itself when
-    /// its state changes, which is what used to slide the rest of the row.
-    /// Stopping at that width rather than at one width for the whole bar is
-    /// what keeps the gaps between marks the gaps the row asked for: the
-    /// spacing plus each symbol's own margin, rather than the spacing plus
-    /// however much of a shared box each one happened to leave empty.
+    /// its state changes, which is what used to slide the rest of the row when
+    /// the volume moved.
+    ///
+    /// Measuring ink rather than the width the symbol asks for is what makes
+    /// the gaps equal. Symbols carry their own margins and not the same one:
+    /// `speaker.wave.3.fill` asks for 24 points and inks 20, `mic.fill` asks
+    /// for 15 and inks 11. Laying out on the asked-for width put a different
+    /// amount of nothing between each pair, so one spacing for the row came out
+    /// on screen as gaps from 10 to 16 points. On ink it is the spacing
+    /// everywhere. See `GlyphInk`.
     ///
     /// Name every state. A symbol left out is one that can outgrow the box and
-    /// push the row sideways, which is the bug this replaced.
+    /// push the row sideways, which is the bug the reservation is here for.
     func barGlyphBox(widest symbols: String...) -> some View {
-        ZStack {
-            // Laid out, not drawn: the reservation is the point.
-            ForEach(symbols, id: \.self) { symbol in
-                Image(systemName: symbol)
-                    .font(BarStyle.glyphFont)
-                    .hidden()
-            }
-            font(BarStyle.glyphFont)
-        }
+        let width = symbols
+            .map { GlyphInk.width(of: $0, size: BarStyle.glyphSize) }
+            .max()
+        return font(BarStyle.glyphFont)
+            .frame(width: width ?? BarStyle.glyphWidth)
     }
 }
 

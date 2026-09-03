@@ -57,17 +57,17 @@ struct SoundGlyph: View {
                 .barGlyphBox(widest: "speaker.wave.3.fill")
         } else {
             // Two passes, because a variable value hides the arcs it has not
-            // reached rather than dimming them. The symbol still reserves room
-            // for all three, so at a third of the way up the volume the mark
-            // drew nineteen points of ink inside twenty-four points of space,
-            // and the five points of nothing on its right read as a wider gap
-            // before the microphone than the gaps anywhere else in the row.
-            // Worse, the gap moved: it closed as the volume went up.
+            // reached rather than dimming them, and the bar is now laid out on
+            // how much of a symbol is inked rather than how much room it asks
+            // for. See `GlyphInk`. A mark whose ink shrinks with the volume
+            // would take the gap beside it with it.
             //
             // The dim pass draws all three arcs at every level, so the mark
-            // inks the same width whatever the volume, and the bright pass
-            // says where the level is. `symbolVariableValueMode(.color)` would
-            // do this in one pass, and it is macOS 15.
+            // inks the same width whatever the volume, and the bright pass says
+            // where the level is. Measured, the difference the dim pass covers
+            // is half a point between 39% and full volume, and more at the
+            // bottom of the range. `symbolVariableValueMode(.color)` would do
+            // this in one pass, and it is macOS 15.
             ZStack {
                 Image(systemName: "speaker.wave.3.fill")
                     .opacity(0.28)
