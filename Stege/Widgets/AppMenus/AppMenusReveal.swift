@@ -263,13 +263,27 @@ final class AppMenusReveal: ObservableObject {
     /// Switching application while the row is up puts it away. Its titles
     /// belong to the application that was in front, so holding it open over a
     /// different one would be showing the wrong menus.
+    ///
+    /// Except Stege's own activation, which is how the row gets the keyboard in
+    /// the first place. Without that exception opening the row fired this and
+    /// shut it again in the same breath, and the shortcut looked like it did
+    /// nothing at all.
     private func watchApplicationSwitch() {
         stopWatchingApplicationSwitch()
+        let ownIdentifier = Bundle.main.bundleIdentifier
         applicationObserver = NSWorkspace.shared.notificationCenter
             .addObserver(
                 forName: NSWorkspace.didActivateApplicationNotification,
                 object: nil, queue: .main
-            ) { [weak self] _ in self?.unlatch() }
+            ) { [weak self] note in
+                let application =
+                    note.userInfo?[NSWorkspace.applicationUserInfoKey]
+                    as? NSRunningApplication
+                guard application?.bundleIdentifier != ownIdentifier else {
+                    return
+                }
+                self?.unlatch()
+            }
     }
 
     private func stopWatchingApplicationSwitch() {
