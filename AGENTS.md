@@ -34,6 +34,13 @@ widgets.
    it exports an accessibility action, press the element. Simulating clicks to *verify* a change by
    hand is fine, `cliclick` is the tool.
 
+## Known limitations
+
+What macOS will not let Stege do is tracked in
+[the open issues](https://github.com/xrhstosmour/stege/issues), not in the README. Before concluding
+that something is impossible, read them: each says what was measured and what would close it. Before
+adding a new one, measure it the same way rather than asserting it.
+
 ## Verifying a change
 
 There is no Xcode on the owner's machine, only Command Line Tools, so `xcodebuild` cannot be run
@@ -75,22 +82,63 @@ installed. `Tests/README.md` has the invocation.
 
 ## Releasing
 
-Tagging `v*` builds, signs, attests and publishes. Then the cask in
-[`homebrew-stege`](https://github.com/xrhstosmour/homebrew-stege) is bumped through a pull request:
+A release is a tag. Pushing `v*` builds, signs, attests and publishes the archive. The version comes
+from the tag, so `MARKETING_VERSION` in the project is not the release version and does not need
+bumping.
+
+### 1. Tag the application
 
 ```bash
+git checkout main && git fetch && git reset --hard origin/main
 git tag v0.X.Y && git push origin v0.X.Y
-# Wait for the release run, filtering by the tag. Not `--limit 1`, which
-# catches the previous tag's finished run and has published a checksum taken
-# from a 404 page.
-gh run list --branch v0.X.Y --limit 1
 ```
 
-The version comes from the tag, so `MARKETING_VERSION` in the project is not the release version and
-does not need bumping.
+Wait for that tag's run, filtered by the tag. Not `--limit 1` on its own, which catches the previous
+tag's finished run and has published a checksum taken from a 404 page:
 
-The tap's CI checks the declared `sha256` against the archive the URL actually serves, so a bump
-written before the release finishes publishing now fails there instead of at `brew install`.
+```bash
+gh run list --branch v0.X.Y --limit 1 --json status,conclusion
+```
+
+The `Notarize` and `Update the Homebrew tap` steps show as skipped. That is expected: there is no
+paid Apple account and no `TAP_TOKEN`, so the build is self-signed and the tap is bumped by hand.
+
+### 2. Bump the tap
+
+[`homebrew-stege`](https://github.com/xrhstosmour/homebrew-stege) is a separate repository, cloned
+locally at `/opt/homebrew/Library/Taps/xrhstosmour/homebrew-stege`, and takes its own single-topic
+pull request.
+
+Take the checksum from the archive the release actually serves. Never from a local build, and never
+before the release run has finished:
+
+```bash
+curl -sL -o Stege.zip \
+  https://github.com/xrhstosmour/stege/releases/download/v0.X.Y/Stege.zip
+shasum -a 256 Stege.zip
+```
+
+Edit `version` and `sha256` in `Casks/stege.rb`, then:
+
+```bash
+brew style Casks/stege.rb
+brew audit --cask --strict xrhstosmour/stege/stege   # by name, a path is refused
+```
+
+Branch as `bump/stege-0.X.Y`, commit as ``Bump `stege` to 0.X.Y``, open the pull request, wait for
+its `Audit` checks, merge it. The tap's CI re-downloads the archive and checks the declared `sha256`
+against it, so a bump written too early fails there rather than at `brew install`.
+
+### 3. Install and verify
+
+```bash
+brew upgrade --cask stege
+osascript -e 'tell application "Stege" to quit'
+open -a Stege
+```
+
+`brew upgrade` does not restart the application, so verifying without the quit and relaunch above
+checks the old binary. Then actually look at what changed, on screen.
 
 ## Changing the configuration file
 
