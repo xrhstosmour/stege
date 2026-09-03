@@ -58,7 +58,7 @@ struct CalendarBoxPopup: View {
 
     var body: some View {
         CalendarMonthView(calendarManager: calendarManager, layout: .monthOnly)
-            .padding(14)
+            .padding(PopupStyle.padding)
     }
 }
 
@@ -71,7 +71,7 @@ struct CalendarVerticalPopup: View {
 
     var body: some View {
         CalendarMonthView(calendarManager: calendarManager, layout: .stacked)
-            .padding(14)
+            .padding(PopupStyle.padding)
     }
 }
 
@@ -84,7 +84,7 @@ struct CalendarHorizontalPopup: View {
 
     var body: some View {
         CalendarMonthView(calendarManager: calendarManager, layout: .sideBySide)
-            .padding(14)
+            .padding(PopupStyle.padding)
     }
 }
 
