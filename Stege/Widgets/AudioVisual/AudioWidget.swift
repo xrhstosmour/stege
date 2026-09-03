@@ -394,11 +394,7 @@ struct AudioPopup: View {
         HStack(spacing: 10) {
             // The accent colour, matching the resolution list and macOS's own
             // lists. The device in use is the answer, not another row.
-            Image(systemName: "checkmark")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(Color.accentColor)
-                .opacity(device.id == selected ? 1 : 0)
-                .frame(width: PopupStyle.iconColumn)
+            PopupSelectionMark(isSelected: device.id == selected, size: 10)
             Text(device.name)
                 .font(.system(size: PopupStyle.bodySize))
                 .fontWeight(device.id == selected ? .semibold : .regular)

@@ -115,12 +115,50 @@ struct PopupSeparator: View {
     }
 }
 
+/// Whether the row a view is drawn in is currently highlighted.
+///
+/// `PopupRow` flips the whole row's foreground to white when the pointer is on
+/// it, because the highlight is the accent colour. Anything that wants to paint
+/// itself a colour of its own has to know about that or it paints accent on
+/// accent and disappears exactly when it is being reached for.
+private struct PopupRowHighlightKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var isPopupRowHighlighted: Bool {
+        get { self[PopupRowHighlightKey.self] }
+        set { self[PopupRowHighlightKey.self] = newValue }
+    }
+}
+
+/// The mark that says which item in a list is the one in use.
+///
+/// Always laid out, shown or not, so a list does not shift sideways as the
+/// selection moves. White on a highlighted row, because the highlight is itself
+/// the accent colour and an accent tick on it is invisible exactly when the row
+/// is being reached for.
+struct PopupSelectionMark: View {
+    let isSelected: Bool
+    var size: CGFloat = PopupStyle.captionSize
+    @Environment(\.isPopupRowHighlighted) private var isHighlighted
+
+    var body: some View {
+        Image(systemName: "checkmark")
+            .font(.system(size: size, weight: .semibold))
+            .foregroundStyle(isHighlighted ? Color.white : Color.accentColor)
+            .opacity(isSelected ? 1 : 0)
+            .frame(width: PopupStyle.iconColumn)
+    }
+}
+
 private struct PopupRow: ViewModifier {
     let action: () -> Void
     @State private var isHovered = false
 
     func body(content: Content) -> some View {
         content
+            .environment(\.isPopupRowHighlighted, isHovered)
             .padding(.horizontal, PopupStyle.rowHorizontalPadding)
             .padding(.vertical, PopupStyle.rowVerticalPadding)
             .frame(maxWidth: .infinity, alignment: .leading)

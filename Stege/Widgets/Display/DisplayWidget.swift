@@ -245,7 +245,7 @@ struct DisplayPopup: View {
 
             let isOpen = expanded.contains(display.id)
             VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
-                resolutionHeader(for: display, modes: modes, isOpen: isOpen)
+                resolutionHeader(for: display, isOpen: isOpen)
 
                 if isOpen {
                     ForEach(modes) { mode in
@@ -257,27 +257,18 @@ struct DisplayPopup: View {
         }
     }
 
-    /// The row that folds the list, and says what the display is set to while
-    /// it is folded.
-    private func resolutionHeader(
-        for display: DisplayInfo, modes: [DisplayMode], isOpen: Bool
-    ) -> some View {
+    /// The row that folds the list.
+    private func resolutionHeader(for display: DisplayInfo, isOpen: Bool)
+        -> some View
+    {
         HStack(spacing: 6) {
             Text(manager.displays.count > 1 ? display.name : "Resolution")
                 .font(
                     .system(size: PopupStyle.captionSize, weight: .semibold))
                 .lineLimit(1)
             Spacer(minLength: 8)
-            // Not the accent colour, unlike the checkmark in the list below.
-            // The row highlights in the accent colour under the pointer, and
-            // accent on accent is invisible exactly when you are reaching for
-            // it. The list is where the accent marks the choice.
-            if let current = modes.first(where: \.isCurrent) {
-                Text(current.label)
-                    .font(.system(size: PopupStyle.captionSize))
-                    .monospacedDigit()
-                    .opacity(0.7)
-            }
+            // Nothing but the chevron. The resolution in use is marked inside
+            // the list, where the tick is, rather than repeated out here.
             Image(systemName: "chevron.right")
                 .font(.system(size: 9, weight: .semibold))
                 .rotationEffect(.degrees(isOpen ? 90 : 0))
@@ -299,12 +290,7 @@ struct DisplayPopup: View {
             // The accent colour, the way macOS marks the chosen item in its own
             // lists. A checkmark that is the same colour as everything else
             // reads as another row rather than as the answer.
-            Image(systemName: "checkmark")
-                .font(
-                    .system(size: PopupStyle.captionSize, weight: .semibold))
-                .foregroundStyle(Color.accentColor)
-                .opacity(mode.isCurrent ? 1 : 0)
-                .frame(width: PopupStyle.iconColumn)
+            PopupSelectionMark(isSelected: mode.isCurrent)
             Text(mode.label)
                 .font(.system(size: PopupStyle.bodySize))
                 .monospacedDigit()
