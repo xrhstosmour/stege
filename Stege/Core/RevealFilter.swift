@@ -24,9 +24,23 @@ enum RevealFilter {
         bundleIdentifier: String?, name: String, list: [String]
     ) -> Bool {
         guard !list.isEmpty else { return false }
-        let entries = Set(list.map(normalised).filter { !$0.isEmpty })
-        guard !entries.isEmpty else { return false }
+        return matches(
+            bundleIdentifier: bundleIdentifier, name: name,
+            in: normalisedSet(list))
+    }
 
+    /// A list, normalised once, ready to be checked against many items
+    /// without re-normalising the same list on every one.
+    static func normalisedSet(_ list: [String]) -> Set<String> {
+        Set(list.map(normalised).filter { !$0.isEmpty })
+    }
+
+    /// Same check as `matches(bundleIdentifier:name:list:)`, against a list
+    /// already normalised by `normalisedSet(_:)`.
+    static func matches(
+        bundleIdentifier: String?, name: String, in entries: Set<String>
+    ) -> Bool {
+        guard !entries.isEmpty else { return false }
         if let bundleIdentifier, entries.contains(normalised(bundleIdentifier))
         {
             return true

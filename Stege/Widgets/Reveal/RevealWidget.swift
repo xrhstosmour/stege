@@ -104,7 +104,7 @@ struct RevealWidget: View {
     /// This is the one thing macOS's own Menu Bar settings do that the row
     /// otherwise could not: pick an item and never see it again.
     private func hide(_ item: MenuBarExtraItem) {
-        guard let entry = entry(for: item), !matches(item, hidden) else {
+        guard let entry = entry(for: item), !matches(item, hiddenEntries) else {
             return
         }
         ConfigManager.shared.updateConfigValue(
@@ -117,22 +117,29 @@ struct RevealWidget: View {
             bundleIdentifier: item.bundleIdentifier, name: item.name)
     }
 
-    private func matches(_ item: MenuBarExtraItem, _ list: [String]) -> Bool {
+    private func matches(_ item: MenuBarExtraItem, _ entries: Set<String>) -> Bool {
         RevealFilter.matches(
             bundleIdentifier: item.bundleIdentifier, name: item.name,
-            list: list)
+            in: entries)
     }
 
+    /// Normalised once per render rather than once per item per list.
+    private var hiddenEntries: Set<String> { RevealFilter.normalisedSet(hidden) }
+    private var pinnedEntries: Set<String> { RevealFilter.normalisedSet(pinned) }
+
     private var visibleItems: [MenuBarExtraItem] {
-        reader.items.filter { !matches($0, hidden) }
+        let hiddenEntries = hiddenEntries
+        return reader.items.filter { !matches($0, hiddenEntries) }
     }
 
     private var pinnedItems: [MenuBarExtraItem] {
-        visibleItems.filter { matches($0, pinned) }
+        let pinnedEntries = pinnedEntries
+        return visibleItems.filter { matches($0, pinnedEntries) }
     }
 
     private var collapsedItems: [MenuBarExtraItem] {
-        visibleItems.filter { !matches($0, pinned) }
+        let pinnedEntries = pinnedEntries
+        return visibleItems.filter { !matches($0, pinnedEntries) }
     }
 
     /// Stay out of the way until pressed again, rather than coming back on
