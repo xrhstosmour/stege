@@ -15,7 +15,8 @@ struct StayAwakeWidget: View {
         Group {
             if manager.isActive || alwaysShow {
                 Image(systemName: manager.isActive ? "cup.and.saucer.fill" : "cup.and.saucer")
-                    .barGlyphBox()
+                    .barGlyphBox(
+                        widest: "cup.and.saucer", "cup.and.saucer.fill")
                     .opacity(manager.isActive ? 1 : 0.35)
                     .help(helpText)
             }

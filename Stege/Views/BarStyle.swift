@@ -23,15 +23,21 @@ enum BarStyle {
     static let glyphSize: CGFloat = 15
     static let glyphWeight: Font.Weight = .regular
 
-    /// The box every single-symbol mark is centred in.
+    /// The box a mark is centred in when nothing narrower will do.
     ///
-    /// SF Symbols do not share an advance width: `speaker.wave.1.fill` through
-    /// `speaker.wave.3.fill` each add an arc, `bell.slash` is wider than
-    /// `bell`, `wifi.exclamationmark` is wider than `wifi`. Without a box, a
-    /// widget changing state changes its own width, and because the bar is one
-    /// `HStack` with a spacer holding the trailing group to the right edge,
-    /// every mark to its left slides. Turning the volume up moved the whole
-    /// row.
+    /// SF Symbols do not share an advance width: `speaker.wave.3.fill` is 24
+    /// points at the bar's size, `mic.fill` is 15, `music.note` is 13, and the
+    /// Bluetooth rune is drawn at 8. Without a box, a widget changing state
+    /// changes its own width, and because the bar is one `HStack` with a
+    /// spacer holding the trailing group to the right edge, every mark to its
+    /// left slides. Turning the volume up moved the whole row.
+    ///
+    /// One box for the whole bar fixed that and bought an uneven row with it:
+    /// a mark narrower than the box sits in the middle of it with the slack
+    /// showing on both sides, so the gap either side of the microphone read as
+    /// half again the gap either side of the Wi-Fi arcs. `barGlyphBox(widest:)`
+    /// is the one to reach for, and this is what is left for a mark with no
+    /// symbol to measure.
     static let glyphWidth: CGFloat = 20
 
     /// Text standing in for a glyph, such as the input source code. Two points
@@ -104,9 +110,37 @@ extension View {
 
     /// One size, one weight, and one width: a mark that holds its place in the
     /// row whatever it is currently drawing.
+    ///
+    /// Prefer `barGlyphBox(widest:)`. This box is as wide as the widest mark in
+    /// the bar, so anything narrower than that sits in it with the slack
+    /// showing.
     func barGlyphBox() -> some View {
         font(BarStyle.glyphFont)
             .frame(width: BarStyle.glyphWidth)
+    }
+
+    /// One size, one weight, and a width that holds still: as wide as the
+    /// widest symbol this particular mark ever draws, and no wider.
+    ///
+    /// Reserving the widest state is what stops a widget resizing itself when
+    /// its state changes, which is what used to slide the rest of the row.
+    /// Stopping at that width rather than at one width for the whole bar is
+    /// what keeps the gaps between marks the gaps the row asked for: the
+    /// spacing plus each symbol's own margin, rather than the spacing plus
+    /// however much of a shared box each one happened to leave empty.
+    ///
+    /// Name every state. A symbol left out is one that can outgrow the box and
+    /// push the row sideways, which is the bug this replaced.
+    func barGlyphBox(widest symbols: String...) -> some View {
+        ZStack {
+            // Laid out, not drawn: the reservation is the point.
+            ForEach(symbols, id: \.self) { symbol in
+                Image(systemName: symbol)
+                    .font(BarStyle.glyphFont)
+                    .hidden()
+            }
+            font(BarStyle.glyphFont)
+        }
     }
 }
 

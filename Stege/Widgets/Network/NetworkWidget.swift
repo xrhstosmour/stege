@@ -17,15 +17,24 @@ struct NetworkWidget: View {
     @ObservedObject private var viewModel = NetworkStatusViewModel.shared
     @State private var rect: CGRect = .zero
 
+    /// The gap the rest of the bar uses. Wi-Fi and Ethernet are two marks in
+    /// one widget, so the row's spacing has to be applied here by hand: this
+    /// was 15 against the row's own 10, and the one pair of icons in the bar
+    /// with a wider gap between them than every other pair was this one.
+    private var spacing: CGFloat {
+        ConfigManager.shared.config.bar.foreground.spacing
+    }
+
     var body: some View {
-        HStack(spacing: 15) {
+        HStack(spacing: spacing) {
             if hideWhenDisconnected, viewModel.wifiState != .connected,
                 viewModel.ethernetState != .connected
             {
                 EmptyView()
             } else if viewModel.wifiState != .notSupported {
                 wifiIcon
-                    .frame(width: BarStyle.glyphWidth)
+                    .barGlyphBox(
+                        widest: "wifi", "wifi.slash", "wifi.exclamationmark")
                     // A VPN is a property of the connection, not a second
                     // thing in the bar, so it rides on the mark that already
                     // stands for the connection.
@@ -38,7 +47,8 @@ struct NetworkWidget: View {
                     }
             }
             if viewModel.ethernetState != .notSupported {
-                ethernetIcon.frame(width: BarStyle.glyphWidth)
+                ethernetIcon.barGlyphBox(
+                    widest: "network", "network.slash")
             }
             if showName, viewModel.wifiState == .connected {
                 Text(viewModel.ssid).font(.system(size: 11)).lineLimit(1)

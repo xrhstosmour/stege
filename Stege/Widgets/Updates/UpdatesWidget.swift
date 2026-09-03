@@ -40,7 +40,7 @@ struct UpdatesWidget: View {
     private var content: some View {
         HStack(spacing: 4) {
             Image(systemName: "arrow.down.circle")
-                .barGlyphBox()
+                .barGlyphBox(widest: "arrow.down.circle")
                 .opacity(manager.count > 0 ? 1 : 0.35)
 
             if showCount, manager.count > 0 {

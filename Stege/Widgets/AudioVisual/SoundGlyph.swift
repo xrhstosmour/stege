@@ -34,8 +34,7 @@ struct SoundGlyph: View {
         case .waveform:
             Image(systemName: isOutputMuted || level <= 0.001
                 ? "waveform.slash" : "waveform")
-                .font(.system(size: size))
-                .frame(width: BarStyle.glyphWidth)
+                .barGlyphBox(widest: "waveform", "waveform.slash")
                 .accessibilityLabel("Sound")
         }
     }
@@ -55,15 +54,28 @@ struct SoundGlyph: View {
             // Muted and silent are drawn the same way, because they sound the
             // same.
             Image(systemName: "speaker.slash.fill")
-                .font(.system(size: size))
-                .frame(width: BarStyle.glyphWidth)
+                .barGlyphBox(widest: "speaker.wave.3.fill")
         } else {
-            Image(
-                systemName: "speaker.wave.3.fill",
-                variableValue: level
-            )
-            .font(.system(size: size))
-            .frame(width: BarStyle.glyphWidth)
+            // Two passes, because a variable value hides the arcs it has not
+            // reached rather than dimming them. The symbol still reserves room
+            // for all three, so at a third of the way up the volume the mark
+            // drew nineteen points of ink inside twenty-four points of space,
+            // and the five points of nothing on its right read as a wider gap
+            // before the microphone than the gaps anywhere else in the row.
+            // Worse, the gap moved: it closed as the volume went up.
+            //
+            // The dim pass draws all three arcs at every level, so the mark
+            // inks the same width whatever the volume, and the bright pass
+            // says where the level is. `symbolVariableValueMode(.color)` would
+            // do this in one pass, and it is macOS 15.
+            ZStack {
+                Image(systemName: "speaker.wave.3.fill")
+                    .opacity(0.28)
+                Image(
+                    systemName: "speaker.wave.3.fill",
+                    variableValue: level)
+            }
+            .barGlyphBox(widest: "speaker.wave.3.fill")
         }
     }
 }

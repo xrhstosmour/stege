@@ -36,7 +36,7 @@ struct NotificationsWidget: View {
             Image(
                 systemName: focus.activeFocus == nil ? "bell" : "bell.slash"
             )
-            .barGlyphBox()
+            .barGlyphBox(widest: "bell", "bell.slash")
             // A dot for anything unread, the way every notification icon
             // anywhere says there is something to look at.
             .overlay(alignment: .topTrailing) {
