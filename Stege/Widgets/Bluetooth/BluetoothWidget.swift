@@ -24,7 +24,7 @@ struct BluetoothWidget: View {
             .min()
     }
 
-    @StateObject private var manager = BluetoothManager()
+    @ObservedObject private var manager = BluetoothManager.shared
     @State private var rect: CGRect = .zero
 
     var body: some View {

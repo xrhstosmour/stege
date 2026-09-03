@@ -35,6 +35,11 @@ struct BluetoothDevice: Identifiable, Equatable {
 /// permission, while the bar only needs to report what the system is already
 /// connected to.
 final class BluetoothManager: NSObject, ObservableObject {
+    /// One instance. Bluetooth state is a property of the machine, not of a
+    /// bar, and there is one bar per screen: two managers on a two-monitor
+    /// setup were each polling the same radio on the same 30s timer.
+    static let shared = BluetoothManager()
+
     @Published private(set) var isPoweredOn = false
     /// Everything the system has paired, connected or not, so the popup can
     /// connect one back rather than only report what is already up.
@@ -102,7 +107,7 @@ final class BluetoothManager: NSObject, ObservableObject {
     /// timer no longer carries them. What it still covers has no notification
     /// at all: the controller being switched on or off, and battery levels,
     /// which macOS writes into its preferences without announcing.
-    init(interval: TimeInterval = 30.0) {
+    private init(interval: TimeInterval = 30.0) {
         super.init()
         refresh()
         registerForConnections()
