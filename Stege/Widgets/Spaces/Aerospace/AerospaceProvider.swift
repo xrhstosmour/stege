@@ -58,6 +58,12 @@ class AerospaceSpacesProvider: SpacesProvider, SwitchableSpacesProvider {
     }
 
     private func runAerospaceCommand(arguments: [String]) -> Data? {
+        guard TrustedExecutable.isTrusted(executablePath) else {
+            Log.spaces.error(
+                "aerospace.path is not a trusted binary, refusing to run it: \(self.executablePath, privacy: .public)"
+            )
+            return nil
+        }
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executablePath)
         process.arguments = arguments
