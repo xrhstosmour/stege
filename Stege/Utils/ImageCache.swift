@@ -56,21 +56,26 @@ final class ImageLoader: ObservableObject {
         }
         
         // Download image asynchronously.
+        //
+        // Decoding the bytes is all that happens off the main thread. The
+        // resize used to happen here too, and it is `lockFocus` and a `draw`,
+        // which is AppKit drawing into an offscreen context: not something to
+        // do on `URLSession`'s queue. It is done below instead, after
+        // `receive(on:)` has moved to the main thread.
         cancellable = URLSession.shared.dataTaskPublisher(for: url)
-            .tryMap { [weak self] data, _ -> NSImage? in
-                guard let downloadedImage = NSImage(data: data) else { return nil }
-                if let targetSize = self?.targetSize {
-                    return downloadedImage.resized(to: targetSize) ?? downloadedImage
-                }
-                return downloadedImage
-            }
+            .map { data, _ in NSImage(data: data) }
             .replaceError(with: nil)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] downloadedImage in
-                if let downloadedImage = downloadedImage {
-                    ImageCache.shared.setObject(downloadedImage, forKey: key)
+                guard let self else { return }
+                let sized =
+                    self.targetSize
+                    .flatMap { downloadedImage?.resized(to: $0) }
+                    ?? downloadedImage
+                if let sized {
+                    ImageCache.shared.setObject(sized, forKey: key)
                 }
-                self?.image = downloadedImage
+                self.image = sized
             }
     }
     
