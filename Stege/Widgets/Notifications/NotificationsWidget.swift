@@ -3,13 +3,17 @@ import SwiftUI
 
 /// A bell opening a popup in the bar's own style.
 ///
-/// It lists the notifications macOS is holding, and switches Focus. Both come
-/// out of the system's own accessibility tree rather than from a file or a
-/// picture of the screen. See `NotificationCenterReader` and `FocusReader`.
+/// It lists what macOS has shown a banner for since Stege started, collected as
+/// each banner appears. See `NotificationCenterReader`.
 ///
-/// There is no row that opens Notification Center. There used to be, and a row
-/// whose whole job is to hand off to the panel the bar was meant to replace is
-/// not worth a row.
+/// Nothing here opens a system panel. There was a Focus list and a refresh
+/// arrow, and both worked by opening Control Center or Notification Center,
+/// pressing inside it and closing it again, which put a system panel on screen
+/// every time one was used. Reading Focus has no other route: with Do Not
+/// Disturb switched on, `AXExtrasMenuBar` publishes no Focus extra and Control
+/// Center's own description is unchanged, measured. So the list went rather
+/// than the panel stayed, and Focus Settings at the bottom of the popup is
+/// where a Focus is switched now.
 struct NotificationsWidget: View {
     @EnvironmentObject var configProvider: ConfigProvider
     var config: ConfigData { configProvider.config }
@@ -27,16 +31,13 @@ struct NotificationsWidget: View {
             ?? config["show-control-center"]?.boolValue ?? false
     }
 
-    @StateObject private var focus = FocusReader()
     @ObservedObject private var centre = NotificationCenterReader.shared
     @State private var rect: CGRect = .zero
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(
-                systemName: focus.activeFocus == nil ? "bell" : "bell.slash"
-            )
-            .barGlyphBox(widest: "bell", "bell.slash")
+            Image(systemName: "bell")
+                .barGlyphBox(widest: "bell")
             // A dot for anything unread, the way every notification icon
             // anywhere says there is something to look at.
             .overlay(alignment: .topTrailing) {
@@ -51,16 +52,8 @@ struct NotificationsWidget: View {
             .background(.black.opacity(0.001))
             .help(helpText)
             .onTapGesture {
-                // Neither reader is asked for anything here, which is what
-                // keeps opening the bell from putting a Control Center panel on
-                // screen. The Focus list is read by its refresh arrow and kept,
-                // the notification list by its own, and the banner observer
-                // keeps that one current on its own. This used to call
-                // `refreshIfNeeded`, which flashed a panel on the first open
-                // after every install, in flat contradiction of the comment
-                // that stood here.
                 MenuBarPopup.show(rect: rect, id: "notifications") {
-                    NotificationsPopup(focus: focus, centre: centre)
+                    NotificationsPopup(centre: centre)
                 }
             }
 
@@ -88,7 +81,6 @@ struct NotificationsWidget: View {
     }
 
     private var helpText: String {
-        if let focusName = focus.activeFocus { return focusName }
         switch centre.notifications.count {
         case 0: return "Notifications"
         case 1: return "1 notification"
@@ -110,49 +102,11 @@ struct NotificationsWidget: View {
 }
 
 struct NotificationsPopup: View {
-    @ObservedObject var focus: FocusReader
     @ObservedObject var centre: NotificationCenterReader
 
     var body: some View {
         VStack(alignment: .leading, spacing: PopupStyle.spacing) {
             notifications
-
-            PopupSeparator()
-
-            VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
-                PopupSectionTitle(title: "Focus") {
-                    PopupRefresh(
-                        isBusy: focus.isLoading,
-                        help: "Read the list from Control Center again"
-                    ) {
-                        focus.refresh()
-                    }
-                }
-                .popupStaticRow()
-
-                if focus.modes.isEmpty {
-                    Text(
-                        focus.isLoading
-                            ? "Reading Control Center…"
-                            : "No Focus modes read yet"
-                    )
-                    .font(.system(size: PopupStyle.bodySize))
-                    .opacity(0.6)
-                    .popupStaticRow()
-                } else {
-                    ForEach(focus.modes) { mode in
-                        focusRow(mode)
-                    }
-                }
-
-                if let failure = focus.failure {
-                    Text(failure)
-                        .font(.system(size: PopupStyle.captionSize))
-                        .foregroundStyle(.orange)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .popupStaticRow()
-                }
-            }
 
             PopupSeparator()
 
@@ -171,39 +125,26 @@ struct NotificationsPopup: View {
             }
         }
         .popupContainer()
-        // Both of the ways this popup goes away: clicked away, or replaced by
-        // another widget's popup.
-        .onReceive(
-            NotificationCenter.default.publisher(for: .willHideWindow)
-        ) { _ in centre.flushPending() }
-        .onReceive(
-            NotificationCenter.default.publisher(for: .willChangeContent)
-        ) { _ in centre.flushPending() }
     }
 
-    /// The notifications macOS is holding, read out of Notification Center.
+    /// What has come in since Stege started.
     ///
-    /// Clear and the per-row dismissal are Notification Center's own, so this
-    /// list and the system's cannot drift apart.
+    /// Collected from the banners macOS draws, as it draws them. Nothing here
+    /// opens Notification Center, presses anything in it, or moves the pointer:
+    /// the list is what arrived, and clearing a row clears Stege's copy of it.
+    /// macOS keeps its own, and Notification Center is still where a
+    /// notification is answered.
     @ViewBuilder
     private var notifications: some View {
         VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
             PopupSectionTitle(title: "Notifications") {
-                if !centre.isReading, !centre.notifications.isEmpty {
-                    Text("Clear All")
+                if !centre.notifications.isEmpty {
+                    Text("Clear")
                         .font(.system(size: PopupStyle.captionSize))
                         .opacity(0.6)
                         .contentShape(Rectangle())
-                        .onTapGesture { centre.clearAll() }
-                }
-                // The list keeps itself current from the banners as they
-                // arrive, which cannot see a notification dismissed somewhere
-                // else. This is the way to ask macOS again.
-                PopupRefresh(
-                    isBusy: centre.isReading,
-                    help: "Read the list from Notification Center again"
-                ) {
-                    centre.refresh()
+                        .help("Clear this list. macOS keeps its own")
+                        .onTapGesture { centre.forgetAll() }
                 }
             }
             .popupStaticRow()
@@ -213,14 +154,8 @@ struct NotificationsPopup: View {
                     .font(.system(size: PopupStyle.bodySize))
                     .opacity(0.6)
                     .popupStaticRow()
-            } else if let failure = centre.failure {
-                Text(failure)
-                    .font(.system(size: PopupStyle.captionSize))
-                    .foregroundStyle(.orange)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .popupStaticRow()
             } else if centre.notifications.isEmpty {
-                Text(centre.isReading ? "Reading\u{2026}" : "No notifications")
+                Text("Nothing since Stege started")
                     .font(.system(size: PopupStyle.bodySize))
                     .opacity(0.6)
                     .popupStaticRow()
@@ -262,7 +197,7 @@ struct NotificationsPopup: View {
                 }
             }
         }
-        .popupRow { centre.dismiss(entry) }
+        .popupRow { centre.forget(entry) }
         .help("Dismiss")
     }
 
@@ -293,27 +228,4 @@ struct NotificationsPopup: View {
             .joined(separator: " \u{00B7} ")
     }
 
-    /// One row per Focus, switching it on or, when it is the one already on,
-    /// back off.
-    private func focusRow(_ mode: FocusMode) -> some View {
-        let isOn = focus.activeIdentifier == mode.id
-        return HStack(spacing: 10) {
-            Image(systemName: isOn ? "moon.fill" : "moon")
-                .font(.system(size: PopupStyle.captionSize))
-                .foregroundStyle(isOn ? Color.purple : Color.secondary)
-                .frame(width: PopupStyle.iconColumn)
-            Text(mode.name)
-                .font(.system(size: PopupStyle.bodySize))
-                .lineLimit(1)
-            Spacer(minLength: 8)
-            if focus.switching == mode.id {
-                ProgressView().controlSize(.mini)
-            } else if isOn {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(Color.purple)
-            }
-        }
-        .popupRow { focus.toggle(mode) }
-    }
 }

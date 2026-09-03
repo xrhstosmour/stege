@@ -16,40 +16,33 @@ struct SystemNotification: Identifiable, Equatable, Codable {
     let time: String
 }
 
-/// The notifications macOS is holding, read out of Notification Center itself.
+/// What macOS has shown a banner for since Stege started.
 ///
-/// There is no public API for this list and no file to read: the database it
-/// used to live in is gone on macOS 26 and the group container that held it is
-/// empty. What there is, is Notification Center's own accessibility tree, which
-/// is complete. Its panel publishes a group identified `AXNotificationListItems`
-/// holding one element per notification, each carrying a stable identifier, the
-/// application name, the title, subtitle and body as separately labelled text,
-/// the timestamp as macOS formatted it, and the actions to dismiss it. There is
-/// a Clear All button beside them.
+/// Every banner is its own window in Notification Center's process, announced
+/// as it is created, and it publishes everything a row in the panel's own list
+/// does: a stable identifier, the application name, the title, subtitle and
+/// body as separately labelled text, and the timestamp as macOS formatted it.
+/// So watching for those windows collects the list without asking macOS for
+/// anything. Nothing here opens a panel, presses a control, or moves the
+/// pointer. If the user opens Notification Center themselves, that window is
+/// read too, because it is already on screen.
 ///
-/// The catch is that the panel has to exist. Closed, the process publishes only
-/// its widgets, confirmed by dumping its windows, so the list cannot be read
-/// cold without opening Notification Center.
+/// This used to open the panel to read it, and again to dismiss a row or clear
+/// the list, which put a system panel on screen every time. That is gone.
 ///
-/// So it is never read on its own. Every banner macOS draws is its own window
-/// in the same process, and a banner publishes exactly what a row in the list
-/// does: the same identifier, the same labelled title, subtitle and body, the
-/// same actions. Folding arriving banners into the list means nothing here ever
-/// opens a panel unasked. Opening
-/// Notification Center by hand is read too, so a list gone stale corrects
-/// itself, and the refresh control asks for a read outright.
+/// Two other routes exist and are both worse:
 ///
-/// The cost is honest: a notification that arrived before Stege started, or one
-/// macOS delivered without drawing a banner, is not in the list until a read is
-/// asked for.
+/// - `~/Library/Group Containers/group.com.apple.usernoted/db2/db` is real and
+///   current, contrary to what this comment used to claim, and holds every
+///   notification in a `record` table. Reading it needs Full Disk Access, the
+///   broadest permission macOS grants, which would also hand this app Mail,
+///   Messages and Safari history. Not worth a list in a menu bar.
+/// - `UNUserNotificationCenter` only ever reports the calling application's own
+///   notifications.
 ///
-/// Dismissing and clearing are the real ones. Pressing an entry's last action
-/// is what the close button on the notification does, and the button at the top
-/// of the list is Clear All, so both go through macOS rather than hiding
-/// anything locally. They are queued while the popup is open and pressed in one
-/// visit once it has gone, so the row disappears the moment it is clicked and
-/// the panel that has to be opened to press it is never on screen at the same
-/// time as the popup.
+/// The cost is honest and worth stating: a notification that arrived before
+/// Stege started, or one macOS delivered without drawing a banner, is not in
+/// the list at all.
 final class NotificationCenterReader: ObservableObject {
     static let shared = NotificationCenterReader()
 
@@ -65,7 +58,7 @@ final class NotificationCenterReader: ObservableObject {
     /// user can read them. Message previews are exactly the kind of thing this
     /// app refuses Full Disk Access to avoid reading, so it does not leave them
     /// lying around either. Turned on, a restart keeps what was collected;
-    /// left off, the bell starts empty and the refresh arrow fills it.
+    /// left off, the bell starts empty and fills as banners arrive.
     var remembersBetweenLaunches = false {
         didSet {
             if remembersBetweenLaunches {
@@ -75,20 +68,14 @@ final class NotificationCenterReader: ObservableObject {
                 // on every appearance, and it starts false, so a guard meant
                 // that anything written by an earlier version stayed on disk
                 // forever: the one thing switching it off is supposed to undo.
-                Self.forget()
+                Self.discardStored()
             }
         }
     }
-    @Published private(set) var isReading = false
-    @Published private(set) var failure: String?
-    /// Kept between launches, the way `FocusReader` keeps its modes, so a
-    /// restart does not throw away everything collected and leave the bell
-    /// blank until a notification happens to arrive.
+    /// Where the list is kept when the option above is on, so a restart does
+    /// not throw away everything collected and leave the bell blank until a
+    /// notification happens to arrive.
     private static let storageKey = "stege.notifications.list"
-    /// Rows dismissed in the popup, waiting for their real close button.
-    private var pendingDismissals: [String] = []
-    private var pendingClearAll = false
-
     private var observer: AXObserver?
 
     private init() {}
@@ -101,9 +88,8 @@ final class NotificationCenterReader: ObservableObject {
     // MARK: - Watching
 
     /// Notices notifications arriving. Notification Center draws each banner as
-    /// a window in its own process and announces it, which is what keeps the
-    /// list current between the one read at launch and the next one the user
-    /// asks for.
+    /// a window in its own process and announces it, and that announcement is
+    /// the only thing that ever fills this list.
     func startWatching() {
         guard observer == nil, isTrusted else { return }
         guard let centre = Self.centre() else { return }
@@ -162,223 +148,24 @@ final class NotificationCenterReader: ObservableObject {
         notifications = Array(merged.prefix(Self.limit))
     }
 
-    // MARK: - Reading
+    // MARK: - Forgetting
 
-    /// Opens Notification Center, reads the list, closes it again. The only
-    /// thing here that puts a panel on screen, so nothing calls it but the
-    /// refresh control and the queued dismissals the user asked for.
-    func refresh() {
-        guard !isReading, isTrusted else { return }
-        isReading = true
-        failure = nil
-        MenuBarPopup.beginSystemPanelInteraction()
-        DispatchQueue.global(qos: .userInitiated).async {
-            let found = Self.readSynchronously()
-            DispatchQueue.main.async {
-                MenuBarPopup.endSystemPanelInteraction()
-                self.isReading = false
-                guard let found else {
-                    self.failure = "Could not open Notification Center"
-                    return
-                }
-                self.notifications = found
-            }
-        }
-    }
-
-    /// Dismisses one. The row leaves the list straight away and the real close
-    /// button is pressed later, by `flushPending`, so clicking a row in the
-    /// popup does what clicking a row anywhere does instead of dropping a
-    /// system panel over the popup that asked for it.
-    func dismiss(_ notification: SystemNotification) {
+    /// Takes an entry off Stege's own list. macOS keeps its copy.
+    ///
+    /// Not a dismissal. Dismissing for real means pressing the close button on
+    /// Notification Center's own row, which means opening its panel, which is
+    /// the thing this widget no longer does. What is honest is to say the list
+    /// is Stege's: clearing it here is tidying what the bell shows, and
+    /// Notification Center still holds what it held.
+    func forget(_ notification: SystemNotification) {
         notifications.removeAll { $0.id == notification.id }
-        pendingDismissals.append(notification.id)
     }
 
-    /// Clears the list, pressing Notification Center's own Clear All later, for
-    /// the same reason.
-    func clearAll() {
+    /// Empties Stege's own list, for the same reason.
+    func forgetAll() {
         notifications.removeAll()
-        pendingDismissals.removeAll()
-        pendingClearAll = true
     }
 
-    /// Presses everything the popup queued, in one visit to the panel.
-    ///
-    /// Called as the popup goes away, which is the whole point: the panel macOS
-    /// draws to be pressed appears once, after the thing it would have covered
-    /// has gone, rather than once per row while it is still on screen.
-    func flushPending() {
-        guard !pendingDismissals.isEmpty || pendingClearAll else { return }
-        // A read can still be in the panel, and `act` would turn straight back
-        // around, dropping what the popup queued. Wait for it instead.
-        guard !isReading else {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                [weak self] in self?.flushPending()
-            }
-            return
-        }
-        let identifiers = pendingDismissals
-        let clearing = pendingClearAll
-        pendingDismissals = []
-        pendingClearAll = false
-        act { panel in
-            if clearing {
-                if let button = Self.clearAllButton(in: panel) {
-                    AXUIElementPerformAction(button, kAXPressAction as CFString)
-                }
-                return
-            }
-            for identifier in identifiers {
-                // Looked up again each time. Pressing one row rebuilds the
-                // list, so elements found before the first press are not worth
-                // holding on to.
-                guard
-                    let entry = Self.banners(in: panel).first(where: {
-                        Self.string($0, "AXIdentifier") == identifier
-                    })
-                else { continue }
-                Self.performLastAction(on: entry)
-                Thread.sleep(forTimeInterval: 0.12)
-            }
-        }
-    }
-
-    /// Opens the panel, does something to it, closes it, and reads the result.
-    private func act(_ body: @escaping (AXUIElement) -> Void) {
-        guard !isReading, isTrusted else { return }
-        isReading = true
-        MenuBarPopup.beginSystemPanelInteraction()
-        DispatchQueue.global(qos: .userInitiated).async {
-            var found: [SystemNotification] = []
-            Self.withPanel { panel in
-                body(panel)
-                // Long enough for the row to leave the list before it is read
-                // back, short enough not to be felt.
-                Thread.sleep(forTimeInterval: 0.25)
-                found = Self.parse(panel)
-            }
-            DispatchQueue.main.async {
-                MenuBarPopup.endSystemPanelInteraction()
-                self.isReading = false
-                self.notifications = found
-            }
-        }
-    }
-
-    /// Nil when the panel never opened, which is different from an empty list
-    /// and is worth saying so on screen.
-    private static func readSynchronously() -> [SystemNotification]? {
-        var found: [SystemNotification]?
-        withPanel { panel in found = parse(panel) }
-        return found
-    }
-
-    /// Opens Notification Center, hands the panel over, and closes it again.
-    ///
-    /// Closed however this ends. A panel left open covers a third of the screen
-    /// and sits on top of the popup that asked for it.
-    private static func withPanel(_ body: (AXUIElement) -> Void) {
-        guard let extra = MenuExtra.element(for: .notificationCentre) else {
-            return
-        }
-        // The one place in Stege that touches the pointer, and only when the
-        // menu bar is set to hide. Measured: with the bar hidden the extra sits
-        // at y = -27.5, the press reports success, and no panel opens. Control
-        // Center's extras answer from the same position, which is why nothing
-        // else needs this any more.
-        let pointer = revealMenuBarIfHidden(for: extra)
-        defer { pointer.map(restorePointer) }
-
-        guard
-            AXUIElementPerformAction(extra, kAXPressAction as CFString)
-                == .success
-        else { return }
-        defer { close(extra) }
-
-        guard let panel = waitForPanel() else { return }
-        body(panel)
-    }
-
-    /// Brings the menu bar back on screen when it is set to hide, and reports
-    /// where the pointer was so it can be put back.
-    ///
-    /// The reveal is driven by pointer movement, and by a real event rather
-    /// than by where the pointer happens to be, so there is no way to ask for
-    /// it. This is the cost of reading the notification list at all, which is
-    /// why nothing does it unless the refresh arrow is pressed.
-    ///
-    /// Returns nil when the bar was already on screen, which is every machine
-    /// that has not set it to hide, and then nothing touches the pointer.
-    private static func revealMenuBarIfHidden(for extra: AXUIElement) -> CGPoint? {
-        guard isOffScreen(extra) else { return nil }
-        let origin = CGEvent(source: nil)?.location ?? .zero
-        movePointer(to: CGPoint(x: origin.x, y: 0))
-
-        let deadline = Date().addingTimeInterval(1.5)
-        while isOffScreen(extra), Date() < deadline {
-            Thread.sleep(forTimeInterval: 0.02)
-        }
-        // The item is back at a drawable position before the bar has finished
-        // arriving, and pressing it in between opens nothing.
-        Thread.sleep(forTimeInterval: 0.35)
-        return origin
-    }
-
-    /// Moved by an event, not warped. A warp puts the pointer back without
-    /// telling anything it moved, and a menu bar set to hide only goes back up
-    /// on a real movement, so warping left it down over Stege's own bar,
-    /// swallowing the next click, until the user happened to move the mouse.
-    private static func restorePointer(to origin: CGPoint) {
-        movePointer(to: origin)
-    }
-
-    private static func movePointer(to point: CGPoint) {
-        guard
-            let event = CGEvent(
-                mouseEventSource: nil, mouseType: .mouseMoved,
-                mouseCursorPosition: point, mouseButton: .left)
-        else { return }
-        event.post(tap: .cghidEventTap)
-    }
-
-    private static func isOffScreen(_ extra: AXUIElement) -> Bool {
-        guard
-            let value = position(of: extra)
-        else { return false }
-        return value.y < 0
-    }
-
-    private static func position(of extra: AXUIElement) -> CGPoint? {
-        var value: CFTypeRef?
-        guard
-            AXUIElementCopyAttributeValue(
-                extra, kAXPositionAttribute as CFString, &value) == .success,
-            let value, CFGetTypeID(value) == AXValueGetTypeID()
-        else { return nil }
-        var point = CGPoint.zero
-        guard AXValueGetValue((value as! AXValue), .cgPoint, &point) else {
-            return nil
-        }
-        return point
-    }
-
-    private static func close(_ extra: AXUIElement) {
-        for _ in 0..<3 {
-            guard findPanel() != nil else { return }
-            AXUIElementPerformAction(extra, kAXPressAction as CFString)
-            Thread.sleep(forTimeInterval: 0.2)
-        }
-    }
-
-    private static func waitForPanel() -> AXUIElement? {
-        let deadline = Date().addingTimeInterval(2)
-        while Date() < deadline {
-            if let panel = findPanel() { return panel }
-            Thread.sleep(forTimeInterval: 0.02)
-        }
-        return nil
-    }
 
     private static let panelTitle = "Notification Center"
     /// The group the panel keeps its rows in, and the only thing that tells the
@@ -389,29 +176,6 @@ final class NotificationCenterReader: ObservableObject {
     /// list that grows without bound is one more thing to leak.
     private static let limit = 32
 
-    private static func findPanel() -> AXUIElement? {
-        guard let centre = centre() else { return nil }
-        let application = AXUIElementCreateApplication(centre.processIdentifier)
-        var value: CFTypeRef?
-        guard
-            AXUIElementCopyAttributeValue(
-                application, kAXWindowsAttribute as CFString, &value)
-                == .success,
-            let windows = value as? [AXUIElement]
-        else { return nil }
-        return windows.first(where: isPanel)
-    }
-
-    /// Whether a window is the panel rather than a banner.
-    ///
-    /// They come out of the same process with the same `Notification Center`
-    /// title and the same `AXSystemDialog` subrole, so neither tells them
-    /// apart. What does is size: the panel covers a whole display, measured at
-    /// `1470x956` on this one, and a banner is a small window in the corner.
-    ///
-    /// Not the notification list, which was the first attempt: a panel holding
-    /// nothing does not publish one, so an empty Notification Center looked
-    /// like no panel at all and was left open on screen.
     private static func isPanel(_ window: AXUIElement) -> Bool {
         guard string(window, kAXTitleAttribute as String) == panelTitle,
             let height = size(of: window)?.height
@@ -534,31 +298,6 @@ final class NotificationCenterReader: ObservableObject {
         }
     }
 
-    /// The button above the list. Found by position rather than by its label,
-    /// which is translated, and it carries no identifier of its own.
-    private static func clearAllButton(in panel: AXUIElement) -> AXUIElement? {
-        guard
-            let list = descendant(
-                of: panel, identifiedBy: listIdentifier, depth: 0)
-        else { return nil }
-        return children(of: list).first {
-            string($0, kAXRoleAttribute as String) == (kAXButtonRole as String)
-        }
-    }
-
-    /// A notification's own dismissal, which macOS puts last in its action
-    /// list: `Close` on a single one, `Clear All` on a stack. Taken by position
-    /// because the names are translated, and the first action is always
-    /// `AXPress`, which opens the notification rather than dismissing it.
-    private static func performLastAction(on entry: AXUIElement) {
-        var value: CFArray?
-        guard AXUIElementCopyActionNames(entry, &value) == .success,
-            let actions = value as? [String], actions.count > 1,
-            let last = actions.last, last != (kAXPressAction as String)
-        else { return }
-        AXUIElementPerformAction(entry, last as CFString)
-    }
-
     private static func collectText(
         _ element: AXUIElement, into labelled: inout [String: String],
         untagged: inout [String], depth: Int
@@ -600,7 +339,7 @@ final class NotificationCenterReader: ObservableObject {
 
     /// Clears what an earlier run may have written, so switching the option off
     /// takes the text off disk rather than only stopping new writes.
-    private static func forget() {
+    private static func discardStored() {
         UserDefaults.standard.removeObject(forKey: storageKey)
     }
 

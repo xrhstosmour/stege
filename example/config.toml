@@ -63,7 +63,7 @@ hidden = false
 #   default.monitor          CPU and memory, disk and throughput in the popup
 #   default.privacy          microphone, camera and screen recording indicators
 #   default.stayawake        a cup, while something keeps the display awake
-#   default.notifications    a bell, the held notifications and every Focus
+#   default.notifications    a bell, and what has come in since Stege started
 #   default.updates          a mark while macOS or Homebrew has something waiting
 #   default.keyboardLayout   the current input source, with a switcher
 #   default.display          brightness, resolution, Night Shift, True Tone
@@ -187,24 +187,26 @@ style = "icon"
 always-show = false
 
 [widgets.default.notifications]
-# The popup lists the notifications macOS is holding, and every Focus.
+# The popup lists what macOS has shown a banner for since Stege started.
 #
-# There is no public API for the list, so it is read out of Notification
-# Center's own accessibility tree, and reading it means opening the panel.
-# Stege never does that on its own: the list is kept between launches, banners
-# are folded in as they arrive, and the arrow in the popup is what asks for a
-# read. So a notification that arrived before Stege started, or one macOS
-# delivered without a banner, shows up only once that arrow is pressed.
+# Every banner is a window Notification Center announces as it draws it, and it
+# carries everything a row in the panel does, so the list fills itself without
+# Stege opening, pressing or reading anything. The cost: a notification that
+# arrived before Stege started, or one macOS delivered without a banner, is not
+# in the list at all. Clearing a row clears Stege's copy; macOS keeps its own.
 #
-# The Focus list comes from Control Center for the same reason:
-# ~/Library/DoNotDisturb needs Full Disk Access and the private DoNotDisturb
-# framework needs an Apple-issued entitlement.
+# There is no Focus list any more. It came from Control Center, which meant
+# opening its panel on screen to read the modes and again to switch one, and
+# there is no other route: the store needs Full Disk Access, the private
+# DoNotDisturb framework needs an Apple-issued entitlement, and an active Focus
+# publishes nothing to the menu bar to read. Focus Settings at the bottom of the
+# popup opens where macOS switches them.
 # Adds a second control opening Control Center beside the bell.
 show-control-centre = false
 # Keep the list across restarts. Off by default, because remembering means
 # writing every notification's title, subtitle and body to ~/Library/Preferences
 # in plaintext, where anything running as you can read them. Left off, the bell
-# starts empty after a restart and the refresh arrow fills it.
+# starts empty after a restart and fills as banners arrive.
 remember-between-launches = false
 
 [widgets.default.updates]
