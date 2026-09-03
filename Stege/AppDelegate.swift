@@ -66,12 +66,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             name: .stegeBarVisibilityChanged,
             object: nil)
 
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(menusLatchDidChange),
-            name: .stegeMenusLatchChanged,
-            object: nil)
-
         observeHiddenSetting()
         observeToggleShortcut()
     }
@@ -171,52 +165,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// lets one take key without activating the application, so the frontmost
     /// application stays frontmost and gets its keyboard back the moment the
     /// row goes away.
-    /// The application whose keyboard the menus row borrowed, so it can have it
-    /// back.
-    private var applicationBeforeMenus: NSRunningApplication?
-
-    @objc private func menusLatchDidChange() {
-        let latched = AppMenusReveal.shared.isLatched
-        // `canBecomeKey` is false on a panel with no title bar, so `makeKey`
-        // did nothing at all. `BarPanel` answers true only while this is set,
-        // so clicking a widget at any other time still leaves the key window
-        // where it was.
-        for panel in menuBarPanels.compactMap({ $0 as? BarPanel }) {
-            panel.acceptsKey = latched
-        }
-        guard let panel = panelUnderPointer() as? BarPanel else { return }
-
-        guard latched else {
-            panel.resignKey()
-            // Whoever was in front gets the keyboard back. Without this Stege
-            // stays active and the application the menus belonged to is left
-            // dimmed and unable to type.
-            applicationBeforeMenus?.activate()
-            applicationBeforeMenus = nil
-            return
-        }
-
-        // A panel taking key is not enough on its own: an application that is
-        // not active cannot take the keyboard by asking for it, which is the
-        // whole point of the rule, and `nonactivatingPanel` only means a click
-        // on the bar does not activate Stege. A keyboard-driven menu row has to
-        // be activated like anything else. macOS does exactly this for its own
-        // menu bar under Control-F2, down to dimming the window behind.
-        applicationBeforeMenus = NSWorkspace.shared.frontmostApplication
-        NSApp.activate(ignoringOtherApps: true)
-        panel.makeKeyAndOrderFront(nil)
-    }
-
-    /// The bar on whichever screen holds the pointer, which is the one whose
-    /// menus row was just opened.
-    private func panelUnderPointer() -> NSPanel? {
-        let pointer = NSEvent.mouseLocation
-        let index =
-            NSScreen.screens.firstIndex { $0.frame.contains(pointer) } ?? 0
-        return menuBarPanels.indices.contains(index)
-            ? menuBarPanels[index] : menuBarPanels.first
-    }
-
     /// Orders Stege's panels out so the system menu bar underneath is reachable,
     /// and back in once `BarVisibility` decides the pointer has moved away.
     @objc private func barVisibilityDidChange(_ notification: Notification) {
@@ -392,7 +340,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func makePanel(
         frame: CGRect, level: Int, hostingRootView: AnyView, show: Bool = true
     ) -> NSPanel {
-        let panel = BarPanel(
+        let panel = NSPanel(
             contentRect: frame,
             styleMask: [.nonactivatingPanel],
             backing: .buffered,
@@ -445,17 +393,4 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.runModal()
         NSApplication.shared.terminate(nil)
     }
-}
-
-/// One of the bar's panels.
-///
-/// A panel with no title bar cannot become the key window, which is right
-/// almost always: the bar is something to look at and click, and taking the
-/// keyboard from the application in front would be rude. The exception is the
-/// menus row held open by `menu-shortcut`, which is a keyboard control and
-/// needs the arrows, so key is granted for exactly as long as that row is up.
-final class BarPanel: NSPanel {
-    var acceptsKey = false
-
-    override var canBecomeKey: Bool { acceptsKey }
 }
