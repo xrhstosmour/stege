@@ -131,26 +131,9 @@ that.
 
 ## Known limitations
 
-- **Low Power Mode and Focus flash the system panel.** Nothing else can write
-  those settings: `pmset` needs root, `~/Library/DoNotDisturb/DB` needs Full Disk
-  Access, and the private frameworks answer only callers holding an Apple-issued
-  entitlement.
-- **Notifications and the Focus list are only read when asked.** Reading either
-  means opening one of macOS's own panels, so Stege never does it on its own.
-  Banners are folded in as they arrive; the refresh arrows read the rest.
-- **Reading notifications moves the pointer**, and only if the menu bar is set to
-  hide. The Notification Center extra is parked above the top of the screen then
-  and opens nothing when pressed, and the reveal is driven by a real pointer
-  event, so there is no way to ask for it. It is the one place Stege touches the
-  pointer, it happens only when the refresh arrow is pressed, and the pointer is
-  put back. Control Center answers from the same position without any of this,
-  so Focus, Low Power Mode, AirPlay and screen mirroring never touch it.
-- **AirPlay is handed to macOS.** The receiver list is behind an Apple-only
-  entitlement, so the sound and display popups open Control Center's own picker
-  rather than drawing a list they cannot fill. A receiver already connected is an
-  ordinary output device and is listed and selectable like any other.
-- **An external monitor may not answer DDC**, in which case it is listed without
-  a brightness slider rather than given one that does nothing.
+What macOS will not let Stege do, and what it costs, is tracked in
+[the open issues](https://github.com/xrhstosmour/stege/issues). Each one says
+what was measured, why it is like that, and what would close it.
 
 ## Forked from barik
 
@@ -162,8 +145,39 @@ application's menus.
 
 ## Contributing
 
-[`AGENTS.md`](AGENTS.md) has the conventions, how to verify a change without
-Xcode, and the merge and release workflow. `cd Tests && swift test`.
+[`AGENTS.md`](AGENTS.md) has the conventions and how to verify a change without
+Xcode. `cd Tests && swift test`.
+
+## Releasing
+
+A release is a tag. Pushing one builds, signs, attests and publishes the archive,
+and the version comes from the tag, so nothing in the project needs bumping
+first.
+
+```bash
+git tag v0.X.Y && git push origin v0.X.Y
+
+# Watch that tag's run, not the newest one. `--limit 1` on its own catches the
+# previous tag's finished run, which has published a checksum taken from a 404.
+gh run list --branch v0.X.Y --limit 1
+```
+
+Then bump the cask in [`homebrew-stege`](https://github.com/xrhstosmour/homebrew-stege),
+which is a separate repository and a separate pull request. Take the checksum
+from the archive the release actually serves, never from a local build:
+
+```bash
+curl -sL -o Stege.zip \
+  https://github.com/xrhstosmour/stege/releases/download/v0.X.Y/Stege.zip
+shasum -a 256 Stege.zip
+```
+
+Put that in `Casks/stege.rb` with the new `version`, then `brew style Casks/stege.rb`
+and open the pull request. The tap's own CI re-downloads the archive and checks the
+declared `sha256` against it, so a bump written before the release has finished
+publishing fails there rather than at `brew install`.
+
+Once it is merged, `brew upgrade --cask stege`.
 
 ## Credits
 
