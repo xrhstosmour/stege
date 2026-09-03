@@ -97,12 +97,14 @@ final class ConfigManager: ObservableObject {
             # Stege's configuration. Saving this file applies it, no restart.
             #
             # Every setting Stege has is listed below with the values it takes.
-            # What is commented out is off; uncomment to turn it on. The fuller
+            # What is commented out is off, uncomment to turn it on. The fuller
             # reference, with the reasoning behind each one, is at
             # https://github.com/xrhstosmour/stege/blob/main/example/config.toml
 
-            theme = "system"                # system, light, dark
-            hidden = false                  # start with the bar out of the way
+            # System, light, dark.
+            theme = "system"
+            # Start with the bar out of the way.
+            hidden = false
 
             # Where yabai or aerospace live, if you did not install them with
             # Homebrew. Only a path inside /opt/homebrew/bin, /usr/local/bin or
@@ -115,9 +117,17 @@ final class ConfigManager: ObservableObject {
             # punctuation key, space, return, tab, escape, delete, an arrow, or f1
             # to f12. A combination another application already holds is refused,
             # and Stege says so in the system log.
-            # toggle-shortcut = "cmd+ctrl+b"  # hide the bar and bring it back
-            # reveal-shortcut = "cmd+ctrl+u"  # the other apps' status items
-            # menu-shortcut = "cmd+ctrl+m"    # the menus row, then arrows and Return
+            #
+            # Hides the bar and brings it back.
+            # toggle-shortcut = "cmd+ctrl+b"
+            #
+            # The other applications' status items, the row behind the chevron.
+            # reveal-shortcut = "cmd+ctrl+u"
+            #
+            # The frontmost application's menu titles, in place of the workspace
+            # pills and held there. Arrows walk the row, Return opens one,
+            # Escape puts it away.
+            # menu-shortcut = "cmd+ctrl+m"
 
             [widgets]
             # The bar, left to right. Remove an entry to drop that widget, reorder
@@ -150,11 +160,14 @@ final class ConfigManager: ObservableObject {
 
             [widgets.default.appleMenu]
             icon-size = 14
-            short-menu = true               # About, Settings, Sleep, Lock, Log Out
+            # About, Settings, Sleep, Lock, Log Out.
+            short-menu = true
 
             [widgets.default.spaces]
-            space.show-key = true           # the workspace number or letter
-            window.show-title = true        # the focused window's title
+            # The workspace number or letter.
+            space.show-key = true
+            # The focused window's title.
+            window.show-title = true
             window.title.max-length = 50
             # Applications whose window title never says which window it is.
             # window.title.always-display-app-name-for = ["Mail", "Chrome"]
@@ -164,25 +177,32 @@ final class ConfigManager: ObservableObject {
             show-application-name = true
             # always, hover, click, modifier.
             visibility = "hover"
-            modifier-key = "option"         # for visibility = "modifier"
+            # For visibility = "modifier".
+            modifier-key = "option"
 
             [widgets.default.reveal]
-            mode = "extras"                 # extras, hidden, off
+            # Extras, hidden, off.
+            mode = "extras"
             icon-size = 18
-            icon-style = "colour"           # colour, mono
-            sticky = true                   # stay open until asked to close
+            # Colour, mono.
+            icon-style = "colour"
+            # Stay open until asked to close.
+            sticky = true
             return-threshold = 80
             timeout = 10
             # always-show = ["Docker"]      # never behind the chevron
             # hidden = ["1Password"]        # never shown at all, by name or id
 
             [widgets.default.monitor]
-            show-network = false            # upload and download throughput
+            # Upload and download throughput.
+            show-network = false
             warning-level = 80
 
             [widgets.default.privacy]
-            always-show = false             # a dot even when nothing is listening
-            style = "icon"                  # icon, dot
+            # A dot even when nothing is listening.
+            always-show = false
+            # Icon, dot.
+            style = "icon"
 
             [widgets.default.stayawake]
             always-show = false
@@ -194,22 +214,28 @@ final class ConfigManager: ObservableObject {
             remember-between-launches = false
 
             [widgets.default.updates]
-            always-show = false             # hidden while nothing is waiting
+            # Hidden while nothing is waiting.
+            always-show = false
             show-count = false
-            macos = true                    # what macOS found last time it looked
-            homebrew = true                 # brew outdated, local data only
+            # What macOS found last time it looked.
+            macos = true
+            # Brew outdated, local data only.
+            homebrew = true
             refresh-interval = 30
 
             [widgets.default.display]
             show-percentage = false
 
             [widgets.default.audio]
-            glyph = "speaker"               # speaker, waves
+            # Speaker, waves.
+            glyph = "speaker"
             show-percentage = false
-            fetch-artwork = true            # the one network request Stege makes
+            # The one network request Stege makes.
+            fetch-artwork = true
 
             [widgets.default.keyboardLayout]
-            show-full-name = false          # "Greek" rather than "GR"
+            # "Greek" rather than "GR".
+            show-full-name = false
 
             [widgets.default.bluetooth]
             show-battery = true
@@ -220,7 +246,8 @@ final class ConfigManager: ObservableObject {
             hide-when-disconnected = false
 
             [widgets.default.battery]
-            style = "inside"                # inside, beside, off
+            # Inside, beside, off.
+            style = "inside"
             show-percentage = true
             warning-level = 30
             critical-level = 10
@@ -234,17 +261,20 @@ final class ConfigManager: ObservableObject {
             # calendar.deny-list = ["Work"]   # every calendar but these
 
             [widgets.default.time.popup]
-            view-variant = "box"            # box, vertical
+            # Box, vertical.
+            view-variant = "box"
 
             [bar.foreground]
-            height = "menu-bar"             # "menu-bar" or a number of points
+            # "menu-bar" or a number of points.
+            height = "menu-bar"
             horizontal-padding = 12
             trailing-padding = 12
             spacing = 10
 
             [bar.background]
             displayed = true
-            blur = 7                        # 0 clear to 7 solid
+            # 0 clear to 7 solid.
+            blur = 7
             height = "menu-bar"
             """
         try defaultTOML.write(toFile: path, atomically: true, encoding: .utf8)

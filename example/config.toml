@@ -120,8 +120,10 @@ icon-size = 14
 short-menu = true
 
 [widgets.default.spaces]
-space.show-key = true          # the workspace number or letter
-window.show-title = true       # the focused window's title
+# The workspace number or letter.
+space.show-key = true
+# The focused window's title.
+window.show-title = true
 window.title.max-length = 50
 # Always show the app name rather than the window title for these.
 window.title.always-display-app-name-for = ["Mail", "Chrome", "Arc"]
@@ -176,7 +178,8 @@ timeout = 10
 
 [widgets.default.monitor]
 # true | false
-show-network = false           # upload and download throughput
+# Upload and download throughput.
+show-network = false
 # 0 to 100, the percentage at which the reading turns orange
 warning-level = 80
 
@@ -218,9 +221,12 @@ remember-between-launches = false
 [widgets.default.updates]
 # Hidden while there is nothing waiting, which is most of the time.
 always-show = false
-show-count = false             # the popup says what, the bar says whether
-macos = true                   # what macOS found the last time it looked
-homebrew = true                # `brew outdated`, which reads local data only
+# The popup says what, the bar says whether.
+show-count = false
+# What macOS found the last time it looked.
+macos = true
+# `brew outdated`, which reads local data only.
+homebrew = true
 # Minutes between checks, default 30. Reading Homebrew forks a process.
 refresh-interval = 30
 # Neither source checks anything: Stege makes no outbound network requests, so
@@ -253,7 +259,8 @@ show-percentage = false
 [widgets.default.audio]
 # "speaker" | "waveform"
 glyph = "speaker"
-show-percentage = false        # the icon already conveys the level
+# The icon already conveys the level.
+show-percentage = false
 # What is playing sits in this popup, under the application making the sound,
 # with previous, play and next. Album artwork is fetched from the player's own
 # servers when the system does not hand the image over directly, which in
@@ -262,7 +269,8 @@ show-percentage = false        # the icon already conveys the level
 fetch-artwork = true
 
 [widgets.default.keyboardLayout]
-show-full-name = false         # "Greek" rather than "GR"
+# "Greek" rather than "GR".
+show-full-name = false
 
 [widgets.default.bluetooth]
 # The battery of the connected device with least left, beside the mark.
