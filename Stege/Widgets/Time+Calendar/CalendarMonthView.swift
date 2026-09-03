@@ -57,7 +57,7 @@ struct CalendarMonthView: View {
         case .stacked:
             VStack(alignment: .leading, spacing: 0) {
                 monthSection
-                Divider().padding(.vertical, 10)
+                Divider().padding(.vertical, 8)
                 daySection
             }
             .frame(width: 268)
@@ -221,6 +221,14 @@ struct CalendarMonthView: View {
         .padding(.bottom, 6)
     }
 
+    /// How tall the list of events is allowed to get before it scrolls.
+    ///
+    /// Four rows and a little, which is enough for most days. Without a bound
+    /// the popup was as tall as the day was busy: it grew a row per event and a
+    /// full day ran off the bottom of the screen, month grid and all. A day
+    /// with nothing on takes one line, as it always did.
+    private static let eventListMaximumHeight: CGFloat = 148
+
     @ViewBuilder
     private var eventList: some View {
         if events.isEmpty {
@@ -229,12 +237,22 @@ struct CalendarMonthView: View {
                 .opacity(0.5)
                 .padding(.bottom, 4)
         } else {
-            VStack(alignment: .leading, spacing: 6) {
+            let rows = VStack(alignment: .leading, spacing: 6) {
                 ForEach(events, id: \.eventIdentifier) { event in
                     eventRow(event)
                 }
             }
             .padding(.bottom, 4)
+
+            // Only a scroller once there is something to scroll. A `ScrollView`
+            // always takes the height it is offered, so wrapping a short list in
+            // one would put back the fixed block this is here to remove.
+            if events.count > 4 {
+                ScrollView(.vertical, showsIndicators: true) { rows }
+                    .frame(maxHeight: Self.eventListMaximumHeight)
+            } else {
+                rows
+            }
         }
     }
 
