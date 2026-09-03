@@ -36,7 +36,14 @@ final class GlobalShortcut {
             .lowercased()
         if registrations[name]?.shortcut == normalised { return }
         unregister(name)
-        guard let normalised, let combination = ShortcutParser.parse(normalised) else {
+        guard let normalised else { return }
+        guard let combination = ShortcutParser.parse(normalised) else {
+            Log.shortcut.error(
+                """
+                \(name, privacy: .public)-shortcut is not a shortcut this \
+                understands: \(normalised, privacy: .public). Modifiers then \
+                a key, joined with "+", at least one modifier.
+                """)
             return
         }
         installHandlerIfNeeded()
@@ -50,7 +57,19 @@ final class GlobalShortcut {
             // other hot keys this process registers.
             EventHotKeyID(signature: OSType(0x5354_4745), id: identifier),
             GetApplicationEventTarget(), 0, &reference)
-        guard status == noErr, let reference else { return }
+        guard status == noErr, let reference else {
+            // `eventHotKeyExistsErr` is -9878, which is what macOS answers when
+            // something else already holds the combination. Saying nothing left
+            // a shortcut that simply did not work, with no way to find out why.
+            Log.shortcut.error(
+                """
+                \(name, privacy: .public)-shortcut \
+                \(normalised, privacy: .public) could not be registered, \
+                error \(status, privacy: .public). Another application \
+                probably holds it already.
+                """)
+            return
+        }
         registrations[name] = Registration(
             reference: reference, shortcut: normalised)
         actions[identifier] = action
