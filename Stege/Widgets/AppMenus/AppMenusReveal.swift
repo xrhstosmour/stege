@@ -270,7 +270,21 @@ final class AppMenusReveal: ObservableObject {
                     1 << CGEventType.keyDown.rawValue),
                 callback: callback,
                 userInfo: Unmanaged.passUnretained(self).toOpaque())
-        else { return }
+        else {
+            // Silence here is what made this take four attempts to work out.
+            // A keyboard tap needs Input Monitoring, which is a different grant
+            // from the Accessibility one the menus themselves need, and being
+            // refused it looks exactly like the tap working and receiving
+            // nothing.
+            Log.shortcut.error(
+                """
+                The menus row could not watch the keyboard. A keyboard event \
+                tap needs Input Monitoring, in System Settings under Privacy \
+                & Security. The row still opens and its titles are still \
+                clickable, but the arrows, Return and Escape will not work.
+                """)
+            return
+        }
 
         let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
