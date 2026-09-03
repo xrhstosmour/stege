@@ -15,7 +15,7 @@ class AerospaceSpacesProvider: SpacesProvider, SwitchableSpacesProvider {
     func getSpacesWithWindows() -> [AeroSpace]? {
         guard let windows = fetchWindows() else { return nil }
 
-        let focusedWindowID = fetchFocusedWindowID()
+        let focusedWindowID = focusedWindowID(among: windows)
 
         var spacesByID: [String: AeroSpace] = [:]
         for window in windows {
@@ -97,6 +97,23 @@ class AerospaceSpacesProvider: SpacesProvider, SwitchableSpacesProvider {
                 "aerospace returned something unreadable: \(error.localizedDescription, privacy: .public)")
             return nil
         }
+    }
+
+    /// Which window has focus, without spawning a second `aerospace`.
+    ///
+    /// The window server already knows, and `FrontmostWindow` reads it out of
+    /// the list it publishes. That answer is only trusted when it names one of
+    /// the windows just listed, which is the check that makes it safe: a
+    /// frontmost application `AeroSpace` does not manage, or one showing no
+    /// ordinary window, falls through to asking `AeroSpace` and costs exactly
+    /// what it cost before.
+    private func focusedWindowID(among windows: [AeroWindow]) -> Int? {
+        if let found = FrontmostWindowReader.current(),
+            windows.contains(where: { $0.id == found })
+        {
+            return found
+        }
+        return fetchFocusedWindowID()
     }
 
     private func fetchFocusedWindowID() -> Int? {
