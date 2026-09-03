@@ -56,7 +56,6 @@ final class AppMenusReveal: ObservableObject {
     /// How many titles are on the row, set by the widget that draws them.
     var menuCount = 0
 
-    private var escapeMonitor: Any?
     private var keyMonitor: Any?
     private var applicationObserver: NSObjectProtocol?
 
@@ -207,7 +206,6 @@ final class AppMenusReveal: ObservableObject {
         isLatched = true
         set(true)
         watchKeys()
-        watchEscape()
         watchApplicationSwitch()
         // The bar's panel has to be the key window for the arrow keys to reach
         // this process at all. `AppDelegate` owns the panels, so it is asked
@@ -220,7 +218,6 @@ final class AppMenusReveal: ObservableObject {
         guard isLatched else { return }
         isLatched = false
         stopWatchingKeys()
-        stopWatchingEscape()
         stopWatchingApplicationSwitch()
         set(false)
         NotificationCenter.default.post(
@@ -235,11 +232,13 @@ final class AppMenusReveal: ObservableObject {
     /// Arrows walk the titles, Return opens the one under the keyboard, Escape
     /// puts the row away.
     ///
-    /// A local monitor, and it returns nil for the keys it uses, so an arrow
-    /// press moves along the row instead of also scrolling whatever is behind
-    /// it. Everything else is passed straight through. Only installed while the
-    /// row is latched, so Stege holds no key for a moment longer than the row
-    /// is on screen.
+    /// A local monitor, which needs the bar's panel to be the key window and is
+    /// why `BarPanel` takes key while the row is up. Escape was a *global*
+    /// monitor first, on the reasoning that observing is politer than
+    /// consuming, and it never fired once. A local monitor also gets to consume
+    /// the key, so an arrow press moves along the row instead of also scrolling
+    /// whatever is behind it. Everything else passes straight through, and it
+    /// exists only while the row is latched.
     private func watchKeys() {
         stopWatchingKeys()
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) {
@@ -279,26 +278,6 @@ final class AppMenusReveal: ObservableObject {
                 applicationObserver)
         }
         applicationObserver = nil
-    }
-
-    /// Escape puts the row away, which is what a person expects of a menu.
-    ///
-    /// Observed rather than consumed, so Escape still reaches the application
-    /// in front. Taking it would mean holding Escape system-wide for as long as
-    /// Stege runs, which is far too much to ask of one row of menu titles. The
-    /// monitor exists only while the row is latched.
-    private func watchEscape() {
-        stopWatchingEscape()
-        escapeMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) {
-            [weak self] event in
-            guard event.keyCode == 53 else { return }
-            DispatchQueue.main.async { self?.unlatch() }
-        }
-    }
-
-    private func stopWatchingEscape() {
-        if let escapeMonitor { NSEvent.removeMonitor(escapeMonitor) }
-        escapeMonitor = nil
     }
 
     /// For the modes that do not depend on the pointer, where the answer is
