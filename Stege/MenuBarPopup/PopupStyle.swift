@@ -115,12 +115,71 @@ struct PopupSeparator: View {
     }
 }
 
+/// Whether the row a view is drawn in is currently highlighted.
+///
+/// `PopupRow` flips the whole row's foreground to white when the pointer is on
+/// it, because the highlight is the accent colour. Anything that wants to paint
+/// itself a colour of its own has to know about that or it paints accent on
+/// accent and disappears exactly when it is being reached for.
+private struct PopupRowHighlightKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var isPopupRowHighlighted: Bool {
+        get { self[PopupRowHighlightKey.self] }
+        set { self[PopupRowHighlightKey.self] = newValue }
+    }
+}
+
+/// A value worth calling out inside a popup row, such as the resolution a
+/// display is set to.
+///
+/// A capsule rather than bare text, which is how macOS marks a value that is
+/// also a state. It takes the accent colour normally and white on a highlighted
+/// row, so it reads on both.
+struct PopupValueBadge: View {
+    let text: String
+    @Environment(\.isPopupRowHighlighted) private var isHighlighted
+
+    var body: some View {
+        let colour = isHighlighted ? Color.white : Color.accentColor
+        Text(text)
+            .font(.system(size: PopupStyle.captionSize, weight: .medium))
+            .monospacedDigit()
+            .foregroundStyle(colour)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 1)
+            .background(Capsule().fill(colour.opacity(0.16)))
+    }
+}
+
+/// The mark that says which item in a list is the one in use.
+///
+/// Always laid out, shown or not, so a list does not shift sideways as the
+/// selection moves. White on a highlighted row for the same reason as
+/// `PopupValueBadge`.
+struct PopupSelectionMark: View {
+    let isSelected: Bool
+    var size: CGFloat = PopupStyle.captionSize
+    @Environment(\.isPopupRowHighlighted) private var isHighlighted
+
+    var body: some View {
+        Image(systemName: "checkmark")
+            .font(.system(size: size, weight: .semibold))
+            .foregroundStyle(isHighlighted ? Color.white : Color.accentColor)
+            .opacity(isSelected ? 1 : 0)
+            .frame(width: PopupStyle.iconColumn)
+    }
+}
+
 private struct PopupRow: ViewModifier {
     let action: () -> Void
     @State private var isHovered = false
 
     func body(content: Content) -> some View {
         content
+            .environment(\.isPopupRowHighlighted, isHovered)
             .padding(.horizontal, PopupStyle.rowHorizontalPadding)
             .padding(.vertical, PopupStyle.rowVerticalPadding)
             .frame(maxWidth: .infinity, alignment: .leading)

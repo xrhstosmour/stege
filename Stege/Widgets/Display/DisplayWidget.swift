@@ -268,15 +268,11 @@ struct DisplayPopup: View {
                     .system(size: PopupStyle.captionSize, weight: .semibold))
                 .lineLimit(1)
             Spacer(minLength: 8)
-            // Not the accent colour, unlike the checkmark in the list below.
-            // The row highlights in the accent colour under the pointer, and
-            // accent on accent is invisible exactly when you are reaching for
-            // it. The list is where the accent marks the choice.
+            // A badge, which knows to turn white when the row it is in
+            // highlights. Plain accent text went invisible against the accent
+            // highlight exactly when the row was being reached for.
             if let current = modes.first(where: \.isCurrent) {
-                Text(current.label)
-                    .font(.system(size: PopupStyle.captionSize))
-                    .monospacedDigit()
-                    .opacity(0.7)
+                PopupValueBadge(text: current.label)
             }
             Image(systemName: "chevron.right")
                 .font(.system(size: 9, weight: .semibold))
@@ -299,12 +295,7 @@ struct DisplayPopup: View {
             // The accent colour, the way macOS marks the chosen item in its own
             // lists. A checkmark that is the same colour as everything else
             // reads as another row rather than as the answer.
-            Image(systemName: "checkmark")
-                .font(
-                    .system(size: PopupStyle.captionSize, weight: .semibold))
-                .foregroundStyle(Color.accentColor)
-                .opacity(mode.isCurrent ? 1 : 0)
-                .frame(width: PopupStyle.iconColumn)
+            PopupSelectionMark(isSelected: mode.isCurrent)
             Text(mode.label)
                 .font(.system(size: PopupStyle.bodySize))
                 .monospacedDigit()
