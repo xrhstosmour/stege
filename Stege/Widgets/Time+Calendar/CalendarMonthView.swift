@@ -24,6 +24,18 @@ struct CalendarMonthView: View {
     let calendarManager: CalendarManager
     var layout: Layout = .stacked
 
+    @EnvironmentObject var configProvider: ConfigProvider
+    private var calendarConfig: ConfigData? {
+        configProvider.config["calendar"]?.dictionaryValue
+    }
+    private var allowList: [String] { calendarNames(for: "allow-list") }
+    private var denyList: [String] { calendarNames(for: "deny-list") }
+    private func calendarNames(for key: String) -> [String] {
+        calendarConfig?[key]?.arrayValue?
+            .compactMap { $0.stringValue }
+            .filter { !$0.isEmpty } ?? []
+    }
+
     /// First of the month being shown.
     @State private var visibleMonth: Date = Calendar.current.date(
         from: Calendar.current.dateComponents([.year, .month], from: Date()))
@@ -393,13 +405,17 @@ struct CalendarMonthView: View {
     }
 
     private func reloadEvents() {
-        events = calendarManager.events(on: selectedDate)
+        events = calendarManager.events(
+            on: selectedDate, allowList: allowList, denyList: denyList)
     }
 
     /// Which days in the visible month have something on them.
     private func reloadDots() {
         var found: Set<Date> = []
-        for date in monthDates where calendarManager.hasEvents(on: date) {
+        for date in monthDates
+        where calendarManager.hasEvents(
+            on: date, allowList: allowList, denyList: denyList)
+        {
             found.insert(calendar.startOfDay(for: date))
         }
         daysWithEvents = found
