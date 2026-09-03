@@ -66,6 +66,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             name: .stegeBarVisibilityChanged,
             object: nil)
 
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(menusLatchDidChange),
+            name: .stegeMenusLatchChanged,
+            object: nil)
+
         observeHiddenSetting()
         observeToggleShortcut()
     }
@@ -143,11 +149,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             visibility.isShowingExtras.toggle()
         }
+        // The row of menu titles that stands in for the workspace pills, the
+        // same thing hovering the focused pill shows, held open until the
+        // shortcut is pressed again or Escape. Not the first menu's contents:
+        // that opened one drop-down and left no way to walk to the next, which
+        // is the opposite of what a menu row is for.
         GlobalShortcut.shared.apply(
             configuration.menuShortcut, name: "menu"
         ) {
-            AppMenusManager.shared.openFirstMenu()
+            AppMenusManager.shared.refresh()
+            AppMenusReveal.shared.toggleLatched()
         }
+    }
+
+    /// Makes the bar's panel the key window while the menus row is held open by
+    /// the shortcut, and lets it go again.
+    ///
+    /// Arrow keys cannot reach a process that owns no key window, so without
+    /// this the row appeared and the keyboard still drove whatever was behind
+    /// it. The panels are `nonactivatingPanel`, which is exactly the flag that
+    /// lets one take key without activating the application, so the frontmost
+    /// application stays frontmost and gets its keyboard back the moment the
+    /// row goes away.
+    @objc private func menusLatchDidChange() {
+        let panel = panelUnderPointer()
+        if AppMenusReveal.shared.isLatched {
+            panel?.makeKey()
+        } else {
+            panel?.resignKey()
+        }
+    }
+
+    /// The bar on whichever screen holds the pointer, which is the one whose
+    /// menus row was just opened.
+    private func panelUnderPointer() -> NSPanel? {
+        let pointer = NSEvent.mouseLocation
+        let index =
+            NSScreen.screens.firstIndex { $0.frame.contains(pointer) } ?? 0
+        return menuBarPanels.indices.contains(index)
+            ? menuBarPanels[index] : menuBarPanels.first
     }
 
     /// Orders Stege's panels out so the system menu bar underneath is reachable,

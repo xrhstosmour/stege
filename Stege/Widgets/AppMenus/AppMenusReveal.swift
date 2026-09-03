@@ -37,6 +37,29 @@ final class AppMenusReveal: ObservableObject {
         case menus
     }
 
+    /// Held open by the shortcut rather than by the pointer.
+    ///
+    /// Under `hover` the reveal is only ever as long as the pointer rests on
+    /// the pill, and a watchdog closes it a quarter of a second after the
+    /// pointer moves off. A shortcut has no pointer behind it, so without this
+    /// the row appeared and was shut again before it could be read. While
+    /// latched the pointer decides nothing: the row stays until the shortcut is
+    /// pressed again, or Escape.
+    @Published private(set) var isLatched = false
+
+    /// Which title the keyboard is on while the row is latched, and a counter
+    /// bumped when that title should open. The widget watches the counter
+    /// because it is what holds the frame each menu is drawn under.
+    @Published private(set) var focusedIndex = 0
+    @Published private(set) var activationCount = 0
+
+    /// How many titles are on the row, set by the widget that draws them.
+    var menuCount = 0
+
+    private var escapeMonitor: Any?
+    private var keyMonitor: Any?
+    private var applicationObserver: NSObjectProtocol?
+
     private var sources: Set<String> = []
     private var pendingHide: DispatchWorkItem?
     private var watchdog: Timer?
@@ -53,6 +76,7 @@ final class AppMenusReveal: ObservableObject {
     /// the other as they swap, and for a moment neither reports it, so a hide
     /// waits briefly instead of firing into that gap and flickering.
     func setHovered(_ hovered: Bool, from source: Source) {
+        guard !isLatched else { return }
         guard !(hovered && isSuppressed) else { return }
         let key = String(describing: source)
         if hovered { sources.insert(key) } else { sources.remove(key) }
@@ -169,6 +193,114 @@ final class AppMenusReveal: ObservableObject {
         setRevealed(!isRevealed)
     }
 
+    /// What the `menu-shortcut` calls. Shows the menus row in place of the
+    /// workspace pills and holds it there, or puts it away again.
+    func toggleLatched() {
+        isLatched ? unlatch() : latch()
+    }
+
+    private func latch() {
+        pendingHide?.cancel()
+        pendingHide = nil
+        sources.removeAll()
+        focusedIndex = 0
+        isLatched = true
+        set(true)
+        watchKeys()
+        watchEscape()
+        watchApplicationSwitch()
+        // The bar's panel has to be the key window for the arrow keys to reach
+        // this process at all. `AppDelegate` owns the panels, so it is asked
+        // rather than reached into.
+        NotificationCenter.default.post(
+            name: .stegeMenusLatchChanged, object: nil)
+    }
+
+    func unlatch() {
+        guard isLatched else { return }
+        isLatched = false
+        stopWatchingKeys()
+        stopWatchingEscape()
+        stopWatchingApplicationSwitch()
+        set(false)
+        NotificationCenter.default.post(
+            name: .stegeMenusLatchChanged, object: nil)
+    }
+
+    func moveFocus(by step: Int) {
+        guard menuCount > 0 else { return }
+        focusedIndex = (focusedIndex + step + menuCount) % menuCount
+    }
+
+    /// Arrows walk the titles, Return opens the one under the keyboard, Escape
+    /// puts the row away.
+    ///
+    /// A local monitor, and it returns nil for the keys it uses, so an arrow
+    /// press moves along the row instead of also scrolling whatever is behind
+    /// it. Everything else is passed straight through. Only installed while the
+    /// row is latched, so Stege holds no key for a moment longer than the row
+    /// is on screen.
+    private func watchKeys() {
+        stopWatchingKeys()
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) {
+            [weak self] event in
+            guard let self, self.isLatched else { return event }
+            switch event.keyCode {
+            case 123: self.moveFocus(by: -1)
+            case 124: self.moveFocus(by: 1)
+            case 36, 76: self.activationCount += 1
+            case 53: self.unlatch()
+            default: return event
+            }
+            return nil
+        }
+    }
+
+    private func stopWatchingKeys() {
+        if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
+        keyMonitor = nil
+    }
+
+    /// Switching application while the row is up puts it away. Its titles
+    /// belong to the application that was in front, so holding it open over a
+    /// different one would be showing the wrong menus.
+    private func watchApplicationSwitch() {
+        stopWatchingApplicationSwitch()
+        applicationObserver = NSWorkspace.shared.notificationCenter
+            .addObserver(
+                forName: NSWorkspace.didActivateApplicationNotification,
+                object: nil, queue: .main
+            ) { [weak self] _ in self?.unlatch() }
+    }
+
+    private func stopWatchingApplicationSwitch() {
+        if let applicationObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(
+                applicationObserver)
+        }
+        applicationObserver = nil
+    }
+
+    /// Escape puts the row away, which is what a person expects of a menu.
+    ///
+    /// Observed rather than consumed, so Escape still reaches the application
+    /// in front. Taking it would mean holding Escape system-wide for as long as
+    /// Stege runs, which is far too much to ask of one row of menu titles. The
+    /// monitor exists only while the row is latched.
+    private func watchEscape() {
+        stopWatchingEscape()
+        escapeMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) {
+            [weak self] event in
+            guard event.keyCode == 53 else { return }
+            DispatchQueue.main.async { self?.unlatch() }
+        }
+    }
+
+    private func stopWatchingEscape() {
+        if let escapeMonitor { NSEvent.removeMonitor(escapeMonitor) }
+        escapeMonitor = nil
+    }
+
     /// For the modes that do not depend on the pointer, where the answer is
     /// already known and there is no gap to wait out.
     func setRevealed(_ revealed: Bool) {
@@ -181,10 +313,12 @@ final class AppMenusReveal: ObservableObject {
     private func set(_ value: Bool) {
         guard value != isRevealed else { return }
         isRevealed = value
-        // Only the pointer-driven mode. Under `click` and `modifier` the
+        // Only the pointer-driven mode, and only when the pointer is what is
+        // holding it. Under `click`, `modifier` and the shortcut's latch the
         // pointer is nowhere in particular and the watchdog would close the
         // menus the instant they opened.
-        value && revealsOnHover ? startWatchdog() : stopWatchdog()
+        value && revealsOnHover && !isLatched
+            ? startWatchdog() : stopWatchdog()
     }
 
     /// A second way out, in case a tracker is ever lost the way `forget`
@@ -207,4 +341,10 @@ final class AppMenusReveal: ObservableObject {
         watchdog?.invalidate()
         watchdog = nil
     }
+}
+
+extension Notification.Name {
+    /// Posted when the menus row is latched open by the shortcut, or let go.
+    static let stegeMenusLatchChanged = Notification.Name(
+        "stege.menusLatchChanged")
 }
