@@ -10,6 +10,12 @@ import Foundation
 /// this restores that signal. It needs no permission of its own: both properties
 /// describe device state, not captured content.
 final class PrivacyManager: ObservableObject {
+    /// One instance. Microphone/camera activity is a property of the
+    /// machine, not of a bar, and there is one bar per screen: two managers
+    /// on a two-monitor setup were each polling the same CoreAudio and
+    /// CoreMediaIO device state on the same 2s timer.
+    static let shared = PrivacyManager()
+
     @Published private(set) var isMicrophoneActive = false
     @Published private(set) var isCameraActive = false
     /// Read a different way from the other two, because macOS exposes no
@@ -26,7 +32,7 @@ final class PrivacyManager: ObservableObject {
     /// reads are in-process property lookups rather than process spawns.
     private let interval: TimeInterval = 2.0
 
-    init() {
+    private init() {
         refresh()
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) {
             [weak self] _ in

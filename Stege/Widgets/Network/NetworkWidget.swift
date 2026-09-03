@@ -14,7 +14,7 @@ struct NetworkWidget: View {
         config["hide-when-disconnected"]?.boolValue ?? false
     }
 
-    @StateObject private var viewModel = NetworkStatusViewModel()
+    @ObservedObject private var viewModel = NetworkStatusViewModel.shared
     @State private var rect: CGRect = .zero
 
     var body: some View {

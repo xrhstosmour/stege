@@ -9,6 +9,11 @@ import IOKit.ps
 /// anything about a power source changes, which is the only moment these values
 /// can move, so no timer is needed. This is what upstream issue #82 proposed.
 class BatteryManager: ObservableObject {
+    /// One instance. The battery is a property of the machine, not of a bar,
+    /// and there is one bar per screen: two managers on a two-monitor setup
+    /// were reading the same IOKit power source and posting the same values.
+    static let shared = BatteryManager()
+
     @Published var batteryLevel: Int = 0
     @Published var isCharging: Bool = false
     @Published var isPluggedIn: Bool = false
@@ -29,7 +34,7 @@ class BatteryManager: ObservableObject {
     private var runLoopSource: CFRunLoopSource?
     private var powerStateObserver: NSObjectProtocol?
 
-    init() {
+    private init() {
         updateBatteryStatus()
         startMonitoring()
         // Low Power Mode does not always move a power source, so the IOKit

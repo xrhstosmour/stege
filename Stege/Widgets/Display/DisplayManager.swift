@@ -54,6 +54,11 @@ struct DisplayMode: Identifiable, Equatable {
 /// `CBTrueToneClient` in `CoreBrightness`, reached through the Objective-C
 /// runtime for the same reason.
 final class DisplayManager: ObservableObject {
+    /// One instance. Display state is a property of the machine, not of a
+    /// bar, and there is one bar per screen: two managers on a two-monitor
+    /// setup were each polling the same brightness and Night Shift state.
+    static let shared = DisplayManager()
+
     @Published private(set) var displays: [DisplayInfo] = []
     @Published private(set) var isNightShiftOn = false
     @Published private(set) var nightShiftStrength: Float = 0
@@ -77,13 +82,14 @@ final class DisplayManager: ObservableObject {
     @Published private(set) var failure: String?
 
     private var timer: Timer?
+    private var screenParametersObserver: NSObjectProtocol?
 
-    init() {
+    private init() {
         refresh()
         // Brightness moves from the keyboard and from ambient light without
         // telling anyone, so the popup would sit on a stale number. Only while
         // something is watching: the timer is started by the popup.
-        NotificationCenter.default.addObserver(
+        screenParametersObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
             object: nil, queue: .main
         ) { [weak self] _ in
@@ -96,6 +102,9 @@ final class DisplayManager: ObservableObject {
 
     deinit {
         timer?.invalidate()
+        if let screenParametersObserver {
+            NotificationCenter.default.removeObserver(screenParametersObserver)
+        }
     }
 
     /// Called when the popup opens and closes. Reading brightness is a cheap

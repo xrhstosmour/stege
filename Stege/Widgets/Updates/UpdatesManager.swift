@@ -31,6 +31,11 @@ struct PendingUpdate: Identifiable, Equatable {
 /// already on disk from the last `brew update`. It does not fetch. It does fork
 /// a process, so it runs on a slow timer and off the main thread.
 final class UpdatesManager: ObservableObject {
+    /// One instance. Pending updates are a property of the machine, not of a
+    /// bar, and there is one bar per screen: two managers on a two-monitor
+    /// setup were each forking their own `brew outdated` on the same timer.
+    static let shared = UpdatesManager()
+
     @Published private(set) var updates: [PendingUpdate] = []
     @Published private(set) var isReading = false
     /// When macOS last looked, so the popup can say how old its answer is
@@ -50,11 +55,11 @@ final class UpdatesManager: ObservableObject {
     /// Nothing is read until `configure` says which sources to read. Reading
     /// in here would fork `brew outdated` once at launch even for someone who
     /// had switched Homebrew off in the file.
-    init() {}
+    private init() {}
 
     /// Configured from the widget once it knows what the file asked for, since
-    /// a `StateObject` is built before the configuration is in scope. Calling
-    /// it again with the same numbers does nothing.
+    /// the shared instance is built before any widget's configuration is in
+    /// scope. Calling it again with the same numbers does nothing.
     func configure(
         interval: TimeInterval, system: Bool, homebrew: Bool
     ) {

@@ -17,6 +17,12 @@ struct KeyboardInputSource: Identifiable {
 /// notification is early rather than late, though, so every read it triggers is
 /// followed up until the new source actually appears. See `readBack`.
 final class KeyboardLayoutManager: ObservableObject {
+    /// One instance. The keyboard layout is a property of the machine, not
+    /// of a bar, and there is one bar per screen: two managers on a
+    /// two-monitor setup were each registered for the same distributed
+    /// notification and reading the same input source.
+    static let shared = KeyboardLayoutManager()
+
     @Published private(set) var abbreviation: String = ""
     @Published private(set) var name: String = ""
     /// Everything enabled in Keyboard settings, so the popup offers exactly
@@ -26,7 +32,7 @@ final class KeyboardLayoutManager: ObservableObject {
 
     private var observer: NSObjectProtocol?
 
-    init() {
+    private init() {
         refresh()
         observer = DistributedNotificationCenter.default().addObserver(
             forName: NSNotification.Name(
