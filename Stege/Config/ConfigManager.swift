@@ -2,6 +2,17 @@ import Foundation
 import SwiftUI
 import TOMLDecoder
 
+private enum ConfigWriteError: Error, LocalizedError {
+    case refusedSymlink(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .refusedSymlink(let path):
+            return "\(path) is a symlink, refusing to write through it"
+        }
+    }
+}
+
 final class ConfigManager: ObservableObject {
     static let shared = ConfigManager()
 
@@ -14,6 +25,16 @@ final class ConfigManager: ObservableObject {
 
     private init() {
         loadOrCreateConfigIfNeeded()
+    }
+
+    /// Refuses to write over a symlink, so a link planted at the config path
+    /// cannot redirect a write somewhere else on disk.
+    private func refuseIfSymlink(at path: String) throws {
+        var info = stat()
+        guard lstat(path, &info) == 0 else { return }
+        if info.st_mode & S_IFMT == S_IFLNK {
+            throw ConfigWriteError.refusedSymlink(path)
+        }
     }
 
     private func loadOrCreateConfigIfNeeded() {
@@ -64,7 +85,9 @@ final class ConfigManager: ObservableObject {
         let backup = path + ".backup"
         do {
             try? FileManager.default.removeItem(atPath: backup)
+            try refuseIfSymlink(at: backup)
             try original.write(toFile: backup, atomically: true, encoding: .utf8)
+            try refuseIfSymlink(at: path)
             try result.text.write(toFile: path, atomically: true, encoding: .utf8)
             Log.configuration.notice(
                 "Migrated the configuration: \(result.applied.joined(separator: ", "), privacy: .public). The original is at \(backup, privacy: .public)")
@@ -210,6 +233,7 @@ final class ConfigManager: ObservableObject {
             // it truncated, and the file watcher would then reload whatever
             // fragment survived. Writing to a temporary file and renaming means
             // the file on disk is only ever the old one or the new one.
+            try refuseIfSymlink(at: path)
             try updatedText.write(
                 toFile: path, atomically: true, encoding: .utf8)
             DispatchQueue.main.async {
