@@ -226,10 +226,32 @@ final class DisplayManager: ObservableObject {
                 best[key] = candidate
             }
         }
-        return best.values
-            .sorted { $0.size.width * $0.size.height > $1.size.width * $1.size.height }
-            .prefix(6)
-            .map { $0 }
+        let sorted = best.values.sorted {
+            $0.size.width * $0.size.height > $1.size.width * $1.size.height
+        }
+        return Self.window(of: 6, around: sorted)
+    }
+
+    /// At most `count` modes, centred on the one in use.
+    ///
+    /// This used to be `prefix(6)`, the six largest, and on a MacBook Air the
+    /// mode actually in use is the eighth of fourteen: the list showed six
+    /// resolutions, none of them the current one, and so no checkmark anywhere.
+    /// Measured against a running system, current 1470x956 sat below 2560x1664,
+    /// 2560x1600, 2048x1332, 2048x1280, 1920x1200, 1710x1112 and 1710x1068.
+    ///
+    /// A window around the current mode also reads better than the top of the
+    /// list: the useful neighbours of what you are using are the next size up
+    /// and the next size down, which is what System Settings offers. The
+    /// arithmetic is `ListWindow`, which is under test.
+    static func window(of count: Int, around modes: [DisplayMode])
+        -> [DisplayMode]
+    {
+        let range = ListWindow.range(
+            count: count,
+            around: modes.firstIndex(where: \.isCurrent),
+            total: modes.count)
+        return Array(modes[range])
     }
 
     /// Applied inside a configuration transaction, which is what makes the
