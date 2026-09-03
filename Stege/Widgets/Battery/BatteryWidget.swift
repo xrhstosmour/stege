@@ -22,7 +22,7 @@ struct BatteryWidget: View {
         Style(rawValue: config["style"]?.stringValue ?? "inside") ?? .inside
     }
 
-    @StateObject private var batteryManager = BatteryManager()
+    @ObservedObject private var batteryManager = BatteryManager.shared
     private var level: Int { batteryManager.batteryLevel }
     private var isCharging: Bool { batteryManager.isCharging }
     private var isPluggedIn: Bool { batteryManager.isPluggedIn }
