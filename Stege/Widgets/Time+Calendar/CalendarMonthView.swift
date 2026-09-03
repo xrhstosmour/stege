@@ -237,20 +237,15 @@ struct CalendarMonthView: View {
             Text(selectedDayTitle)
                 .font(.system(size: 12, weight: .semibold))
             Spacer(minLength: 8)
-            Image(systemName: isAddingEvent ? "xmark" : "plus")
-                .font(.system(size: 10, weight: .semibold))
-                .frame(width: 18, height: 18)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    isAddingEvent.toggle()
-                    saveFailed = false
-                    if isAddingEvent, newEventCalendar == nil {
-                        newEventCalendar = calendarManager.defaultCalendar
-                    }
+            AddEventButton(isCancelling: isAddingEvent) {
+                isAddingEvent.toggle()
+                saveFailed = false
+                if isAddingEvent, newEventCalendar == nil {
+                    newEventCalendar = calendarManager.defaultCalendar
                 }
-                .help(isAddingEvent ? "Cancel" : "New event")
+            }
         }
-        .padding(.bottom, 4)
+        .padding(.bottom, 6)
     }
 
     /// How tall the list of events is allowed to get before it scrolls.
@@ -271,14 +266,17 @@ struct CalendarMonthView: View {
             Text("Nothing scheduled")
                 .font(.system(size: 12))
                 .opacity(0.5)
-                .padding(.bottom, 4)
+                .padding(.bottom, 6)
         } else {
-            let rows = VStack(alignment: .leading, spacing: 6) {
+            // Room under the last row before the popup ends. Without it the
+            // events sat flush against the bottom edge, which reads as the
+            // popup having been cut off rather than having finished.
+            let rows = VStack(alignment: .leading, spacing: 2) {
                 ForEach(events, id: \.eventIdentifier) { event in
                     eventRow(event)
                 }
             }
-            .padding(.bottom, 4)
+            .padding(.bottom, 6)
 
             // Only a scroller once there is something to scroll. A `ScrollView`
             // always takes the height it is offered, so wrapping a short list in
@@ -293,43 +291,13 @@ struct CalendarMonthView: View {
     }
 
     private func eventRow(_ event: EKEvent) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            // The calendar's own colour, so an event is traceable back to the
-            // account it came from without naming it on every row.
-            RoundedRectangle(cornerRadius: 1.5)
-                .fill(Color(nsColor: event.calendar.color ?? .systemGray))
-                .frame(width: 3)
-                .frame(maxHeight: .infinity)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(event.title ?? "Untitled")
-                    .font(.system(size: 12))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                Text(timeLabel(for: event))
-                    .font(.system(size: 11))
-                    .monospacedDigit()
-                    .opacity(0.6)
-            }
-
-            Spacer(minLength: 6)
-
-            // Says which of the two a click does, rather than leaving it to be
-            // discovered.
-            Image(
-                systemName: calendarManager.meetingLink(for: event) != nil
-                    ? "video.fill" : "chevron.right"
-            )
-            .font(.system(size: 9, weight: .semibold))
-            .opacity(0.45)
-            .padding(.top, 2)
+        EventRow(
+            event: event,
+            meetingLink: calendarManager.meetingLink(for: event) != nil,
+            time: timeLabel(for: event)
+        ) {
+            calendarManager.open(event)
         }
-        .fixedSize(horizontal: false, vertical: true)
-        .contentShape(Rectangle())
-        .onTapGesture { calendarManager.open(event) }
-        .help(
-            calendarManager.meetingLink(for: event) != nil
-                ? "Join in the browser" : "Open in Calendar")
     }
 
     /// Start and end, or "All day". Uses a `j` template so the locale decides
@@ -496,5 +464,86 @@ struct CalendarMonthView: View {
         return stride(from: 0, to: cells.count, by: 7).map {
             Array(cells[$0..<min($0 + 7, cells.count)])
         }
+    }
+}
+
+/// One event, drawn as a row that lights up under the pointer the way every
+/// other row in every other popup does.
+///
+/// The highlight is drawn as a background that bleeds outwards rather than as
+/// padding, so the row reads as a full-width row without indenting the title
+/// away from the month grid above it. Same argument as `BarHover`.
+private struct EventRow: View {
+    let event: EKEvent
+    let meetingLink: Bool
+    let time: String
+    let open: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            // The calendar's own colour, so an event is traceable back to the
+            // account it came from without naming it on every row.
+            RoundedRectangle(cornerRadius: 1.5)
+                .fill(Color(nsColor: event.calendar.color ?? .systemGray))
+                .frame(width: 3)
+                .frame(maxHeight: .infinity)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(event.title ?? "Untitled")
+                    .font(.system(size: 12))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Text(time)
+                    .font(.system(size: 11))
+                    .monospacedDigit()
+                    .opacity(0.6)
+            }
+
+            Spacer(minLength: 6)
+
+            // Says which of the two a click does, rather than leaving it to be
+            // discovered.
+            Image(systemName: meetingLink ? "video.fill" : "chevron.right")
+                .font(.system(size: 9, weight: .semibold))
+                .opacity(isHovered ? 0.8 : 0.45)
+                .padding(.top, 2)
+        }
+        .padding(.vertical, 4)
+        .fixedSize(horizontal: false, vertical: true)
+        .background(
+            RoundedRectangle(cornerRadius: 5)
+                .fill(BarStyle.ink.opacity(isHovered ? 0.12 : 0))
+                .padding(.horizontal, -6)
+        )
+        .contentShape(Rectangle())
+        .onHover { isHovered = $0 }
+        .onTapGesture(perform: open)
+        .help(meetingLink ? "Join in the browser" : "Open in Calendar")
+    }
+}
+
+/// The control that starts a new event, and cancels one being written.
+///
+/// Round, and it fills under the pointer. It was a bare glyph in an 18 point
+/// box, which gave no sign it could be pressed until it was.
+private struct AddEventButton: View {
+    let isCancelling: Bool
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Image(systemName: isCancelling ? "xmark" : "plus")
+            .font(.system(size: 10, weight: .semibold))
+            .frame(width: 20, height: 20)
+            .background(
+                Circle().fill(BarStyle.ink.opacity(isHovered ? 0.15 : 0))
+            )
+            .contentShape(Rectangle())
+            .onHover { isHovered = $0 }
+            .onTapGesture(perform: action)
+            .help(isCancelling ? "Cancel" : "New event")
     }
 }
