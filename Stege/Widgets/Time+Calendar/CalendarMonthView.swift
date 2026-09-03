@@ -106,12 +106,17 @@ struct CalendarMonthView: View {
         }
     }
 
+    /// No trailing `Spacer`. There was one, and the popup is placed in a panel
+    /// the size of the whole screen, so the spacer took every point of it: the
+    /// month and the day's events drew at the top and several hundred points of
+    /// empty popup hung underneath them, all the way down the display. The
+    /// side-by-side layout is already top aligned by its `HStack`, which is the
+    /// only thing the spacer was there for.
     private var daySection: some View {
         VStack(alignment: .leading, spacing: 0) {
             dayHeading
             eventList
             addEvent
-            Spacer(minLength: 0)
         }
     }
 
