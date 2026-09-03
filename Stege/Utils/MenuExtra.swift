@@ -96,9 +96,6 @@ enum MenuExtra {
     ) -> Bool {
         guard let extra = element(for: identifier) else { return false }
 
-        let pointer = revealMenuBarIfHidden(for: extra)
-        defer { pointer.map(restorePointer) }
-
         guard
             AXUIElementPerformAction(extra, kAXPressAction as CFString)
                 == .success
@@ -145,9 +142,6 @@ enum MenuExtra {
         _ identifier: Identifier, path: [String]
     ) -> Bool {
         guard let extra = element(for: identifier) else { return false }
-
-        let pointer = revealMenuBarIfHidden(for: extra)
-        defer { pointer.map(restorePointer) }
 
         guard
             AXUIElementPerformAction(extra, kAXPressAction as CFString)
@@ -202,9 +196,6 @@ enum MenuExtra {
         _ identifier: Identifier, path: [String], matching prefix: String
     ) -> [PanelControl] {
         guard let extra = element(for: identifier) else { return [] }
-        let pointer = revealMenuBarIfHidden(for: extra)
-        defer { pointer.map(restorePointer) }
-
         guard
             AXUIElementPerformAction(extra, kAXPressAction as CFString)
                 == .success
@@ -260,69 +251,6 @@ enum MenuExtra {
                 from: child, prefix: prefix, into: &found, seen: &seen,
                 depth: depth + 1)
         }
-    }
-
-    // MARK: - The hidden menu bar
-
-    /// Brings the menu bar back on screen when it is set to hide, and reports
-    /// where the pointer was so it can be put back.
-    ///
-    /// Pressing an extra whose menu bar is hidden silently does nothing: macOS
-    /// parks the item above the top of the screen, at a negative y, and opens
-    /// no panel for it. The reveal is driven by pointer movement, and by a real
-    /// event, not by where the pointer happens to be, so moving it there
-    /// without one leaves the bar hidden. Warping it back afterwards is enough,
-    /// because the panel stays up once it is open.
-    ///
-    /// Returns nil when the bar was already on screen, which is the common case
-    /// for anyone who has not set it to hide, and then nothing touches the
-    /// pointer at all.
-    static func revealMenuBarIfHidden(for extra: AXUIElement)
-        -> CGPoint?
-    {
-        guard isOffScreen(extra) else { return nil }
-        let origin = CGEvent(source: nil)?.location ?? .zero
-        movePointer(to: CGPoint(x: origin.x, y: 0))
-
-        let deadline = Date().addingTimeInterval(1.5)
-        while isOffScreen(extra), Date() < deadline {
-            Thread.sleep(forTimeInterval: 0.02)
-        }
-        // The item is back at a drawable position before the bar has finished
-        // arriving, and pressing it in between opens nothing.
-        Thread.sleep(forTimeInterval: 0.35)
-        return origin
-    }
-
-    /// Moved by an event, not warped.
-    ///
-    /// A warp puts the pointer back without telling anything it moved, and a
-    /// menu bar set to hide only goes back up on a real movement. Warping left
-    /// it down, on top of Stege's own bar, swallowing the next click meant for
-    /// a widget, until the user happened to move the mouse.
-    static func restorePointer(to origin: CGPoint) {
-        movePointer(to: origin)
-    }
-
-    private static func movePointer(to point: CGPoint) {
-        guard
-            let event = CGEvent(
-                mouseEventSource: nil, mouseType: .mouseMoved,
-                mouseCursorPosition: point, mouseButton: .left)
-        else { return }
-        event.post(tap: .cghidEventTap)
-    }
-
-    private static func isOffScreen(_ extra: AXUIElement) -> Bool {
-        guard let value = attribute(extra, kAXPositionAttribute as String),
-            CFGetTypeID(value) == AXValueGetTypeID()
-        else { return false }
-        var point = CGPoint.zero
-        guard
-            AXValueGetValue(
-                unsafeBitCast(value, to: AXValue.self), .cgPoint, &point)
-        else { return false }
-        return point.y < 0
     }
 
     // MARK: - Panels

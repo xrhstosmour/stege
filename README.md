@@ -135,9 +135,16 @@ that.
   those settings: `pmset` needs root, `~/Library/DoNotDisturb/DB` needs Full Disk
   Access, and the private frameworks answer only callers holding an Apple-issued
   entitlement.
-- **Notifications are only read when asked.** Reading the list means opening
-  Notification Center, so Stege never does it on its own. Banners are folded in
-  as they arrive; the refresh arrow reads the rest.
+- **Notifications and the Focus list are only read when asked.** Reading either
+  means opening one of macOS's own panels, so Stege never does it on its own.
+  Banners are folded in as they arrive; the refresh arrows read the rest.
+- **Reading notifications moves the pointer**, and only if the menu bar is set to
+  hide. The Notification Center extra is parked above the top of the screen then
+  and opens nothing when pressed, and the reveal is driven by a real pointer
+  event, so there is no way to ask for it. It is the one place Stege touches the
+  pointer, it happens only when the refresh arrow is pressed, and the pointer is
+  put back. Control Center answers from the same position without any of this,
+  so Focus, Low Power Mode, AirPlay and screen mirroring never touch it.
 - **AirPlay is handed to macOS.** The receiver list is behind an Apple-only
   entitlement, so the sound and display popups open Control Center's own picker
   rather than drawing a list they cannot fill. A receiver already connected is an

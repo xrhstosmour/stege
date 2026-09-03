@@ -51,11 +51,14 @@ struct NotificationsWidget: View {
             .background(.black.opacity(0.001))
             .help(helpText)
             .onTapGesture {
-                // Neither reader is asked for anything here. The Focus list is
-                // read once and kept, and the notification list is seeded at
-                // launch and kept current by the banner observer, so opening
-                // the bell puts no system panel on screen.
-                focus.refreshIfNeeded()
+                // Neither reader is asked for anything here, which is what
+                // keeps opening the bell from putting a Control Center panel on
+                // screen. The Focus list is read by its refresh arrow and kept,
+                // the notification list by its own, and the banner observer
+                // keeps that one current on its own. This used to call
+                // `refreshIfNeeded`, which flashed a panel on the first open
+                // after every install, in flat contradiction of the comment
+                // that stood here.
                 MenuBarPopup.show(rect: rect, id: "notifications") {
                     NotificationsPopup(focus: focus, centre: centre)
                 }

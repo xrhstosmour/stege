@@ -282,10 +282,13 @@ final class NotificationCenterReader: ObservableObject {
         guard let extra = MenuExtra.element(for: .notificationCentre) else {
             return
         }
-        // The extra does not answer to a press while it is parked off screen,
-        // unlike another application's status item.
-        let pointer = MenuExtra.revealMenuBarIfHidden(for: extra)
-        defer { pointer.map(MenuExtra.restorePointer) }
+        // The one place in Stege that touches the pointer, and only when the
+        // menu bar is set to hide. Measured: with the bar hidden the extra sits
+        // at y = -27.5, the press reports success, and no panel opens. Control
+        // Center's extras answer from the same position, which is why nothing
+        // else needs this any more.
+        let pointer = revealMenuBarIfHidden(for: extra)
+        defer { pointer.map(restorePointer) }
 
         guard
             AXUIElementPerformAction(extra, kAXPressAction as CFString)
@@ -295,6 +298,69 @@ final class NotificationCenterReader: ObservableObject {
 
         guard let panel = waitForPanel() else { return }
         body(panel)
+    }
+
+    /// Brings the menu bar back on screen when it is set to hide, and reports
+    /// where the pointer was so it can be put back.
+    ///
+    /// The reveal is driven by pointer movement, and by a real event rather
+    /// than by where the pointer happens to be, so there is no way to ask for
+    /// it. This is the cost of reading the notification list at all, which is
+    /// why nothing does it unless the refresh arrow is pressed.
+    ///
+    /// Returns nil when the bar was already on screen, which is every machine
+    /// that has not set it to hide, and then nothing touches the pointer.
+    private static func revealMenuBarIfHidden(for extra: AXUIElement) -> CGPoint? {
+        guard isOffScreen(extra) else { return nil }
+        let origin = CGEvent(source: nil)?.location ?? .zero
+        movePointer(to: CGPoint(x: origin.x, y: 0))
+
+        let deadline = Date().addingTimeInterval(1.5)
+        while isOffScreen(extra), Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.02)
+        }
+        // The item is back at a drawable position before the bar has finished
+        // arriving, and pressing it in between opens nothing.
+        Thread.sleep(forTimeInterval: 0.35)
+        return origin
+    }
+
+    /// Moved by an event, not warped. A warp puts the pointer back without
+    /// telling anything it moved, and a menu bar set to hide only goes back up
+    /// on a real movement, so warping left it down over Stege's own bar,
+    /// swallowing the next click, until the user happened to move the mouse.
+    private static func restorePointer(to origin: CGPoint) {
+        movePointer(to: origin)
+    }
+
+    private static func movePointer(to point: CGPoint) {
+        guard
+            let event = CGEvent(
+                mouseEventSource: nil, mouseType: .mouseMoved,
+                mouseCursorPosition: point, mouseButton: .left)
+        else { return }
+        event.post(tap: .cghidEventTap)
+    }
+
+    private static func isOffScreen(_ extra: AXUIElement) -> Bool {
+        guard
+            let value = position(of: extra)
+        else { return false }
+        return value.y < 0
+    }
+
+    private static func position(of extra: AXUIElement) -> CGPoint? {
+        var value: CFTypeRef?
+        guard
+            AXUIElementCopyAttributeValue(
+                extra, kAXPositionAttribute as CFString, &value) == .success,
+            let value, CFGetTypeID(value) == AXValueGetTypeID()
+        else { return nil }
+        var point = CGPoint.zero
+        guard AXValueGetValue((value as! AXValue), .cgPoint, &point) else {
+            return nil
+        }
+        return point
     }
 
     private static func close(_ extra: AXUIElement) {
