@@ -245,7 +245,7 @@ struct DisplayPopup: View {
 
             let isOpen = expanded.contains(display.id)
             VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
-                resolutionHeader(for: display, modes: modes, isOpen: isOpen)
+                resolutionHeader(for: display, isOpen: isOpen)
 
                 if isOpen {
                     ForEach(modes) { mode in
@@ -257,23 +257,18 @@ struct DisplayPopup: View {
         }
     }
 
-    /// The row that folds the list, and says what the display is set to while
-    /// it is folded.
-    private func resolutionHeader(
-        for display: DisplayInfo, modes: [DisplayMode], isOpen: Bool
-    ) -> some View {
+    /// The row that folds the list.
+    private func resolutionHeader(for display: DisplayInfo, isOpen: Bool)
+        -> some View
+    {
         HStack(spacing: 6) {
             Text(manager.displays.count > 1 ? display.name : "Resolution")
                 .font(
                     .system(size: PopupStyle.captionSize, weight: .semibold))
                 .lineLimit(1)
             Spacer(minLength: 8)
-            // A badge, which knows to turn white when the row it is in
-            // highlights. Plain accent text went invisible against the accent
-            // highlight exactly when the row was being reached for.
-            if let current = modes.first(where: \.isCurrent) {
-                PopupValueBadge(text: current.label)
-            }
+            // Nothing but the chevron. The resolution in use is marked inside
+            // the list, where the tick is, rather than repeated out here.
             Image(systemName: "chevron.right")
                 .font(.system(size: 9, weight: .semibold))
                 .rotationEffect(.degrees(isOpen ? 90 : 0))
