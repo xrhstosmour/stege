@@ -1,4 +1,5 @@
 import AppKit
+import CoreGraphics
 import Combine
 import Foundation
 
@@ -56,7 +57,8 @@ final class AppMenusReveal: ObservableObject {
     /// How many titles are on the row, set by the widget that draws them.
     var menuCount = 0
 
-    private var keyMonitor: Any?
+    private var keyTap: CFMachPort?
+    private var keyTapSource: CFRunLoopSource?
     private var applicationObserver: NSObjectProtocol?
 
     private var sources: Set<String> = []
@@ -207,11 +209,6 @@ final class AppMenusReveal: ObservableObject {
         set(true)
         watchKeys()
         watchApplicationSwitch()
-        // The bar's panel has to be the key window for the arrow keys to reach
-        // this process at all. `AppDelegate` owns the panels, so it is asked
-        // rather than reached into.
-        NotificationCenter.default.post(
-            name: .stegeMenusLatchChanged, object: nil)
     }
 
     func unlatch() {
@@ -220,8 +217,6 @@ final class AppMenusReveal: ObservableObject {
         stopWatchingKeys()
         stopWatchingApplicationSwitch()
         set(false)
-        NotificationCenter.default.post(
-            name: .stegeMenusLatchChanged, object: nil)
     }
 
     func moveFocus(by step: Int) {
@@ -232,32 +227,91 @@ final class AppMenusReveal: ObservableObject {
     /// Arrows walk the titles, Return opens the one under the keyboard, Escape
     /// puts the row away.
     ///
-    /// A local monitor, which needs the bar's panel to be the key window and is
-    /// why `BarPanel` takes key while the row is up. Escape was a *global*
-    /// monitor first, on the reasoning that observing is politer than
-    /// consuming, and it never fired once. A local monitor also gets to consume
-    /// the key, so an arrow press moves along the row instead of also scrolling
-    /// whatever is behind it. Everything else passes straight through, and it
-    /// exists only while the row is latched.
+    /// An event tap, after three attempts with `NSEvent` monitors that did not
+    /// work. A global monitor never fired. A local one needs the bar's panel to
+    /// be the key window, so the panel was made able to take key, and then
+    /// Stege was activated so it could, and with Stege active and the panel
+    /// answering `AXFocusedWindow` the monitor still never fired once. A tap
+    /// sits below all of that, which is why the same mechanism could read these
+    /// keys from outside the application while none of the rest could read them
+    /// from inside it.
+    ///
+    /// `defaultTap` rather than `listenOnly`, so returning nil swallows the
+    /// key: an arrow walks the row instead of also scrolling whatever is
+    /// behind it. Everything else is passed straight through untouched. It
+    /// exists only while the row is latched, and the shortcut that opened the
+    /// row closes it through Carbon, which does not depend on this, so a tap
+    /// that fails to install costs the keyboard navigation and nothing else.
     private func watchKeys() {
         stopWatchingKeys()
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) {
-            [weak self] event in
-            guard let self, self.isLatched else { return event }
-            switch event.keyCode {
-            case 123: self.moveFocus(by: -1)
-            case 124: self.moveFocus(by: 1)
-            case 36, 76: self.activationCount += 1
-            case 53: self.unlatch()
-            default: return event
+        let callback: CGEventTapCallBack = { _, type, event, userInfo in
+            guard let userInfo else { return Unmanaged.passUnretained(event) }
+            let reveal = Unmanaged<AppMenusReveal>
+                .fromOpaque(userInfo).takeUnretainedValue()
+            // macOS switches a tap off if it ever takes too long to answer.
+            // Turning it back on is the documented response.
+            if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput
+            {
+                reveal.enableTap()
+                return Unmanaged.passUnretained(event)
+            }
+            let code = event.getIntegerValueField(.keyboardEventKeycode)
+            guard reveal.handle(keyCode: code) else {
+                return Unmanaged.passUnretained(event)
             }
             return nil
         }
+
+        guard
+            let tap = CGEvent.tapCreate(
+                tap: .cgSessionEventTap, place: .headInsertEventTap,
+                options: .defaultTap,
+                eventsOfInterest: CGEventMask(
+                    1 << CGEventType.keyDown.rawValue),
+                callback: callback,
+                userInfo: Unmanaged.passUnretained(self).toOpaque())
+        else { return }
+
+        let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+        CGEvent.tapEnable(tap: tap, enable: true)
+        keyTap = tap
+        keyTapSource = source
+    }
+
+    fileprivate func enableTap() {
+        guard let keyTap else { return }
+        CGEvent.tapEnable(tap: keyTap, enable: true)
+    }
+
+    /// Whether this key was the row's, and so should not travel any further.
+    ///
+    /// Called on the tap's thread, and every one of these touches published
+    /// state, so each hops to the main thread. The answer cannot wait for that,
+    /// which is why it is decided here from the key alone.
+    fileprivate func handle(keyCode: Int64) -> Bool {
+        guard isLatched else { return false }
+        switch keyCode {
+        case 123: DispatchQueue.main.async { self.moveFocus(by: -1) }
+        case 124: DispatchQueue.main.async { self.moveFocus(by: 1) }
+        case 36, 76: DispatchQueue.main.async { self.activationCount += 1 }
+        case 53: DispatchQueue.main.async { self.unlatch() }
+        default: return false
+        }
+        return true
     }
 
     private func stopWatchingKeys() {
-        if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
-        keyMonitor = nil
+        if let keyTap {
+            CGEvent.tapEnable(tap: keyTap, enable: false)
+            CFMachPortInvalidate(keyTap)
+        }
+        if let keyTapSource {
+            CFRunLoopRemoveSource(
+                CFRunLoopGetMain(), keyTapSource, .commonModes)
+        }
+        keyTap = nil
+        keyTapSource = nil
     }
 
     /// Switching application while the row is up puts it away. Its titles
@@ -334,10 +388,4 @@ final class AppMenusReveal: ObservableObject {
         watchdog?.invalidate()
         watchdog = nil
     }
-}
-
-extension Notification.Name {
-    /// Posted when the menus row is latched open by the shortcut, or let go.
-    static let stegeMenusLatchChanged = Notification.Name(
-        "stege.menusLatchChanged")
 }
