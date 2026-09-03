@@ -18,7 +18,7 @@ struct MicrophoneWidget: View {
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: manager.isInputMuted ? "mic.slash.fill" : "mic.fill")
-                .barGlyphBox()
+                .barGlyphBox(widest: "mic.fill", "mic.slash.fill")
                 .foregroundStyle(manager.isInputMuted ? Color.red : Color.primary)
 
             if showPercentage, let level = manager.inputVolume {

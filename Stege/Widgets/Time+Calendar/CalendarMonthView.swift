@@ -50,7 +50,22 @@ struct CalendarMonthView: View {
     @State private var saveFailed = false
 
     private let calendar = Calendar.current
-    private let cell: CGFloat = 30
+    /// One day. Twenty-six, not thirty: a day holds a two digit number at 12
+    /// points and a 3 point dot under it, which is 19 points of ink, and the
+    /// four points the cell used to add on top of that bought nothing but a
+    /// taller popup. Five week rows carry the saving five times over.
+    private let cell: CGFloat = 26
+
+    /// As wide as every other popup, rather than a width of its own. This was
+    /// 268 inside 14 points of padding, so the calendar came out 296 wide
+    /// against the 280 of everything else in the bar, and the difference showed
+    /// as soon as two popups were opened one after the other.
+    private static let contentWidth =
+        PopupStyle.width - PopupStyle.padding * 2
+
+    /// The gap between day columns, set so seven cells fill the width rather
+    /// than leaving the grid stranded against the left edge.
+    private var columnSpacing: CGFloat { (Self.contentWidth - cell * 7) / 6 }
 
     var body: some View {
         content
@@ -64,19 +79,19 @@ struct CalendarMonthView: View {
     private var content: some View {
         switch layout {
         case .monthOnly:
-            monthSection.frame(width: 268)
+            monthSection.frame(width: Self.contentWidth)
 
         case .stacked:
             VStack(alignment: .leading, spacing: 0) {
                 monthSection
-                Divider().padding(.vertical, 8)
+                Divider().padding(.vertical, 6)
                 daySection
             }
-            .frame(width: 268)
+            .frame(width: Self.contentWidth)
 
         case .sideBySide:
             HStack(alignment: .top, spacing: 16) {
-                monthSection.frame(width: 268)
+                monthSection.frame(width: Self.contentWidth)
                 Divider()
                 daySection.frame(width: 220)
             }
@@ -105,7 +120,7 @@ struct CalendarMonthView: View {
     private var header: some View {
         HStack(spacing: 4) {
             Text(monthTitle)
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 13, weight: .semibold))
             Spacer(minLength: 8)
 
             // Only shown when it would do something, so the row stays quiet on
@@ -121,7 +136,7 @@ struct CalendarMonthView: View {
             stepButton("chevron.left", help: "Previous month") { step(-1) }
             stepButton("chevron.right", help: "Next month") { step(1) }
         }
-        .padding(.bottom, 12)
+        .padding(.bottom, 8)
     }
 
     private func stepButton(
@@ -146,22 +161,22 @@ struct CalendarMonthView: View {
     // MARK: - Grid
 
     private var weekdays: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: columnSpacing) {
             ForEach(Array(orderedWeekdaySymbols.enumerated()), id: \.offset) {
                 _, symbol in
                 Text(symbol)
-                    .font(.system(size: 11))
+                    .font(.system(size: 10))
                     .frame(width: cell)
                     .opacity(0.55)
             }
         }
-        .padding(.bottom, 6)
+        .padding(.bottom, 4)
     }
 
     private var grid: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 3) {
             ForEach(Array(weeks.enumerated()), id: \.offset) { _, week in
-                HStack(spacing: 8) {
+                HStack(spacing: columnSpacing) {
                     ForEach(Array(week.enumerated()), id: \.offset) { _, day in
                         if let day {
                             dayCell(day)
@@ -188,7 +203,7 @@ struct CalendarMonthView: View {
                     .frame(width: cell, height: cell)
             }
 
-            VStack(spacing: 2) {
+            VStack(spacing: 1) {
                 Text("\(calendar.component(.day, from: date))")
                     .font(.system(size: 12, weight: isToday ? .semibold : .regular))
                     .foregroundStyle(
@@ -230,16 +245,20 @@ struct CalendarMonthView: View {
                 }
                 .help(isAddingEvent ? "Cancel" : "New event")
         }
-        .padding(.bottom, 6)
+        .padding(.bottom, 4)
     }
 
     /// How tall the list of events is allowed to get before it scrolls.
     ///
-    /// Four rows and a little, which is enough for most days. Without a bound
-    /// the popup was as tall as the day was busy: it grew a row per event and a
+    /// Five rows, which is a full working day's worth. Without a bound the
+    /// popup was as tall as the day was busy: it grew a row per event and a
     /// full day ran off the bottom of the screen, month grid and all. A day
     /// with nothing on takes one line, as it always did.
-    private static let eventListMaximumHeight: CGFloat = 148
+    ///
+    /// Five rather than the four it was, because the month above it lost 60
+    /// points: the list can hold one more day's event and the popup is still
+    /// shorter than it used to be with four.
+    private static let eventListMaximumHeight: CGFloat = 180
 
     @ViewBuilder
     private var eventList: some View {
@@ -259,7 +278,7 @@ struct CalendarMonthView: View {
             // Only a scroller once there is something to scroll. A `ScrollView`
             // always takes the height it is offered, so wrapping a short list in
             // one would put back the fixed block this is here to remove.
-            if events.count > 4 {
+            if events.count > 5 {
                 ScrollView(.vertical, showsIndicators: true) { rows }
                     .frame(maxHeight: Self.eventListMaximumHeight)
             } else {

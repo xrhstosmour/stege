@@ -97,7 +97,7 @@ of each, Night Shift and True Tone. It says when the lid is shut.
 
 ![The display popup](.github/assets/display.png)
 
-**The battery**, with health, cycle count and Low Power Mode.
+**The battery**, with health and cycle count.
 
 ![The battery popup](.github/assets/battery.png)
 
@@ -105,9 +105,23 @@ of each, Night Shift and True Tone. It says when the lid is shut.
 
 ![The calendar popup](.github/assets/calendar.png)
 
-**Wi-Fi**, **Bluetooth**, **notifications and Focus**, **updates waiting**, **CPU
-and memory**, **the input source**, and **microphone, camera and screen
-recording in-use indicators**.
+**Wi-Fi**, **Bluetooth**, **notifications**, **updates waiting**, **CPU and
+memory**, **the input source**, and **microphone, camera and screen recording
+in-use indicators**.
+
+## What it will not do
+
+Stege never presses a control in one of macOS's own panels to get at something,
+and never moves the pointer. Everything it shows is either public API or read
+from the menu bar, and everything it changes, it changes directly.
+
+That rules some things out, and they are gone rather than faked: switching Focus
+or Low Power Mode, and the AirPlay and screen mirroring pickers. Notifications
+are collected from the banners macOS draws as they arrive, so anything delivered
+before Stege started is not in the list.
+
+Each one is written up in [the open issues](https://github.com/xrhstosmour/stege/issues)
+with what was measured, why it is like that, and what would close it.
 
 ## Permissions
 
@@ -116,11 +130,14 @@ lists whatever is still missing.
 
 | Permission | Needed for |
 | --- | --- |
-| Accessibility | The application menus, the Apple menu, the appended status items |
+| Accessibility | The application menus, the Apple menu, the appended status items, the notification list |
 | Bluetooth | The Bluetooth widget |
 | Location | The Wi-Fi network name |
 | Calendars | Events in the clock and calendar popup |
 | Automation | Reading `Spotify` and `Music` for what is playing |
+
+No Full Disk Access, ever. It would read Mail, Messages and Safari history along
+with everything else, which is too much for a menu bar.
 
 ## Privacy
 
@@ -128,12 +145,6 @@ No telemetry, no self-updater, and one outbound request: album artwork, fetched
 from the player's own servers only when the sound popup is open on a track whose
 player gave a link rather than the image. `fetch-artwork = false` refuses even
 that.
-
-## Known limitations
-
-What macOS will not let Stege do, and what it costs, is tracked in
-[the open issues](https://github.com/xrhstosmour/stege/issues). Each one says
-what was measured, why it is like that, and what would close it.
 
 ## Forked from barik
 

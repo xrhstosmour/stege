@@ -13,7 +13,7 @@ struct NowPlayingMovedMarker: View {
 
     var body: some View {
         Image(systemName: "music.note")
-            .barGlyphBox()
+            .barGlyphBox(widest: "music.note")
             .opacity(0.5)
             .frame(maxHeight: .infinity)
             .contentShape(Rectangle())

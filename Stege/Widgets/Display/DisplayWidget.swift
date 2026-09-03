@@ -22,7 +22,9 @@ struct DisplayWidget: View {
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: symbol)
-                .barGlyphBox()
+                .barGlyphBox(
+                    widest: "display", "display.2", "laptopcomputer",
+                    "rectangle.on.rectangle")
 
             if showPercentage {
                 Text("\(Int((level * 100).rounded()))%")
