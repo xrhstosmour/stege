@@ -17,7 +17,7 @@ struct PrivacyWidget: View {
     /// indistinguishable from one that is broken, so this offers the opposite.
     var alwaysShow: Bool { config["always-show"]?.boolValue ?? false }
 
-    @StateObject private var manager = PrivacyManager()
+    @ObservedObject private var manager = PrivacyManager.shared
 
     var body: some View {
         HStack(spacing: 5) {
