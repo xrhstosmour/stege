@@ -180,20 +180,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         applyAppearance(ConfigManager.shared.config)
     }
 
-    /// Just under the real menu bar.
+    /// Above ordinary and floating windows, below anything laid over the
+    /// screen.
     ///
-    /// These used to be the desktop level and `backstopMenu`, which is -20, so
+    /// This used to be the desktop level and `backstopMenu`, which is -20, so
     /// the whole bar sat *behind* every ordinary window. It looked right only
     /// because a tiling window manager was keeping a gap at the top of the
     /// screen for it. On a second display with no such gap, or under any
     /// window placed at the top of the screen, the bar was simply not there.
     ///
-    /// Below the real menu bar rather than above it, at 24, so moving the
-    /// pointer to the top of the screen still reveals the system's own bar
-    /// over this one. That is what the reveal chevron and the extras row are
+    /// Then it was `mainMenuWindow - 1`, which is 23, one under the real menu
+    /// bar, so that moving the pointer to the top of the screen still reveals
+    /// the system's own bar over this one. That part still holds at any level
+    /// under 24, and it is what the reveal chevron and the extras row are
     /// built on.
+    ///
+    /// What 23 got wrong is everything an application lays *over* the screen.
+    /// A screenshot tool dims the whole display and draws its crosshair and
+    /// its option buttons on top: `Flameshot` does it in a screen-sized window
+    /// at `modalPanel`, which is 8, measured with `CGWindowListCopyWindowInfo`
+    /// while a capture was up. At 23 the bar stayed over that window, so the
+    /// capture had a black strip across its top and the buttons under it could
+    /// not be reached. macOS's own menu bar has the same fight and wins it,
+    /// but the system bar is hidden here, so what the fight leaves on screen
+    /// is a bar that should not be there.
+    ///
+    /// One under `modalPanel` settles it: ordinary windows are 0 and floating
+    /// palettes are 3, so both still pass under the bar, and anything an
+    /// application raises to 8 or higher to cover the screen now passes over
+    /// it.
     private static var barLevel: Int {
-        Int(CGWindowLevelForKey(.mainMenuWindow)) - 1
+        Int(NSWindow.Level.modalPanel.rawValue) - 1
     }
     private static var backgroundLevel: Int { barLevel - 1 }
 
