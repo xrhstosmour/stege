@@ -46,10 +46,16 @@ hidden = false
 # again. The same thing the reveal chevron does.
 # reveal-shortcut = "cmd+alt+m"
 
-# Opens the frontmost application's first menu, its File menu in most
-# applications. From there macOS itself takes over: arrows move, Return
-# activates, Escape closes, and typing jumps to an entry, because these are real
-# menus rather than a drawing of one.
+# Shows the frontmost application's menu titles in place of the workspace
+# pills, the same row hovering the focused pill gives, and holds it there. The
+# first title is lit, left and right walk the row, Return opens the one under
+# the keyboard, Escape puts it away. So does pressing the shortcut again, or
+# switching application, whose menus these are not.
+#
+# A combination another application already holds is refused by macOS. Stege
+# says so in the system log rather than doing nothing:
+#
+#     log stream --predicate 'subsystem == "com.xrhstosmour.stege"'
 # menu-shortcut = "cmd+alt+f"
 
 [widgets]

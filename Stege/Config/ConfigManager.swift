@@ -94,48 +94,158 @@ final class ConfigManager: ObservableObject {
 
     private func createDefaultConfig(at path: String) throws {
         let defaultTOML = """
-            # If you installed yabai or aerospace without using Homebrew,
-            # manually set the path to the binary. For example:
+            # Stege's configuration. Saving this file applies it, no restart.
             #
+            # Every setting Stege has is listed below with the values it takes.
+            # What is commented out is off; uncomment to turn it on. The fuller
+            # reference, with the reasoning behind each one, is at
+            # https://github.com/xrhstosmour/stege/blob/main/example/config.toml
+
+            theme = "system"                # system, light, dark
+            hidden = false                  # start with the bar out of the way
+
+            # Where yabai or aerospace live, if you did not install them with
+            # Homebrew. Only a path inside /opt/homebrew/bin, /usr/local/bin or
+            # /usr/bin is accepted, and only if no one but you can write to it.
             # yabai.path = "/run/current-system/sw/bin/yabai"
-            # aerospace.path = ...
-            
-            theme = "system" # system, light, dark
+            # aerospace.path = "/run/current-system/sw/bin/aerospace"
+
+            # System-wide shortcuts. Modifiers then a key joined with "+", at least
+            # one modifier. cmd, opt/alt, ctrl, shift, then a letter, digit,
+            # punctuation key, space, return, tab, escape, delete, an arrow, or f1
+            # to f12. A combination another application already holds is refused,
+            # and Stege says so in the system log.
+            # toggle-shortcut = "cmd+ctrl+b"  # hide the bar and bring it back
+            # reveal-shortcut = "cmd+ctrl+u"  # the other apps' status items
+            # menu-shortcut = "cmd+ctrl+m"    # the menus row, then arrows and Return
 
             [widgets]
-            displayed = [ # widgets on menu bar
+            # The bar, left to right. Remove an entry to drop that widget, reorder
+            # to move it. "spacer" pushes what follows to the right, "divider"
+            # draws a rule.
+            #
+            # Everything available:
+            #   default.appleMenu    default.spaces      default.applicationMenu
+            #   default.reveal       default.monitor     default.privacy
+            #   default.stayawake    default.notifications
+            #   default.updates      default.display     default.audio
+            #   default.microphone   default.keyboardLayout
+            #   default.bluetooth    default.network     default.battery
+            #   default.time         spacer              divider
+            displayed = [
+                "default.appleMenu",
                 "default.spaces",
+                "default.applicationMenu",
                 "spacer",
+                "default.reveal",
+                "default.display",
+                "default.audio",
+                "default.bluetooth",
                 "default.network",
+                "default.notifications",
                 "default.battery",
                 "divider",
-                # { "default.time" = { time-zone = "America/Los_Angeles", format = "E d, hh:mm" } },
-                "default.time"
+                "default.time",
             ]
 
+            [widgets.default.appleMenu]
+            icon-size = 14
+            short-menu = true               # About, Settings, Sleep, Lock, Log Out
+
             [widgets.default.spaces]
-            space.show-key = true        # show space number (or character, if you use AeroSpace)
-            window.show-title = true
+            space.show-key = true           # the workspace number or letter
+            window.show-title = true        # the focused window's title
             window.title.max-length = 50
+            # Applications whose window title never says which window it is.
+            # window.title.always-display-app-name-for = ["Mail", "Chrome"]
+
+            [widgets.default.applicationMenu]
+            max-menus = 6
+            show-application-name = true
+            # always, hover, click, modifier.
+            visibility = "hover"
+            modifier-key = "option"         # for visibility = "modifier"
+
+            [widgets.default.reveal]
+            mode = "extras"                 # extras, hidden, off
+            icon-size = 18
+            icon-style = "colour"           # colour, mono
+            sticky = true                   # stay open until asked to close
+            return-threshold = 80
+            timeout = 10
+            # always-show = ["Docker"]      # never behind the chevron
+            # hidden = ["1Password"]        # never shown at all, by name or id
+
+            [widgets.default.monitor]
+            show-network = false            # upload and download throughput
+            warning-level = 80
+
+            [widgets.default.privacy]
+            always-show = false             # a dot even when nothing is listening
+            style = "icon"                  # icon, dot
+
+            [widgets.default.stayawake]
+            always-show = false
+
+            [widgets.default.notifications]
+            show-control-centre = false
+            # Off because remembering writes every notification's title, subtitle
+            # and body to ~/Library/Preferences in plaintext.
+            remember-between-launches = false
+
+            [widgets.default.updates]
+            always-show = false             # hidden while nothing is waiting
+            show-count = false
+            macos = true                    # what macOS found last time it looked
+            homebrew = true                 # brew outdated, local data only
+            refresh-interval = 30
+
+            [widgets.default.display]
+            show-percentage = false
+
+            [widgets.default.audio]
+            glyph = "speaker"               # speaker, waves
+            show-percentage = false
+            fetch-artwork = true            # the one network request Stege makes
+
+            [widgets.default.keyboardLayout]
+            show-full-name = false          # "Greek" rather than "GR"
+
+            [widgets.default.bluetooth]
+            show-battery = true
+            hide-when-off = false
+
+            [widgets.default.network]
+            show-name = false
+            hide-when-disconnected = false
 
             [widgets.default.battery]
+            style = "inside"                # inside, beside, off
             show-percentage = true
             warning-level = 30
             critical-level = 10
 
             [widgets.default.time]
-            format = "E d, J:mm"
-            calendar.format = "J:mm"
-
+            format = "E d MMM  HH:mm"
+            calendar.format = "HH:mm"
             calendar.show-events = true
-            # calendar.allow-list = ["Home", "Personal"] # show only these calendars
-            # calendar.deny-list = ["Work", "Boss"] # show all calendars except these
+            calendar.countdown = true
+            # calendar.allow-list = ["Home"]  # only these calendars
+            # calendar.deny-list = ["Work"]   # every calendar but these
 
             [widgets.default.time.popup]
-            view-variant = "box"
+            view-variant = "box"            # box, vertical
+
+            [bar.foreground]
+            height = "menu-bar"             # "menu-bar" or a number of points
+            horizontal-padding = 12
+            trailing-padding = 12
+            spacing = 10
 
             [bar.background]
             displayed = true
+            blur = 7                        # 0 clear to 7 solid
+            height = "menu-bar"
             """
         try defaultTOML.write(toFile: path, atomically: true, encoding: .utf8)
     }
