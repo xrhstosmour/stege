@@ -14,7 +14,7 @@ struct DisplayWidget: View {
     /// Off by default. The glyph already fills with the level.
     var showPercentage: Bool { config["show-percentage"]?.boolValue ?? false }
 
-    @StateObject private var manager = DisplayManager()
+    @ObservedObject private var manager = DisplayManager.shared
     @State private var rect: CGRect = .zero
 
     private var level: Float { manager.displays.first?.brightness ?? 0 }
