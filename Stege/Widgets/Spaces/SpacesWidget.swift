@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SpacesWidget: View {
-    @StateObject var viewModel = SpacesViewModel()
+    @ObservedObject var viewModel = SpacesViewModel.shared
     @Environment(\.barScreenIndex) private var screenIndex
 
     @ObservedObject var configManager = ConfigManager.shared
