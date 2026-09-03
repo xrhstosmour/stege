@@ -46,9 +46,35 @@ curl -o ~/.config/stege/config.toml \
   https://raw.githubusercontent.com/xrhstosmour/stege/main/example/config.toml
 ```
 
-[**`example/config.toml`**](example/config.toml) is the reference. Every setting
-is in it, with the values it accepts written above it. This file deliberately
-does not repeat them.
+The file Stege writes on first run carries every setting it has, each with the
+values it accepts written beside it, so the reference is already on your disk.
+[**`example/config.toml`**](example/config.toml) is the same list with the
+reasoning behind each one, and is worth reading when a setting does not do what
+you expected. This file deliberately repeats neither.
+
+Every widget you can put in the bar:
+
+| | |
+| --- | --- |
+| `default.appleMenu` | The Apple menu, short or full |
+| `default.spaces` | Workspaces from `AeroSpace` or `yabai` |
+| `default.applicationMenu` | The frontmost application's menu titles |
+| `default.reveal` | The other applications' status items, behind a chevron |
+| `default.monitor` | CPU, memory, and network throughput |
+| `default.privacy` | Whether anything is using the microphone or camera |
+| `default.stayawake` | Whether sleep is being held off |
+| `default.notifications` | Notifications, and what they came from |
+| `default.updates` | What macOS and `brew outdated` are waiting to install |
+| `default.display` | Brightness |
+| `default.audio` | Volume, output device, and what is playing |
+| `default.microphone` | Input level and device |
+| `default.keyboardLayout` | The input source |
+| `default.bluetooth` | The radio and its devices |
+| `default.network` | Wi-Fi, its networks, and joining one |
+| `default.battery` | Charge, health, and the power source |
+| `default.time` | The clock, a calendar, and the day's events |
+| `spacer` | Pushes what follows to the right |
+| `divider` | A rule |
 
 The shape of it:
 
@@ -71,9 +97,18 @@ style = "inside"
 height = "menu-bar"
 ```
 
-Three optional shortcuts: `toggle-shortcut` hides and shows the bar,
-`reveal-shortcut` appends the other applications' status items,
-`menu-shortcut` opens the frontmost application's first menu.
+Three optional shortcuts, none set by default. `toggle-shortcut` hides and
+shows the bar. `reveal-shortcut` appends the other applications' status items,
+the same thing the chevron does. `menu-shortcut` shows the frontmost
+application's menu titles in place of the workspace pills and holds them there:
+the first is lit, arrows walk the row, Return opens one, Escape puts it away.
+
+A combination another application already holds is refused by macOS, and Stege
+says which and why in the system log rather than doing nothing:
+
+```bash
+log stream --predicate 'subsystem == "com.xrhstosmour.stege"'
+```
 
 ## What it does
 
