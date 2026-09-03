@@ -172,11 +172,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// application stays frontmost and gets its keyboard back the moment the
     /// row goes away.
     @objc private func menusLatchDidChange() {
-        let panel = panelUnderPointer()
-        if AppMenusReveal.shared.isLatched {
-            panel?.makeKey()
+        let latched = AppMenusReveal.shared.isLatched
+        // `canBecomeKey` is false on a panel with no title bar, so `makeKey`
+        // was doing nothing at all and the arrows still drove whatever was
+        // behind the bar. `BarPanel` answers true only while this is set, so
+        // clicking a widget at any other time still leaves the key window
+        // where it was.
+        for panel in menuBarPanels.compactMap({ $0 as? BarPanel }) {
+            panel.acceptsKey = latched
+        }
+        guard let panel = panelUnderPointer() as? BarPanel else { return }
+        if latched {
+            panel.makeKey()
         } else {
-            panel?.resignKey()
+            panel.resignKey()
         }
     }
 
@@ -365,7 +374,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func makePanel(
         frame: CGRect, level: Int, hostingRootView: AnyView, show: Bool = true
     ) -> NSPanel {
-        let panel = NSPanel(
+        let panel = BarPanel(
             contentRect: frame,
             styleMask: [.nonactivatingPanel],
             backing: .buffered,
@@ -418,4 +427,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.runModal()
         NSApplication.shared.terminate(nil)
     }
+}
+
+/// One of the bar's panels.
+///
+/// A panel with no title bar cannot become the key window, which is right
+/// almost always: the bar is something to look at and click, and taking the
+/// keyboard from the application in front would be rude. The exception is the
+/// menus row held open by `menu-shortcut`, which is a keyboard control and
+/// needs the arrows, so key is granted for exactly as long as that row is up.
+final class BarPanel: NSPanel {
+    var acceptsKey = false
+
+    override var canBecomeKey: Bool { acceptsKey }
 }
