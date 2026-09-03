@@ -152,7 +152,14 @@ private struct WindowView: View {
         let size: CGFloat = 21
         let sameAppCount = space.windows.filter { $0.appName == window.appName }
             .count
-        let title = sameAppCount > 1 && !alwaysDisplayAppTitleFor.contains { $0 == window.appName } ? window.title : (window.appName ?? "")
+        let title = WindowLabel.text(
+            applicationName: window.appName,
+            title: window.title,
+            hasSiblings: sameAppCount > 1,
+            alwaysUseApplicationName: alwaysDisplayAppTitleFor.contains {
+                $0 == window.appName
+            }
+        )
         let spaceIsFocused = space.windows.contains { $0.isFocused }
         HStack {
             ZStack {
