@@ -219,29 +219,38 @@ final class ConfigManager: ObservableObject {
 
     /// Writes the value exactly as given, for anything that is not a string:
     /// an array, a number, a boolean.
+    ///
+    /// Called from UI actions, so the read and the write happen off the main
+    /// thread: the file is small and the cost is usually negligible, but
+    /// there is no reason to block a button press on disk I/O.
     func updateConfigValue(key: String, rawValue: String) {
         guard let path = configFilePath else {
             Log.configuration.error("No configuration file path is set")
             return
         }
-        do {
-            let currentText = try String(contentsOfFile: path, encoding: .utf8)
-            let updatedText = TOMLWriter.setting(
-                currentText, key: key, rawValue: rawValue)
-            // Atomically, because this is the user's own file and it is
-            // rewritten whole. A failure part way through a direct write leaves
-            // it truncated, and the file watcher would then reload whatever
-            // fragment survived. Writing to a temporary file and renaming means
-            // the file on disk is only ever the old one or the new one.
-            try refuseIfSymlink(at: path)
-            try updatedText.write(
-                toFile: path, atomically: true, encoding: .utf8)
-            DispatchQueue.main.async {
-                self.parseConfigFile(at: path)
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self else { return }
+            do {
+                let currentText = try String(
+                    contentsOfFile: path, encoding: .utf8)
+                let updatedText = TOMLWriter.setting(
+                    currentText, key: key, rawValue: rawValue)
+                // Atomically, because this is the user's own file and it is
+                // rewritten whole. A failure part way through a direct write
+                // leaves it truncated, and the file watcher would then reload
+                // whatever fragment survived. Writing to a temporary file and
+                // renaming means the file on disk is only ever the old one or
+                // the new one.
+                try self.refuseIfSymlink(at: path)
+                try updatedText.write(
+                    toFile: path, atomically: true, encoding: .utf8)
+                DispatchQueue.main.async {
+                    self.parseConfigFile(at: path)
+                }
+            } catch {
+                Log.configuration.error(
+                    "Could not update the configuration: \(error.localizedDescription, privacy: .public)")
             }
-        } catch {
-            Log.configuration.error(
-                "Could not update the configuration: \(error.localizedDescription, privacy: .public)")
         }
     }
 
