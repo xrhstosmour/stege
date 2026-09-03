@@ -12,39 +12,20 @@ import ApplicationServices
 /// clear and dismiss behaviour, and no extra permission beyond the
 /// Accessibility access the app menus already require.
 ///
-/// The same reasoning covers the switches. Low Power Mode and Focus have no
-/// public API either, and the private frameworks behind them, `LowPowerMode`
-/// and `DoNotDisturb`, answer only processes carrying Apple-issued
-/// entitlements: an unentitled caller gets an XPC error or a call that never
-/// returns, confirmed against both. What is left is the control the user would
-/// have clicked, which is exactly what this presses.
+/// The same reasoning covers the Focus switches. `DoNotDisturb`, the private
+/// framework behind them, answers only processes carrying an Apple-issued
+/// entitlement, and an unentitled caller gets an XPC error or a call that
+/// never returns. What is left is the control the user would have pressed.
+///
+/// This is the last place in the app that drives a system control rather than
+/// reading one, and macOS flashes its panel while it happens. Low Power Mode
+/// went the same way and was removed for it.
 enum MenuExtra {
     /// Identifiers rather than descriptions. `AXDescription` is localised, so
     /// matching "Clock" works only in English, while these are stable.
     enum Identifier: String {
         case notificationCentre = "com.apple.menuextra.clock"
         case controlCentre = "com.apple.menuextra.controlcenter"
-        case battery = "com.apple.menuextra.battery"
-        /// Opens straight onto the output list, AirPlay receivers included.
-        case sound = "com.apple.menuextra.sound"
-        /// Only published when the module is set to always show in the menu
-        /// bar. `screenMirroringRoute` falls back to Control Center when it is
-        /// not there.
-        case screenMirroring = "com.apple.menuextra.screen-mirroring"
-    }
-
-    /// The shortest way to a picker, given what the menu bar is publishing.
-    ///
-    /// Every one of these panels belongs to Control Center, and it will open
-    /// them two ways: through its own panel and then a tile, or straight from a
-    /// dedicated extra when the user has that module set to always show. The
-    /// second is one press instead of two and the panel that opens is already
-    /// the picker, so it is preferred whenever it exists.
-    static func route(to module: Identifier, tile: String)
-        -> (extra: Identifier, path: [String])
-    {
-        if element(for: module) != nil { return (module, []) }
-        return (.controlCentre, [tile])
     }
 
     /// Whether the extra exists and can be pressed, so a widget can say the
@@ -99,8 +80,8 @@ enum MenuExtra {
         completion: @escaping (Bool) -> Void = { _ in }
     ) {
         // The panel that is about to open takes key, and a popup that loses key
-        // hides itself. Flipping Low Power Mode or a Focus used to take the
-        // popup that asked for it off the screen.
+        // hides itself. Switching a Focus used to take the popup that asked for
+        // it off the screen.
         MenuBarPopup.beginSystemPanelInteraction()
         DispatchQueue.global(qos: .userInitiated).async {
             let result = pressSynchronously(identifier, path: path)
@@ -130,54 +111,6 @@ enum MenuExtra {
                 AXUIElementPerformAction(control, kAXPressAction as CFString)
                     == .success
             else { return false }
-        }
-        return true
-    }
-
-    /// Opens an extra's panel, steps into one of its tiles, and leaves it on
-    /// screen for the user.
-    ///
-    /// The other end of `press`, which closes the panel because there the panel
-    /// was only the route to a switch. Here the panel is the answer: macOS
-    /// keeps the AirPlay receivers and the screen mirroring targets behind an
-    /// Apple-only entitlement, and every system output context answers an
-    /// ordinary application with nil, so its own picker is the only place they
-    /// can be chosen. This opens exactly the picker the user would have opened
-    /// by hand.
-    ///
-    /// Stege's own popup is taken off the screen first, because the panel opens
-    /// where the popup was standing.
-    static func open(
-        _ identifier: Identifier, path: [String],
-        completion: @escaping (Bool) -> Void = { _ in }
-    ) {
-        MenuBarPopup.hide()
-        DispatchQueue.global(qos: .userInitiated).async {
-            let result = openSynchronously(identifier, path: path)
-            DispatchQueue.main.async { completion(result) }
-        }
-    }
-
-    private static func openSynchronously(
-        _ identifier: Identifier, path: [String]
-    ) -> Bool {
-        guard let extra = element(for: identifier) else { return false }
-
-        guard
-            AXUIElementPerformAction(extra, kAXPressAction as CFString)
-                == .success
-        else { return false }
-
-        for step in path {
-            guard let control = waitForControl(identified: step),
-                AXUIElementPerformAction(control, kAXPressAction as CFString)
-                    == .success
-            else {
-                // Only on the way out. A panel opened and then left half way
-                // into a step that failed is worse than no panel.
-                closePanel(openedBy: extra)
-                return false
-            }
         }
         return true
     }
