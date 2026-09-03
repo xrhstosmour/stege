@@ -98,10 +98,9 @@ struct DisplayPopup: View {
     /// Which displays have their resolution list open.
     ///
     /// Folded away by default. Two monitors put two dozen resolution rows in
-    /// the popup and pushed everything under them, Screen Mirroring and Display
-    /// Settings included, past the bottom of the screen. The header still says
-    /// what each display is set to, so folding costs no information, only the
-    /// alternatives.
+    /// the popup and pushed everything under them, Display Settings included,
+    /// past the bottom of the screen. The header still says what each display
+    /// is set to, so folding costs no information, only the alternatives.
     @State private var expanded: Set<CGDirectDisplayID> = []
 
     var body: some View {
@@ -201,22 +200,6 @@ struct DisplayPopup: View {
             }
 
             PopupSeparator()
-
-            // macOS keeps the receiver list behind an Apple-only entitlement:
-            // every system output context, `sharedSystemScreenContext` among
-            // them, answers an ordinary application with nil, so there is
-            // nothing to draw a list from. Control Center's own picker is where
-            // those receivers are, and it opens to a real press.
-            // One press when Screen Mirroring is set to always show in the
-            // menu bar, two through Control Center when it is not.
-            PopupSettingsRow(
-                title: "Screen Mirroring", symbol: "airplayvideo"
-            ) {
-                let route = MenuExtra.route(
-                    to: .screenMirroring,
-                    tile: "controlcenter-screen-mirroring")
-                MenuExtra.open(route.extra, path: route.path)
-            }
 
             PopupSettingsRow(title: "Display Settings") {
                 openSettings(

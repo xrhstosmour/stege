@@ -23,13 +23,11 @@ class BatteryManager: ObservableObject {
     /// Health as a fraction of the battery's original capacity.
     @Published var healthFraction: Double?
     @Published var cycleCount: Int?
+    /// Read only. There is no way to write it: `pmset` needs root and the
+    /// private `LowPowerMode` framework answers only entitled callers. It was
+    /// flipped by pressing the switch in the battery extra's own panel, which
+    /// meant driving a system control, and that was removed. See the issues.
     @Published var isLowPowerMode: Bool = false
-    /// True while the switch is being flipped, so the popup can show the
-    /// change is in flight rather than appear to have ignored the click.
-    @Published private(set) var isSwitchingPowerMode = false
-    /// Set when the switch could not be reached, so the popup says so instead
-    /// of quietly snapping back to where it was.
-    @Published private(set) var powerModeFailure: String?
 
     private var runLoopSource: CFRunLoopSource?
     private var powerStateObserver: NSObjectProtocol?
@@ -53,33 +51,6 @@ class BatteryManager: ObservableObject {
         stopMonitoring()
         if let powerStateObserver {
             NotificationCenter.default.removeObserver(powerStateObserver)
-        }
-    }
-
-    /// Flips Low Power Mode.
-    ///
-    /// There is no API for writing it. `pmset` needs root, and the private
-    /// `LowPowerMode` framework answers only entitled callers, so this presses
-    /// the switch in the battery menu extra's own panel through the
-    /// Accessibility API, the same access the app menus already need. macOS
-    /// draws that panel for a moment while it happens.
-    func toggleLowPowerMode() {
-        guard !isSwitchingPowerMode else { return }
-        isSwitchingPowerMode = true
-        powerModeFailure = nil
-        MenuExtra.press(.battery, path: ["energy-mode-low"]) {
-            [weak self] pressed in
-            self?.isSwitchingPowerMode = false
-            // The notification above normally lands first. Reading here as
-            // well means a missed one leaves the switch right rather than
-            // stuck showing the previous state.
-            self?.isLowPowerMode = ProcessInfo.processInfo
-                .isLowPowerModeEnabled
-            // The battery menu extra can be switched off in Control Center
-            // settings, and then there is no switch to press. Saying so beats
-            // a toggle that silently springs back.
-            self?.powerModeFailure =
-                pressed ? nil : "Could not reach the Low Power Mode switch"
         }
     }
 

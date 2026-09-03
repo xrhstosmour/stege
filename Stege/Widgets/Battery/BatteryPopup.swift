@@ -35,14 +35,6 @@ struct BatteryPopup: View {
             PopupSeparator()
 
             VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
-                lowPowerRow
-                if let failure = manager.powerModeFailure {
-                    Text(failure)
-                        .font(.system(size: PopupStyle.captionSize))
-                        .foregroundStyle(.orange)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .popupStaticRow()
-                }
                 PopupSettingsRow(title: "Battery Settings") {
                     openSettings(
                         "x-apple.systempreferences:com.apple.Battery-Settings.extension"
@@ -61,27 +53,6 @@ struct BatteryPopup: View {
         if manager.isCharging { return "\(charge), charging" }
         if manager.isPluggedIn { return "\(charge), plugged in" }
         return charge
-    }
-
-    /// The switch is a toggle, not a setter: the state to move to is whichever
-    /// one it is not in, so the binding ignores the value it is handed.
-    private var lowPowerRow: some View {
-        HStack(spacing: 10) {
-            Image(systemName: manager.isLowPowerMode ? "leaf.fill" : "leaf")
-                .font(.system(size: PopupStyle.captionSize))
-                .foregroundStyle(manager.isLowPowerMode ? .green : .primary)
-                .frame(width: PopupStyle.iconColumn)
-            Text("Low Power Mode").font(.system(size: PopupStyle.bodySize))
-            Spacer(minLength: 12)
-            if manager.isSwitchingPowerMode {
-                ProgressView().controlSize(.mini)
-            } else {
-                PopupSwitch(isOn: manager.isLowPowerMode) {
-                    manager.toggleLowPowerMode()
-                }
-            }
-        }
-        .popupStaticRow()
     }
 
     /// Rendered as hours and minutes, since a bare minute count past an hour is
