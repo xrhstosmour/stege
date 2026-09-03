@@ -114,16 +114,46 @@ final class AppMenusManager: ObservableObject {
         }
         isTrusted = true
 
-        guard let application = NSWorkspace.shared.frontmostApplication else {
+        guard let application = Self.applicationToRead() else {
             applicationName = ""
             menus = []
             appleMenu = nil
             return
         }
+        Self.lastOrdinaryApplication = application
         applicationName = application.localizedName ?? ""
         menus = AppMenuReader.topLevelMenus(of: application)
         appleMenu = AppMenuReader.appleMenu(of: application)
     }
+
+    /// Whose menus belong in the bar.
+    ///
+    /// Not simply the frontmost application. Stege activates itself to give the
+    /// menus row the keyboard, which makes Stege frontmost, and reading that
+    /// left the row showing Stege's own menus, or `UserNotificationCenter`'s
+    /// when macOS handed frontmost to a system process on the way. Neither is
+    /// an application whose menus anyone asked for.
+    ///
+    /// So Stege and everything that is not an ordinary application are skipped,
+    /// and the most recently active one that is left is the answer. That is the
+    /// application the person was working in, which is whose menus these are.
+    private static func applicationToRead() -> NSRunningApplication? {
+        let ownIdentifier = Bundle.main.bundleIdentifier
+        if let frontmost = NSWorkspace.shared.frontmostApplication,
+            frontmost.bundleIdentifier != ownIdentifier,
+            frontmost.activationPolicy == .regular
+        {
+            return frontmost
+        }
+        return NSWorkspace.shared.runningApplications.first {
+            $0.isActive && $0.bundleIdentifier != ownIdentifier
+                && $0.activationPolicy == .regular
+        } ?? lastOrdinaryApplication
+    }
+
+    /// The last ordinary application seen in front, kept because once Stege has
+    /// activated there is nothing left to ask.
+    private static var lastOrdinaryApplication: NSRunningApplication?
 
     /// Read on demand rather than cached, because enabled state and check marks
     /// change with selection and a cached copy would show stale entries.
