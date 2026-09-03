@@ -78,15 +78,18 @@ struct RevealWidget: View {
 
     private var isMonochrome: Bool { iconStyle == .monochrome }
 
-    /// Bundle identifiers that sit in the bar permanently, outside the
-    /// chevron.
+    /// Applications that sit in the bar permanently, outside the chevron.
     ///
     /// This is what a tray manager is actually for. Fidelity to the system's
     /// own glyphs is not what makes Bartender worth running, having three
     /// icons in the bar instead of eleven is, and that needs no permission at
     /// all.
     var pinned: [String] { identifiers("always-show") }
-    /// Bundle identifiers that never appear, behind the chevron or otherwise.
+    /// Applications that never appear, behind the chevron or otherwise.
+    ///
+    /// Either list takes a bundle identifier or the application's name, since
+    /// the name is the only one of the two anybody can read off the screen.
+    /// See `RevealFilter`.
     var hidden: [String] { identifiers("hidden") }
 
     private func identifiers(_ key: String) -> [String] {
@@ -95,23 +98,29 @@ struct RevealWidget: View {
 
     /// Adds the item's application to the `hidden` list in the configuration
     /// file, which is what makes it stay gone. The file is watched, so the row
-    /// redraws without it as soon as the write lands.
+    /// redraws without it as soon as the write lands, and the entry outlives
+    /// the restart because the file is where the list lives.
     ///
     /// This is the one thing macOS's own Menu Bar settings do that the row
     /// otherwise could not: pick an item and never see it again.
     private func hide(_ item: MenuBarExtraItem) {
-        guard let bundle = item.bundleIdentifier, !hidden.contains(bundle) else {
+        guard let entry = entry(for: item), !matches(item, hidden) else {
             return
         }
-        let updated = (hidden + [bundle]).map { "\"\($0)\"" }
-            .joined(separator: ", ")
         ConfigManager.shared.updateConfigValue(
-            key: "widgets.default.reveal.hidden", rawValue: "[\(updated)]")
+            key: "widgets.default.reveal.hidden",
+            rawValue: RevealFilter.tomlArray(hidden + [entry]))
+    }
+
+    private func entry(for item: MenuBarExtraItem) -> String? {
+        RevealFilter.entry(
+            bundleIdentifier: item.bundleIdentifier, name: item.name)
     }
 
     private func matches(_ item: MenuBarExtraItem, _ list: [String]) -> Bool {
-        guard let bundle = item.bundleIdentifier else { return false }
-        return list.contains(bundle)
+        RevealFilter.matches(
+            bundleIdentifier: item.bundleIdentifier, name: item.name,
+            list: list)
     }
 
     private var visibleItems: [MenuBarExtraItem] {
@@ -290,6 +299,13 @@ private struct ExtraIconInteraction: ViewModifier {
     let reader: MenuBarExtrasReader
     let hide: (MenuBarExtraItem) -> Void
 
+    /// An application with neither a bundle identifier nor a name cannot be
+    /// written down, so there is nothing for the entry to say.
+    private var canHide: Bool {
+        RevealFilter.entry(
+            bundleIdentifier: item.bundleIdentifier, name: item.name) != nil
+    }
+
     func body(content: Content) -> some View {
         content
             .barHover(
@@ -298,7 +314,7 @@ private struct ExtraIconInteraction: ViewModifier {
             .onTapGesture { reader.press(item) }
             .help(item.name)
             .contextMenu {
-                if item.bundleIdentifier != nil {
+                if canHide {
                     Button("Hide \(item.name)") { hide(item) }
                 }
             }

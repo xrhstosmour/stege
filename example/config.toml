@@ -145,11 +145,18 @@ icon-size = 18
 # "colour" | "monochrome". extras only: as the applications ship them, or
 # flattened to one colour.
 icon-style = "colour"
-# A list of bundle identifiers, kept in the bar permanently rather than behind
-# the chevron. extras only.
+# Applications kept in the bar permanently rather than behind the chevron.
+# extras only. Either list takes a bundle identifier or the application's name,
+# whichever is easier to write, and the two can be mixed:
+#
+#   always-show = ["1Password", "com.docker.docker"]
+#
+# A name is matched whole and without regard to case, so "google drive" and
+# "Google Drive.app" both find Google Drive, and "Drive" finds nothing.
 always-show = []
-# Bundle ids that never appear, behind the chevron or otherwise. Right-clicking
-# an icon in the row and choosing Hide adds it here, so it stays gone.
+# Applications that never appear, behind the chevron or otherwise. Right-click
+# an icon in the row and choose Hide to add it here, so it stays gone across
+# restarts. Take it out of this list to bring it back.
 hidden = []
 # true | false, default true. collapse only: stay away until the corner button
 # is pressed, rather than coming back when the pointer moves.
