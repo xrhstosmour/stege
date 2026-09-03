@@ -3,18 +3,36 @@ import Combine
 import Foundation
 
 class SpacesViewModel: ObservableObject {
+    /// One per process, not one per bar.
+    ///
+    /// This was a `@StateObject` on `SpacesWidget`, and there is one of those
+    /// per display, so two monitors meant two of everything behind it: two
+    /// timers, two sets of notification observers, and four `aerospace`
+    /// processes a second for one answer. Nothing in here is per-display, the
+    /// workspaces are filtered by screen in the view, so one is enough.
+    static let shared = SpacesViewModel()
+
     @Published var spaces: [AnySpace] = []
     private var timer: Timer?
     private var provider: AnySpacesProvider?
     private var observers: [NSObjectProtocol] = []
     private var isLoading = false
+    /// Whether anything is looking at the workspaces.
+    ///
+    /// False while the bar is off screen, either stepped aside for the real
+    /// menu bar, collapsed, hidden by the shortcut or turned off in the
+    /// configuration, and false while the displays are asleep. A refresh spawns
+    /// two `aerospace` processes, and doing that once a second to redraw
+    /// something nobody can see is the one piece of work here that buys
+    /// nothing.
+    private var isWatched = true
 
     /// Safety net only. Refreshes are driven by workspace notifications, and
     /// this catches the cases they cannot see, such as a window opening in
     /// another workspace without the focused application changing.
     private let safetyNetInterval: TimeInterval = 1.0
 
-    init() {
+    private init() {
         resolveProvider()
         startMonitoring()
     }
@@ -59,6 +77,26 @@ class SpacesViewModel: ObservableObject {
                 })
         }
 
+        observers.append(
+            center.addObserver(
+                forName: NSWorkspace.screensDidSleepNotification, object: nil,
+                queue: .main
+            ) { [weak self] _ in self?.setWatched(false) })
+        observers.append(
+            center.addObserver(
+                forName: NSWorkspace.screensDidWakeNotification, object: nil,
+                queue: .main
+            ) { [weak self] _ in self?.setWatched(true) })
+        // The bar going away and coming back, which on a machine with the menu
+        // bar set to hide happens many times an hour.
+        observers.append(
+            NotificationCenter.default.addObserver(
+                forName: .stegeBarVisibilityChanged, object: nil, queue: .main
+            ) { [weak self] _ in
+                self?.setWatched(!BarVisibility.shared.isHidden)
+            })
+        isWatched = !BarVisibility.shared.isHidden
+
         timer = Timer.scheduledTimer(
             withTimeInterval: safetyNetInterval, repeats: true
         ) { [weak self] _ in
@@ -67,15 +105,31 @@ class SpacesViewModel: ObservableObject {
         loadSpaces()
     }
 
+    /// Stops or resumes the refresh, and catches up the moment it resumes so
+    /// the bar is never drawn from a stale list.
+    private func setWatched(_ watched: Bool) {
+        guard watched != isWatched else { return }
+        isWatched = watched
+        if watched { loadSpaces() }
+    }
+
     private func stopMonitoring() {
         timer?.invalidate()
         timer = nil
-        let center = NSWorkspace.shared.notificationCenter
-        observers.forEach { center.removeObserver($0) }
+        // Both centres, because the visibility notification is posted on the
+        // default one and the workspace ones are not. Removing an observer from
+        // the wrong centre is a no-op rather than an error, so this is safe
+        // either way and there is no need to remember which came from where.
+        let workspace = NSWorkspace.shared.notificationCenter
+        observers.forEach {
+            workspace.removeObserver($0)
+            NotificationCenter.default.removeObserver($0)
+        }
         observers.removeAll()
     }
 
     private func loadSpaces() {
+        guard isWatched else { return }
         resolveProvider()
         // A refresh spawns processes, so overlapping ones would pile up when
         // several notifications arrive together, which they routinely do.

@@ -306,9 +306,12 @@ height = "menu-bar"
 height = "menu-bar"
 horizontal-padding = 12
 # Extra clearance on the right only, on top of horizontal-padding. macOS draws
-# its recording dot in the top corner above every window, including this one,
-# and nothing can cover it. The dot sits 6 to 11 points in from the edge, so
-# horizontal-padding already clears it and this only buys a visible gap.
-trailing-padding = 4
+# its microphone, camera and recording dot in the top corner above every window,
+# including this one, and nothing can cover it. Measured, the dot spans 13.5 to
+# 22 points in from the edge, so the content has to stop 22 short of it.
+# Left out, this defaults to whatever horizontal-padding still leaves short of
+# that, so the total is right whatever the padding is. Set it only to widen the
+# gap further.
+trailing-padding = 12
 spacing = 10
 

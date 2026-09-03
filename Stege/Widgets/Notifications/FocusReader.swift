@@ -58,9 +58,9 @@ final class FocusReader: ObservableObject {
 
     /// Reads the list and the active mode out of Control Center.
     ///
-    /// Only worth calling when something is about to be shown or has just been
-    /// changed: it opens a panel on screen, and moves the pointer to the top of
-    /// the display when the menu bar is set to hide.
+    /// Only worth calling when the user has asked for it: it opens a Control
+    /// Center panel on screen, which is the one cost of reading a list macOS
+    /// keeps to itself. Nothing calls this on its own.
     func refresh() {
         guard !isLoading else { return }
         isLoading = true
@@ -89,13 +89,6 @@ final class FocusReader: ObservableObject {
                     Self.identifierPrefix.count)) }
             Self.store(self.modes)
         }
-    }
-
-    /// Reads the list only when there is nothing to show yet, so opening the
-    /// popup does not flash a Control Center panel every time.
-    func refreshIfNeeded() {
-        guard modes.isEmpty else { return }
-        refresh()
     }
 
     /// Switches a Focus on, or off when it is the one already on.

@@ -344,7 +344,9 @@ struct ForegroundConfig: Decodable {
     let height: BackgroundForegroundHeight
     let horizontalPadding: CGFloat
     /// Extra clearance at the right edge only, on top of `horizontalPadding`.
-    /// Defaults to enough room for the recording dot macOS draws in the corner.
+    /// Defaults to whatever the horizontal padding still leaves short of the
+    /// dot macOS draws in the corner, so the total is the same whatever the
+    /// padding is. See `Constants.privacyIndicatorClearance`.
     let trailingPadding: CGFloat
     let widgetsBackground: WidgetBackgroundConfig
     let spacing: CGFloat
@@ -352,7 +354,8 @@ struct ForegroundConfig: Decodable {
     init() {
         self.height = .stegeDefault
         self.horizontalPadding = Constants.menuBarHorizontalPadding
-        self.trailingPadding = Constants.privacyIndicatorClearance
+        self.trailingPadding = Self.defaultTrailingPadding(
+            horizontalPadding: Constants.menuBarHorizontalPadding)
         self.widgetsBackground = WidgetBackgroundConfig()
         self.spacing = 15
     }
@@ -361,11 +364,20 @@ struct ForegroundConfig: Decodable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         height = try container.decodeIfPresent(BackgroundForegroundHeight.self, forKey: .height) ?? .stegeDefault
         horizontalPadding = try container.decodeIfPresent(CGFloat.self, forKey: .horizontalPadding) ?? Constants.menuBarHorizontalPadding
-        trailingPadding = try container.decodeIfPresent(CGFloat.self, forKey: .trailingPadding) ?? Constants.privacyIndicatorClearance
+        trailingPadding = try container.decodeIfPresent(CGFloat.self, forKey: .trailingPadding)
+            ?? Self.defaultTrailingPadding(horizontalPadding: horizontalPadding)
         widgetsBackground = try container.decodeIfPresent(WidgetBackgroundConfig.self, forKey: .widgetsBackground) ?? WidgetBackgroundConfig()
         spacing = try container.decodeIfPresent(CGFloat.self, forKey: .spacing) ?? 15
     }
     
+    /// What still has to be added to clear the corner dot. Nothing when the
+    /// horizontal padding already does.
+    private static func defaultTrailingPadding(horizontalPadding: CGFloat)
+        -> CGFloat
+    {
+        max(0, Constants.privacyIndicatorClearance - horizontalPadding)
+    }
+
     enum CodingKeys: String, CodingKey {
         case height
         case horizontalPadding = "horizontal-padding"
