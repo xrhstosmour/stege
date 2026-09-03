@@ -268,11 +268,15 @@ struct DisplayPopup: View {
                     .system(size: PopupStyle.captionSize, weight: .semibold))
                 .lineLimit(1)
             Spacer(minLength: 8)
+            // Not the accent colour, unlike the checkmark in the list below.
+            // The row highlights in the accent colour under the pointer, and
+            // accent on accent is invisible exactly when you are reaching for
+            // it. The list is where the accent marks the choice.
             if let current = modes.first(where: \.isCurrent) {
                 Text(current.label)
                     .font(.system(size: PopupStyle.captionSize))
                     .monospacedDigit()
-                    .foregroundStyle(Color.accentColor)
+                    .opacity(0.7)
             }
             Image(systemName: "chevron.right")
                 .font(.system(size: 9, weight: .semibold))
