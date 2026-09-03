@@ -38,6 +38,11 @@ struct WifiNetwork: Identifiable, Equatable {
 final class NetworkStatusViewModel: NSObject, ObservableObject,
     CLLocationManagerDelegate, CWEventDelegate
 {
+    /// One instance. Network state is a property of the machine, not of a
+    /// bar, and there is one bar per screen: two managers on a two-monitor
+    /// setup were each running their own `NWPathMonitor` and Wi-Fi timer for
+    /// the same interface.
+    static let shared = NetworkStatusViewModel()
 
     // States for Wi‑Fi and Ethernet obtained via NWPathMonitor.
     @Published var wifiState: NetworkState = .disconnected
@@ -81,7 +86,7 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
     private var timer: Timer?
     private let locationManager = CLLocationManager()
 
-    override init() {
+    private override init() {
         super.init()
         locationManager.delegate = self
         startNetworkMonitoring()
