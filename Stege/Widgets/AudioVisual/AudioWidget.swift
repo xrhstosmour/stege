@@ -167,9 +167,15 @@ struct AudioPopup: View {
                 // and the list of those is behind the same Apple-only
                 // entitlement as the screen mirroring one, so this opens the
                 // picker macOS keeps it in.
+                //
+                // Straight to the Sound extra, which opens onto the output
+                // list with the receivers already in it. This used to go
+                // through Control Center and then press its AirPlay tile, two
+                // panels to reach the same one.
                 PopupSettingsRow(title: "AirPlay", symbol: "airplayaudio") {
-                    MenuExtra.open(
-                        .controlCentre, path: ["controlcenter-airplay"])
+                    let route = MenuExtra.route(
+                        to: .sound, tile: "controlcenter-airplay")
+                    MenuExtra.open(route.extra, path: route.path)
                 }
             }
 

@@ -207,11 +207,15 @@ struct DisplayPopup: View {
             // them, answers an ordinary application with nil, so there is
             // nothing to draw a list from. Control Center's own picker is where
             // those receivers are, and it opens to a real press.
+            // One press when Screen Mirroring is set to always show in the
+            // menu bar, two through Control Center when it is not.
             PopupSettingsRow(
                 title: "Screen Mirroring", symbol: "airplayvideo"
             ) {
-                MenuExtra.open(
-                    .controlCentre, path: ["controlcenter-screen-mirroring"])
+                let route = MenuExtra.route(
+                    to: .screenMirroring,
+                    tile: "controlcenter-screen-mirroring")
+                MenuExtra.open(route.extra, path: route.path)
             }
 
             PopupSettingsRow(title: "Display Settings") {
