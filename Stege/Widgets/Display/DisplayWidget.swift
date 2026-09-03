@@ -272,7 +272,7 @@ struct DisplayPopup: View {
                 Text(current.label)
                     .font(.system(size: PopupStyle.captionSize))
                     .monospacedDigit()
-                    .opacity(0.5)
+                    .foregroundStyle(Color.accentColor)
             }
             Image(systemName: "chevron.right")
                 .font(.system(size: 9, weight: .semibold))
@@ -292,14 +292,19 @@ struct DisplayPopup: View {
         -> some View
     {
         HStack(spacing: 10) {
+            // The accent colour, the way macOS marks the chosen item in its own
+            // lists. A checkmark that is the same colour as everything else
+            // reads as another row rather than as the answer.
             Image(systemName: "checkmark")
                 .font(
                     .system(size: PopupStyle.captionSize, weight: .semibold))
+                .foregroundStyle(Color.accentColor)
                 .opacity(mode.isCurrent ? 1 : 0)
                 .frame(width: PopupStyle.iconColumn)
             Text(mode.label)
                 .font(.system(size: PopupStyle.bodySize))
                 .monospacedDigit()
+                .fontWeight(mode.isCurrent ? .semibold : .regular)
             Spacer(minLength: 8)
             if let rate = mode.refreshLabel {
                 Text(rate)

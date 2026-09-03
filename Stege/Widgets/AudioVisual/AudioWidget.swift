@@ -392,12 +392,16 @@ struct AudioPopup: View {
         _ device: AudioDevice, selected: AudioObjectID, input: Bool
     ) -> some View {
         HStack(spacing: 10) {
+            // The accent colour, matching the resolution list and macOS's own
+            // lists. The device in use is the answer, not another row.
             Image(systemName: "checkmark")
                 .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(Color.accentColor)
                 .opacity(device.id == selected ? 1 : 0)
                 .frame(width: PopupStyle.iconColumn)
             Text(device.name)
                 .font(.system(size: PopupStyle.bodySize))
+                .fontWeight(device.id == selected ? .semibold : .regular)
                 .lineLimit(1)
                 .truncationMode(.tail)
             // What the device is plugged into. A receiver is named by whoever
