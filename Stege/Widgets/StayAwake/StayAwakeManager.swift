@@ -9,6 +9,12 @@ import IOKit.pwr_mgt
 /// Amphetamine's own icon, so without this there is nothing left to say the
 /// machine will not sleep.
 final class StayAwakeManager: ObservableObject {
+    /// One instance. Which assertions are held is a property of the machine,
+    /// not of a bar, and there is one bar per screen: two managers on a
+    /// two-monitor setup were each polling the same IOKit assertions on the
+    /// same 5s timer.
+    static let shared = StayAwakeManager()
+
     @Published private(set) var isActive = false
     /// The applications responsible, for the tooltip.
     @Published private(set) var holders: [String] = []
@@ -30,7 +36,7 @@ final class StayAwakeManager: ObservableObject {
         "powerd", "coreaudiod", "WindowServer",
     ]
 
-    init(interval: TimeInterval = 5.0) {
+    private init(interval: TimeInterval = 5.0) {
         refresh()
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) {
             [weak self] _ in

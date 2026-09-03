@@ -9,7 +9,7 @@ struct StayAwakeWidget: View {
     /// than hiding it.
     var alwaysShow: Bool { config["always-show"]?.boolValue ?? false }
 
-    @StateObject private var manager = StayAwakeManager()
+    @ObservedObject private var manager = StayAwakeManager.shared
 
     var body: some View {
         Group {
