@@ -19,7 +19,7 @@ struct UpdatesWidget: View {
     /// is deliberately slow.
     var interval: Int { config["refresh-interval"]?.intValue ?? 30 }
 
-    @StateObject private var manager = UpdatesManager()
+    @ObservedObject private var manager = UpdatesManager.shared
     @State private var rect: CGRect = .zero
 
     var body: some View {
