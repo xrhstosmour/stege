@@ -203,12 +203,14 @@ struct RevealWidget: View {
     private var chevron: some View {
         Image(systemName: chevronSymbol)
             .font(.system(size: BarStyle.chevronSize, weight: .semibold))
-            // Sized to the mark rather than to the glyph box. A chevron is
-            // half the width of a status glyph, so centring it in the full box
-            // padded this one gap wider than every other in the row. It is the
-            // one mark that does not change shape with state, so it does not
-            // need the box to hold its place.
-            .frame(width: BarStyle.chevronSize)
+            // Sized to its ink, like every other mark in the row. A chevron at
+            // 12 points inks about 5, so a box the size of the point size left
+            // three points of nothing either side and made this the widest gap
+            // in the bar. Both directions ink the same width, so the box does
+            // not have to promise anything beyond the one it draws.
+            .frame(
+                width: GlyphInk.width(
+                    of: "chevron.left", size: BarStyle.chevronSize))
             .frame(maxHeight: .infinity)
             .contentShape(Rectangle())
             .background(.black.opacity(0.001))

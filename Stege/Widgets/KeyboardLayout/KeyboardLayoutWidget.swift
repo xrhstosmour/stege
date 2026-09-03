@@ -16,10 +16,13 @@ struct KeyboardLayoutWidget: View {
         Text(showFullName ? manager.name : manager.abbreviation)
             .font(BarStyle.labelFont)
             // The code is always two characters, but the face is proportional,
-            // so `EN` and `GR` still measure differently and the row shifted on
-            // every switch. A full name has no width worth promising, so only
-            // the code gets the box.
-            .frame(width: showFullName ? nil : BarStyle.glyphWidth)
+            // so `EN` and `GR` still measure differently. The box was the
+            // bar's glyph width, 20 points against about 15 of letterform, and
+            // since the marks either side of it are laid out on their ink that
+            // slack showed as the two widest gaps in the row. Two capitals at
+            // this size differ by well under a point, which is less than the
+            // five points the box was adding.
+            .fixedSize()
             .frame(maxHeight: .infinity)
             .contentShape(Rectangle())
             .background(.black.opacity(0.001))
