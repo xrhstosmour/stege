@@ -136,6 +136,14 @@ struct BarHover: ViewModifier {
                     .padding(.vertical, verticalInset)
                     .padding(.horizontal, -horizontalOutset)
             )
+            // The whole frame, not the drawing inside it. `onHover` follows the
+            // view's shape, and an icon is `scaledToFit` inside a square frame,
+            // so a wide glyph only fills a horizontal band across the middle of
+            // it. Pointing anywhere else on the icon lit nothing, and crossing
+            // the row made the highlight blink on and off. The highlight has
+            // always been drawn against the full frame, so this is the hover
+            // catching up with what it was already painting.
+            .contentShape(Rectangle())
             .animation(BarStyle.hoverAnimation, value: isHovered)
             .onHover { isHovered = $0 }
     }
