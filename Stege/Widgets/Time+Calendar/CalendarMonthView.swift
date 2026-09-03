@@ -216,10 +216,15 @@ struct CalendarMonthView: View {
                             ? Color.black : (isWeekend ? .gray : .white))
                 // A dot rather than a count: the number is in the list below,
                 // and a digit at this size is unreadable anyway.
+                // The accent colour, the same one the Wi-Fi and Bluetooth
+                // switches light up in, so a day with something on it is
+                // marked the way everything else in the bar marks state. On
+                // the selected day it goes back to the inverse of the fill,
+                // because the accent on a white circle is barely there.
                 Circle()
-                    .fill(isSelected ? BarStyle.inkInverse : BarStyle.ink)
-                    .frame(width: 3, height: 3)
-                    .opacity(daysWithEvents.contains(calendar.startOfDay(for: date)) ? 0.8 : 0)
+                    .fill(isSelected ? BarStyle.inkInverse : Color.accentColor)
+                    .frame(width: 3.5, height: 3.5)
+                    .opacity(daysWithEvents.contains(calendar.startOfDay(for: date)) ? 1 : 0)
             }
         }
         .frame(width: cell, height: cell)
@@ -483,10 +488,15 @@ private struct EventRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
-            // The calendar's own colour, so an event is traceable back to the
-            // account it came from without naming it on every row.
+            // The service the calendar came from, not the colour the calendar
+            // carries: that one is whatever was picked in Google Calendar or
+            // Outlook years ago and says nothing. See `CalendarAccountStyle`.
             RoundedRectangle(cornerRadius: 1.5)
-                .fill(Color(nsColor: event.calendar.color ?? .systemGray))
+                .fill(.clear)
+                .overlay {
+                    CalendarAccountStyle.bar(for: event.calendar)
+                        .clipShape(RoundedRectangle(cornerRadius: 1.5))
+                }
                 .frame(width: 3)
                 .frame(maxHeight: .infinity)
 
