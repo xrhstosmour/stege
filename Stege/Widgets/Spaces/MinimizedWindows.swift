@@ -55,7 +55,10 @@ final class MinimizedWindowMemory {
 
         let outcome = MinimizedWindowLedger.reconcile(
             notes: notes, reported: reported,
-            liveOwners: Self.liveWindowOwners())
+            liveOwners: Self.liveWindowOwners(),
+            minimizedTitles: Self.minimizedWindowTitles(
+                for: MinimizedWindowLedger.unreportedOwners(
+                    notes: notes, reported: reported)))
         store(outcome.keep)
 
         guard !outcome.restore.isEmpty else { return spaces }
@@ -93,6 +96,62 @@ final class MinimizedWindowMemory {
             owners[id] = entry[kCGWindowOwnerName as String] as? String ?? ""
         }
         return owners
+    }
+
+    /// What each named application says is minimized right now, by title.
+    ///
+    /// The window server cannot answer this. Closing a window does not destroy
+    /// it, so a closed window sits in the list at layer zero and off screen for
+    /// as long as its application runs, indistinguishable from a minimized one.
+    /// An application's own window list does not contain a closed window at
+    /// all, and marks the minimized ones, so it can tell them apart.
+    ///
+    /// Asked only of the applications that own a note missing from this pass,
+    /// which is usually none and never many. Walking every running application
+    /// would be a far heavier thing to do once a second.
+    private static func minimizedWindowTitles(for owners: Set<String>)
+        -> [String: Set<String>]
+    {
+        guard !owners.isEmpty else { return [:] }
+        var result: [String: Set<String>] = [:]
+        for application in NSWorkspace.shared.runningApplications {
+            guard let name = application.localizedName,
+                owners.contains(name),
+                application.processIdentifier > 0
+            else { continue }
+
+            let element = AXUIElementCreateApplication(
+                application.processIdentifier)
+            AXUIElementSetMessagingTimeout(element, 0.2)
+            guard
+                let windows = copy(element, kAXWindowsAttribute as String)
+                    as? [AXUIElement]
+            else { continue }
+
+            for window in windows {
+                guard
+                    copy(window, kAXMinimizedAttribute as String) as? Bool
+                        == true
+                else { continue }
+                let title =
+                    copy(window, kAXTitleAttribute as String) as? String ?? ""
+                result[name, default: []].insert(title)
+            }
+        }
+        return result
+    }
+
+    /// The type is not cast here, the caller checks it, because an application
+    /// answers with whatever it put there.
+    private static func copy(_ element: AXUIElement, _ attribute: String)
+        -> Any?
+    {
+        var value: CFTypeRef?
+        guard
+            AXUIElementCopyAttributeValue(
+                element, attribute as CFString, &value) == .success
+        else { return nil }
+        return value
     }
 
     /// Puts each remembered window back in its workspace, recreating the

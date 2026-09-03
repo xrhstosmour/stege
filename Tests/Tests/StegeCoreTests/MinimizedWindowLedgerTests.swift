@@ -48,7 +48,8 @@ struct MinimizedWindowLedgerTests {
         let outcome = MinimizedWindowLedger.reconcile(
             notes: notes([note(1), note(2)]),
             reported: [note(1)],
-            liveOwners: [1: "Google Chrome", 2: "Google Chrome"])
+            liveOwners: [1: "Google Chrome", 2: "Google Chrome"],
+            minimizedTitles: ["Google Chrome": ["A window"]])
         #expect(outcome.restore.map(\.id) == [2])
         #expect(outcome.keep.keys.sorted() == [1, 2])
     }
@@ -57,7 +58,8 @@ struct MinimizedWindowLedgerTests {
         let outcome = MinimizedWindowLedger.reconcile(
             notes: notes([note(1), note(2)]),
             reported: [note(1)],
-            liveOwners: [1: "Google Chrome"])
+            liveOwners: [1: "Google Chrome"],
+            minimizedTitles: ["Google Chrome": ["A window"]])
         #expect(outcome.restore.isEmpty)
         #expect(outcome.keep.keys.sorted() == [1])
     }
@@ -68,7 +70,8 @@ struct MinimizedWindowLedgerTests {
         let outcome = MinimizedWindowLedger.reconcile(
             notes: notes([note(2, app: "Google Chrome")]),
             reported: [],
-            liveOwners: [2: "Spotify"])
+            liveOwners: [2: "Spotify"],
+            minimizedTitles: ["Google Chrome": ["A window"]])
         #expect(outcome.restore.isEmpty)
         #expect(outcome.keep.isEmpty)
     }
@@ -77,7 +80,8 @@ struct MinimizedWindowLedgerTests {
         let outcome = MinimizedWindowLedger.reconcile(
             notes: notes([note(2, app: nil)]),
             reported: [],
-            liveOwners: [2: "Spotify"])
+            liveOwners: [2: "Spotify"],
+            minimizedTitles: ["Google Chrome": ["A window"]])
         #expect(outcome.restore.map(\.id) == [2])
     }
 
@@ -87,7 +91,8 @@ struct MinimizedWindowLedgerTests {
             reported: [],
             liveOwners: [
                 9: "Google Chrome", 3: "Google Chrome", 6: "Google Chrome",
-            ])
+            ],
+            minimizedTitles: ["Google Chrome": ["A window"]])
         #expect(outcome.restore.map(\.id) == [3, 6, 9])
     }
 
@@ -95,12 +100,52 @@ struct MinimizedWindowLedgerTests {
         let first = MinimizedWindowLedger.reconcile(
             notes: notes([note(1), note(2)]),
             reported: [note(1)],
-            liveOwners: [1: "Google Chrome", 2: "Google Chrome"])
+            liveOwners: [1: "Google Chrome", 2: "Google Chrome"],
+            minimizedTitles: ["Google Chrome": ["A window"]])
         let second = MinimizedWindowLedger.reconcile(
             notes: first.keep,
             reported: [note(1), note(2, workspace: "4")],
-            liveOwners: [1: "Google Chrome", 2: "Google Chrome"])
+            liveOwners: [1: "Google Chrome", 2: "Google Chrome"],
+            minimizedTitles: ["Google Chrome": ["A window"]])
         #expect(second.restore.isEmpty)
         #expect(second.keep[2]?.workspace == "4")
+    }
+
+    /// `Google Drive` kept its closed main window in the window server's list
+    /// at layer zero and off screen for as long as it ran, so the identifier
+    /// check passed and workspace two grew a pill for a window that was not
+    /// there. The application itself does not call that window minimized.
+    @Test func aClosedWindowTheWindowServerStillListsIsForgotten() {
+        let outcome = MinimizedWindowLedger.reconcile(
+            notes: notes([note(2)]),
+            reported: [],
+            liveOwners: [2: "Google Chrome"],
+            minimizedTitles: [:])
+        #expect(outcome.restore.isEmpty)
+        #expect(outcome.keep.isEmpty)
+    }
+
+    @Test func aWindowMinimizedUnderAnotherTitleIsForgotten() {
+        let outcome = MinimizedWindowLedger.reconcile(
+            notes: notes([note(2)]),
+            reported: [],
+            liveOwners: [2: "Google Chrome"],
+            minimizedTitles: ["Google Chrome": ["A different window"]])
+        #expect(outcome.restore.isEmpty)
+    }
+
+    @Test func onlyTheOwnersOfAMissingNoteAreAsked() {
+        #expect(
+            MinimizedWindowLedger.unreportedOwners(
+                notes: notes([note(1), note(2, app: "Spotify")]),
+                reported: [note(1)]) == ["Spotify"]
+        )
+    }
+
+    @Test func nothingIsAskedWhenEveryNoteWasReported() {
+        #expect(
+            MinimizedWindowLedger.unreportedOwners(
+                notes: notes([note(1)]), reported: [note(1)]).isEmpty
+        )
     }
 }

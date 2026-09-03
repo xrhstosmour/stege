@@ -44,12 +44,25 @@ enum MinimizedWindowLedger {
     /// and these notes outlive one, so an identifier alone would eventually
     /// draw one application's icon for another's window.
     ///
-    /// A note with no application name is matched on the identifier alone,
-    /// which is the best that can be done for it.
+    /// `minimizedTitles` is what each application says is minimized right now,
+    /// by application name. This is the test that says a window is *minimized*
+    /// rather than merely still allocated, and the window server cannot answer
+    /// it: closing a window does not destroy it, so `Google Drive`'s main
+    /// window sat in the list at layer zero and off screen for as long as the
+    /// application ran, exactly like a minimized one. A note kept passing on
+    /// that alone and its workspace grew a pill for a window that was not
+    /// there and could not be clicked back. An application's own window list
+    /// does not contain a closed window at all, so asking it settles the
+    /// question.
+    ///
+    /// A note with no application name cannot be looked up that way and is
+    /// matched on the identifier alone, which is the best that can be done for
+    /// it.
     static func reconcile(
         notes: [Int: MinimizedWindowNote],
         reported: [MinimizedWindowNote],
-        liveOwners: [Int: String]
+        liveOwners: [Int: String],
+        minimizedTitles: [String: Set<String>]
     ) -> Outcome {
         let updated = noting(notes, reported: reported)
         let listed = Set(reported.map(\.id))
@@ -62,11 +75,31 @@ enum MinimizedWindowLedger {
                 continue
             }
             guard let owner = liveOwners[id] else { continue }
-            if let appName = note.appName, appName != owner { continue }
+            if let appName = note.appName {
+                guard appName == owner else { continue }
+                guard
+                    minimizedTitles[appName]?.contains(note.title) == true
+                else { continue }
+            }
             keep[id] = note
             restore.append(note)
         }
         return Outcome(keep: keep, restore: restore.sorted { $0.id < $1.id })
+    }
+
+    /// Which applications own notes that were not reported this pass.
+    ///
+    /// Asking an application for its windows is not free, and the answer is
+    /// only needed for the few that have a window missing, so the caller asks
+    /// these and no others.
+    static func unreportedOwners(
+        notes: [Int: MinimizedWindowNote], reported: [MinimizedWindowNote]
+    ) -> Set<String> {
+        let listed = Set(reported.map(\.id))
+        return Set(
+            notes.values
+                .filter { !listed.contains($0.id) }
+                .compactMap(\.appName))
     }
 
     /// Whether the window server has to be asked at all.
