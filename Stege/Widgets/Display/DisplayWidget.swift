@@ -95,6 +95,15 @@ struct DisplayWidget: View {
 struct DisplayPopup: View {
     @ObservedObject var manager: DisplayManager
 
+    /// Which displays have their resolution list open.
+    ///
+    /// Folded away by default. Two monitors put two dozen resolution rows in
+    /// the popup and pushed everything under them, Screen Mirroring and Display
+    /// Settings included, past the bottom of the screen. The header still says
+    /// what each display is set to, so folding costs no information, only the
+    /// alternatives.
+    @State private var expanded: Set<CGDirectDisplayID> = []
+
     var body: some View {
         VStack(alignment: .leading, spacing: PopupStyle.spacing) {
             VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
@@ -230,52 +239,79 @@ struct DisplayPopup: View {
         if modes.count > 1 {
             PopupSeparator()
 
+            let isOpen = expanded.contains(display.id)
             VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
-                PopupSectionTitle(
-                    title: manager.displays.count > 1
-                        ? display.name : "Resolution"
-                ) {
-                    if manager.displays.count > 1 {
-                        Text("Resolution")
-                            .font(
-                                .system(
-                                    size: PopupStyle.captionSize,
-                                    weight: .semibold)
-                            )
-                            .opacity(0.5)
-                    }
-                }
-                .popupStaticRow()
+                resolutionHeader(for: display, modes: modes, isOpen: isOpen)
 
-                ForEach(modes) { mode in
-                    HStack(spacing: 10) {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: PopupStyle.captionSize,
-                                          weight: .semibold))
-                            .opacity(mode.isCurrent ? 1 : 0)
-                            .frame(width: PopupStyle.iconColumn)
-                        Text(mode.label)
-                            .font(.system(size: PopupStyle.bodySize))
-                            .monospacedDigit()
-                        Spacer(minLength: 8)
-                        if let rate = mode.refreshLabel {
-                            Text(rate)
-                                .font(.system(size: PopupStyle.captionSize))
-                                .monospacedDigit()
-                                .opacity(0.5)
-                        }
-                        if mode.isRetina {
-                            Text("Retina")
-                                .font(.system(size: PopupStyle.captionSize))
-                                .opacity(0.5)
-                        }
-                    }
-                    .popupRow {
-                        guard !mode.isCurrent else { return }
-                        manager.setMode(mode, on: display)
+                if isOpen {
+                    ForEach(modes) { mode in
+                        resolutionRow(mode, on: display)
                     }
                 }
             }
+            .animation(.smooth(duration: 0.15), value: isOpen)
+        }
+    }
+
+    /// The row that folds the list, and says what the display is set to while
+    /// it is folded.
+    private func resolutionHeader(
+        for display: DisplayInfo, modes: [DisplayMode], isOpen: Bool
+    ) -> some View {
+        HStack(spacing: 6) {
+            Text(manager.displays.count > 1 ? display.name : "Resolution")
+                .font(
+                    .system(size: PopupStyle.captionSize, weight: .semibold))
+                .lineLimit(1)
+            Spacer(minLength: 8)
+            if let current = modes.first(where: \.isCurrent) {
+                Text(current.label)
+                    .font(.system(size: PopupStyle.captionSize))
+                    .monospacedDigit()
+                    .opacity(0.5)
+            }
+            Image(systemName: "chevron.right")
+                .font(.system(size: 9, weight: .semibold))
+                .rotationEffect(.degrees(isOpen ? 90 : 0))
+                .opacity(0.5)
+        }
+        .popupRow {
+            if isOpen {
+                expanded.remove(display.id)
+            } else {
+                expanded.insert(display.id)
+            }
+        }
+    }
+
+    private func resolutionRow(_ mode: DisplayMode, on display: DisplayInfo)
+        -> some View
+    {
+        HStack(spacing: 10) {
+            Image(systemName: "checkmark")
+                .font(
+                    .system(size: PopupStyle.captionSize, weight: .semibold))
+                .opacity(mode.isCurrent ? 1 : 0)
+                .frame(width: PopupStyle.iconColumn)
+            Text(mode.label)
+                .font(.system(size: PopupStyle.bodySize))
+                .monospacedDigit()
+            Spacer(minLength: 8)
+            if let rate = mode.refreshLabel {
+                Text(rate)
+                    .font(.system(size: PopupStyle.captionSize))
+                    .monospacedDigit()
+                    .opacity(0.5)
+            }
+            if mode.isRetina {
+                Text("Retina")
+                    .font(.system(size: PopupStyle.captionSize))
+                    .opacity(0.5)
+            }
+        }
+        .popupRow {
+            guard !mode.isCurrent else { return }
+            manager.setMode(mode, on: display)
         }
     }
 
