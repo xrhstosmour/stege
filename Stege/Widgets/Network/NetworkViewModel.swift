@@ -116,6 +116,16 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
                         default:
                             self.wifiState = .connectedWithoutInternet
                         }
+                    } else if path.status == .satisfied,
+                        Self.activeVPN() != nil,
+                        CWWiFiClient.shared().interface()?.ssid() != nil
+                    {
+                        // A full-tunnel VPN, NordVPN included, becomes the
+                        // interface NWPathMonitor calls "in use", so Wi-Fi
+                        // reads as unused even though it is what is actually
+                        // carrying the tunnel. An associated Wi-Fi interface
+                        // here means connected, same as without the VPN.
+                        self.wifiState = .connected
                     } else {
                         // If the Wi‑Fi interface is available but not in use – consider it enabled but not connected.
                         self.wifiState = .disconnected
