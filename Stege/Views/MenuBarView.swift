@@ -40,6 +40,11 @@ struct MenuBarView: View {
         // above every window, so without this the clock is drawn through it.
         .padding(.trailing, configManager.config.bar.foreground.trailingPadding)
         .background(.black.opacity(0.001))
+        .contextMenu {
+            Button("Permissions…") {
+                PermissionsWindowController.shared.show()
+            }
+        }
         .environment(\.barScreenIndex, screenIndex)
         .preferredColorScheme(configManager.config.colorScheme)
     }
