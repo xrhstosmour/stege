@@ -46,6 +46,11 @@ hidden = false
 # again. The same thing the reveal chevron does.
 # reveal-shortcut = "cmd+alt+m"
 
+# Takes the other applications' status items away, and only that, regardless
+# of `reveal-shortcut` above. Useful as a dedicated close key alongside a
+# toggle whose current state is not known.
+# reveal-hide-shortcut = "ctrl+."
+
 # Shows the frontmost application's menu titles in place of the workspace
 # pills, the same row hovering the focused pill gives, and holds it there.
 # Pressing the shortcut again puts it away, so does switching application,

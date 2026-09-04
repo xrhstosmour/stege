@@ -7,6 +7,7 @@ struct RootToml: Decodable {
     var hidden: Bool?
     var toggleShortcut: String?
     var revealShortcut: String?
+    var revealHideShortcut: String?
     var menuShortcut: String?
     var yabai: YabaiConfig?
     var aerospace: AerospaceConfig?
@@ -18,6 +19,7 @@ struct RootToml: Decodable {
         case hidden
         case toggleShortcut = "toggle-shortcut"
         case revealShortcut = "reveal-shortcut"
+        case revealHideShortcut = "reveal-hide-shortcut"
         case menuShortcut = "menu-shortcut"
         case yabai
         case aerospace
@@ -30,6 +32,7 @@ struct RootToml: Decodable {
         self.hidden = nil
         self.toggleShortcut = nil
         self.revealShortcut = nil
+        self.revealHideShortcut = nil
         self.menuShortcut = nil
         self.yabai = nil
         self.aerospace = nil
@@ -93,6 +96,16 @@ struct Config {
     /// away again. The same thing the chevron does.
     var revealShortcut: String? {
         rootToml.revealShortcut
+    }
+
+    /// Takes the other applications' status items away, and only that.
+    ///
+    /// `revealShortcut` alone means the one key both opens and closes the row,
+    /// which is fine on its own but leaves no way to close it without knowing
+    /// whether it is already closed. A second, one-directional key does not
+    /// replace the toggle, it just also works when that state is unknown.
+    var revealHideShortcut: String? {
+        rootToml.revealHideShortcut
     }
 
     /// Opens the frontmost application's first menu. `NSMenu` takes the arrows,

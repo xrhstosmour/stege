@@ -124,6 +124,10 @@ final class ConfigManager: ObservableObject {
             # The other applications' status items, the row behind the chevron.
             # reveal-shortcut = "cmd+ctrl+u"
             #
+            # Takes that row away again, on its own, regardless of the shortcut
+            # above.
+            # reveal-hide-shortcut = "ctrl+."
+            #
             # The frontmost application's menu titles, in place of the workspace
             # pills and held there until the shortcut is pressed again.
             # menu-shortcut = "cmd+ctrl+m"
