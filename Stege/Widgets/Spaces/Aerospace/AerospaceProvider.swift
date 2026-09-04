@@ -4,14 +4,21 @@ class AerospaceSpacesProvider: SpacesProvider, SwitchableSpacesProvider {
     typealias SpaceType = AeroSpace
     let executablePath = ConfigManager.shared.config.aerospace.path
 
-    /// Every workspace that holds windows, with the focused one marked.
+    /// Every workspace that holds windows, with the focused one marked, plus
+    /// the focused workspace itself when it holds none.
     ///
-    /// One `aerospace` invocation, not four. `%{workspace-is-focused}` is
-    /// reported per window, which replaces the separate focused-workspace
-    /// query, and upstream additionally called that query again inside the
-    /// window loop, once per window with no workspace. A second invocation is
-    /// still needed for the focused *window*, since `aerospace` exposes no
-    /// `window-is-focused` placeholder.
+    /// Two `aerospace` invocations, not four, in the common case.
+    /// `%{workspace-is-focused}` is reported per window, which replaces the
+    /// separate focused-workspace query, and upstream additionally called
+    /// that query again inside the window loop, once per window with no
+    /// workspace. A second invocation is still needed for the focused
+    /// *window*, since `aerospace` exposes no `window-is-focused` placeholder.
+    ///
+    /// A third, conditional invocation covers the case none of the above can:
+    /// a workspace with no windows carries no window record at all, so it is
+    /// missing from `spacesByID` however it is focused. That is only ever true
+    /// of the currently focused workspace, so it is detected by nothing in
+    /// `spacesByID` already being focused, and the fetch is skipped otherwise.
     func getSpacesWithWindows() -> [AeroSpace]? {
         guard let windows = fetchWindows() else { return nil }
 
@@ -34,6 +41,15 @@ class AerospaceSpacesProvider: SpacesProvider, SwitchableSpacesProvider {
             space.isFocused = space.isFocused || window.workspaceIsFocused
             space.windows.append(mutableWindow)
             spacesByID[workspace] = space
+        }
+
+        if !spacesByID.values.contains(where: { $0.isFocused }),
+            let focused = fetchFocusedWorkspace(),
+            spacesByID[focused.workspace] == nil
+        {
+            spacesByID[focused.workspace] = AeroSpace(
+                workspace: focused.workspace, isFocused: true,
+                monitorScreenID: focused.monitorScreenID)
         }
 
         return spacesByID.values.map { space in
@@ -97,6 +113,19 @@ class AerospaceSpacesProvider: SpacesProvider, SwitchableSpacesProvider {
                 "aerospace returned something unreadable: \(error.localizedDescription, privacy: .public)")
             return nil
         }
+    }
+
+    /// The focused workspace, asked for directly. Only called when the
+    /// windows loop found none, which means it has no windows of its own.
+    private func fetchFocusedWorkspace() -> AeroFocusedWorkspace? {
+        guard
+            let data = runAerospaceCommand(arguments: [
+                "list-workspaces", "--focused", "--json", "--format",
+                "%{workspace} %{monitor-appkit-nsscreen-screens-id}",
+            ])
+        else { return nil }
+        return try? JSONDecoder().decode([AeroFocusedWorkspace].self, from: data)
+            .first
     }
 
     /// Which window has focus, without spawning a second `aerospace`.
