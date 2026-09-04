@@ -89,16 +89,13 @@ bumping.
 ### 1. Tag the application
 
 ```bash
-git checkout main && git fetch && git reset --hard origin/main
-git tag v0.X.Y && git push origin v0.X.Y
+bin/release.sh [patch|minor|major]   # patch by default
 ```
 
-Wait for that tag's run, filtered by the tag. Not `--limit 1` on its own, which catches the previous
-tag's finished run and has published a checksum taken from a 404 page:
-
-```bash
-gh run list --branch v0.X.Y --limit 1 --json status,conclusion
-```
+Bumps the latest `vX.Y.Z` tag, confirms before doing anything, tags `main`, pushes, and watches the
+tagged run rather than `--limit 1` on its own, which catches the previous tag's finished run and has
+published a checksum taken from a 404 page. Refuses to run off `main`, with a dirty tree, or with
+`main` behind `origin/main`.
 
 The `Notarize` and `Update the Homebrew tap` steps show as skipped. That is expected: there is no
 paid Apple account and no `TAP_TOKEN`, so the build is self-signed and the tap is bumped by hand.
