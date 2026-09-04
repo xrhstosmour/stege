@@ -56,8 +56,12 @@ struct PermissionsView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: 56, height: 56)
-            Text("Stege needs a few permissions")
-                .font(.headline)
+            Text(
+                required.allSatisfy(\.isGranted)
+                    ? "Stege's permissions"
+                    : "Stege needs a few permissions"
+            )
+            .font(.headline)
             Text("Only the ones your configured widgets actually use are listed.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -96,6 +100,20 @@ struct PermissionsView: View {
                 Button("Grant") { model.request(item) }
                     .controlSize(.small)
             }
+
+            // Reopening this window closes no door: `request(_:)` above
+            // prompts once and never again after that, so a permission
+            // granted or denied by accident, or reset by macOS across an
+            // update, otherwise has no way back short of hunting through
+            // System Settings by hand.
+            Button {
+                model.openSettings(item)
+            } label: {
+                Image(systemName: "gearshape")
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .help("Open \(item.title) in System Settings")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
