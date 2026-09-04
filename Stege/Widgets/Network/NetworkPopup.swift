@@ -76,7 +76,19 @@ struct NetworkPopup: View {
                 detailRow("Noise", "\(viewModel.noise) dBm")
                 detailRow("Channel", viewModel.channel)
                 if let vpn = viewModel.vpnName {
-                    detailRow("VPN", vpn)
+                    detailRow("VPN") {
+                        HStack(spacing: 4) {
+                            if let application = viewModel.vpnApplication {
+                                Image(nsImage: application.icon)
+                                    .resizable()
+                                    .frame(width: 12, height: 12)
+                            }
+                            Text(vpn)
+                                .font(.system(size: PopupStyle.captionSize))
+                                .monospacedDigit()
+                                .opacity(0.85)
+                        }
+                    }
                 }
                 detailRow("Down", Self.rate(traffic.bytesReceivedPerSecond))
                 detailRow("Up", Self.rate(traffic.bytesSentPerSecond))
@@ -95,14 +107,22 @@ struct NetworkPopup: View {
     }
 
     private func detailRow(_ label: String, _ value: String) -> some View {
-        HStack(spacing: 12) {
-            Text(label)
-                .font(.system(size: PopupStyle.captionSize)).opacity(0.6)
-            Spacer(minLength: 12)
+        detailRow(label) {
             Text(value)
                 .font(.system(size: PopupStyle.captionSize))
                 .monospacedDigit()
                 .opacity(0.85)
+        }
+    }
+
+    private func detailRow<Value: View>(
+        _ label: String, @ViewBuilder value: () -> Value
+    ) -> some View {
+        HStack(spacing: 12) {
+            Text(label)
+                .font(.system(size: PopupStyle.captionSize)).opacity(0.6)
+            Spacer(minLength: 12)
+            value()
         }
         .popupStaticRow()
     }

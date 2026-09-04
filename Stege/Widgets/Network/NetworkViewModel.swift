@@ -2,6 +2,7 @@ import AppKit
 import CoreLocation
 import CoreWLAN
 import Network
+import Security
 import SwiftUI
 import SystemConfiguration
 
@@ -19,6 +20,13 @@ enum WifiSignalStrength: String {
     case medium = "Medium"
     case high = "High"
     case unknown = "Unknown"
+}
+
+/// The application actually carrying a VPN tunnel, when it can be told apart
+/// from the interface's own name.
+struct VPNApplication {
+    let icon: NSImage
+    let name: String
 }
 
 /// A network seen by the last scan.
@@ -64,6 +72,10 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
     @Published var joining: String?
     /// The name of the VPN carrying traffic, or nil when none is.
     @Published var vpnName: String?
+    /// The application behind it, when one can be found. `vpnName` alone is
+    /// often a bare interface name: an app-managed tunnel registers no
+    /// `SCNetworkService`, so there is no `UserDefinedName` to read.
+    @Published var vpnApplication: VPNApplication?
 
     /// Computed property for signal strength.
     var wifiSignalStrength: WifiSignalStrength {
@@ -227,7 +239,13 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
     }
 
     func updateWiFiInfo() {
-        vpnName = Self.activeVPN()
+        let newVpnName = Self.activeVPN()
+        // Scans every running application's bundle, so only worth doing when
+        // which VPN is active, if any, has actually changed.
+        if newVpnName != vpnName {
+            vpnApplication = newVpnName != nil ? Self.vpnApplication() : nil
+        }
+        vpnName = newVpnName
         let client = CWWiFiClient.shared()
         if let interface = client.interface() {
             // A nil SSID means "not readable", which is not the same as "not
@@ -438,6 +456,76 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
     private static func isTunnel(_ interface: String) -> Bool {
         ["utun", "ipsec", "ppp", "tun", "tap"].contains {
             interface.hasPrefix($0)
+        }
+    }
+
+    /// The running application carrying a Network Extension tunnel or proxy
+    /// provider, found the same way macOS itself tells one app's extension
+    /// from another's: not by name, which nothing declares anywhere public,
+    /// but by the entitlement a provider is signed with. First match wins,
+    /// which only matters when more than one is running at once.
+    private static func vpnApplication() -> VPNApplication? {
+        for app in NSWorkspace.shared.runningApplications {
+            guard let bundleURL = app.bundleURL,
+                providesNetworkExtension(in: bundleURL)
+            else { continue }
+            let icon = app.icon ?? NSWorkspace.shared.icon(forFile: bundleURL.path)
+            let name =
+                app.localizedName
+                ?? bundleURL.deletingPathExtension().lastPathComponent
+            return VPNApplication(icon: icon, name: name)
+        }
+        return nil
+    }
+
+    /// A Network Extension provider ships as a `.systemextension` next to
+    /// modern network and content-filter apps, or an older `.appex`, either
+    /// way inside the carrying application's own bundle.
+    private static func providesNetworkExtension(in bundleURL: URL) -> Bool {
+        let directories = [
+            bundleURL.appendingPathComponent("Contents/Library/SystemExtensions"),
+            bundleURL.appendingPathComponent("Contents/PlugIns"),
+        ]
+        for directory in directories {
+            guard
+                let items = try? FileManager.default.contentsOfDirectory(
+                    at: directory, includingPropertiesForKeys: nil)
+            else { continue }
+            for item in items
+            where item.pathExtension == "systemextension"
+                || item.pathExtension == "appex"
+            {
+                if hasTunnelOrProxyEntitlement(at: item) { return true }
+            }
+        }
+        return false
+    }
+
+    /// `com.apple.developer.networking.networkextension` is what a Network
+    /// Extension is actually signed with, the same thing macOS checks before
+    /// it lets one register. A content filter or DNS proxy carries the same
+    /// key with a different provider string, so only a tunnel or proxy
+    /// provider counts as a VPN here.
+    private static func hasTunnelOrProxyEntitlement(at url: URL) -> Bool {
+        var staticCode: SecStaticCode?
+        guard
+            SecStaticCodeCreateWithPath(url as CFURL, [], &staticCode)
+                == errSecSuccess,
+            let code = staticCode
+        else { return false }
+        var information: CFDictionary?
+        guard
+            SecCodeCopySigningInformation(
+                code, SecCSFlags(rawValue: kSecCSSigningInformation),
+                &information) == errSecSuccess,
+            let info = information as? [String: Any],
+            let entitlements = info[kSecCodeInfoEntitlementsDict as String]
+                as? [String: Any],
+            let providers = entitlements[
+                "com.apple.developer.networking.networkextension"] as? [String]
+        else { return false }
+        return providers.contains {
+            $0.contains("tunnel") || $0.contains("proxy")
         }
     }
 
