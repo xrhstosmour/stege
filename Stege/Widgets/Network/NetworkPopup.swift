@@ -81,7 +81,7 @@ struct NetworkPopup: View {
                             if let application = viewModel.vpnApplication {
                                 Image(nsImage: application.icon)
                                     .resizable()
-                                    .frame(width: 12, height: 12)
+                                    .frame(width: 14, height: 14)
                             }
                             Text(vpn)
                                 .font(.system(size: PopupStyle.captionSize))
