@@ -42,13 +42,13 @@ hidden = false
 # Hides and shows the bar, so you do not have to reach for the reveal chevron.
 # toggle-shortcut = "cmd+alt+b"
 
-# Appends the other applications' status items to the bar, and takes them away
-# again. The same thing the reveal chevron does.
+# Appends the other applications' status items to the bar. Only opens the
+# row, same as clicking the chevron once.
 # reveal-shortcut = "cmd+alt+m"
 
-# Takes the other applications' status items away, and only that, regardless
-# of `reveal-shortcut` above. Useful as a dedicated close key alongside a
-# toggle whose current state is not known.
+# Takes the other applications' status items away, and only that. The only
+# key that closes the row: `reveal-shortcut` above does not, pressing it
+# again while the row is open does nothing.
 # reveal-hide-shortcut = "ctrl+."
 
 # Shows the frontmost application's menu titles in place of the workspace

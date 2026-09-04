@@ -92,18 +92,19 @@ struct Config {
         rootToml.toggleShortcut
     }
 
-    /// Appends the other applications' status items to the bar, and takes them
-    /// away again. The same thing the chevron does.
+    /// Appends the other applications' status items to the bar. Only opens
+    /// the row, same as clicking the chevron once: `revealHideShortcut` is
+    /// the only key that closes it again.
     var revealShortcut: String? {
         rootToml.revealShortcut
     }
 
     /// Takes the other applications' status items away, and only that.
     ///
-    /// `revealShortcut` alone means the one key both opens and closes the row,
-    /// which is fine on its own but leaves no way to close it without knowing
-    /// whether it is already closed. A second, one-directional key does not
-    /// replace the toggle, it just also works when that state is unknown.
+    /// `revealShortcut` only opens the row, so this is the only key that
+    /// closes it, keyboard or not: pressing `revealShortcut` again while the
+    /// row is open does nothing rather than closing it out from under
+    /// whoever is still reading it.
     var revealHideShortcut: String? {
         rootToml.revealHideShortcut
     }
