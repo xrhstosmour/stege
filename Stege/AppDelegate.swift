@@ -143,6 +143,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             visibility.isShowingExtras.toggle()
         }
+        // One-directional, unlike the toggle above: always closes the row,
+        // whichever key opened it.
+        GlobalShortcut.shared.apply(
+            configuration.revealHideShortcut, name: "reveal-hide"
+        ) {
+            BarVisibility.shared.isShowingExtras = false
+        }
         // The row of menu titles that stands in for the workspace pills, the
         // same thing hovering the focused pill shows, held open until the
         // shortcut is pressed again or Escape. Not the first menu's contents:
