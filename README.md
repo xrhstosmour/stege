@@ -201,12 +201,13 @@ and the version comes from the tag, so nothing in the project needs bumping
 first.
 
 ```bash
-git tag v0.X.Y && git push origin v0.X.Y
-
-# Watch that tag's run, not the newest one. `--limit 1` on its own catches the
-# previous tag's finished run, which has published a checksum taken from a 404.
-gh run list --branch v0.X.Y --limit 1
+bin/release.sh [patch|minor|major]   # patch by default
 ```
+
+Bumps the latest `vX.Y.Z` tag, tags `main`, pushes and watches that tag's run,
+not the newest one. `gh run list --branch v0.X.Y --limit 1` on its own catches
+the previous tag's finished run, which has published a checksum taken from a
+404.
 
 Then bump the cask in [`homebrew-stege`](https://github.com/xrhstosmour/homebrew-stege),
 which is a separate repository and a separate pull request. Take the checksum
