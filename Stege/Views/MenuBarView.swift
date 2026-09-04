@@ -69,8 +69,6 @@ struct MenuBarView: View {
         case "default.audio":
             AudioWidget().environmentObject(config)
 
-        case "default.updates":
-            UpdatesWidget().environmentObject(config)
         case "default.display":
             DisplayWidget().environmentObject(config)
         case "default.microphone":
@@ -78,15 +76,6 @@ struct MenuBarView: View {
 
         case "default.bluetooth":
             BluetoothWidget().environmentObject(config)
-
-        case "default.monitor":
-            SystemMonitorWidget().environmentObject(config)
-
-        case "default.stayawake":
-            StayAwakeWidget().environmentObject(config)
-
-        case "default.privacy":
-            PrivacyWidget().environmentObject(config)
 
         case "default.appleMenu":
             AppleMenuWidget().environmentObject(config)

@@ -60,11 +60,7 @@ Every widget you can put in the bar:
 | `default.spaces` | Workspaces from `AeroSpace` or `yabai` |
 | `default.applicationMenu` | The frontmost application's menu titles |
 | `default.reveal` | The other applications' status items, behind a chevron |
-| `default.monitor` | CPU, memory, and network throughput |
-| `default.privacy` | Whether anything is using the microphone or camera |
-| `default.stayawake` | Whether sleep is being held off |
 | `default.notifications` | Notifications, and what they came from |
-| `default.updates` | What macOS and `brew outdated` are waiting to install |
 | `default.display` | Brightness |
 | `default.audio` | Volume, output device, and what is playing |
 | `default.microphone` | Input level and device |
