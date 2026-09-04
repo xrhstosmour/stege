@@ -93,11 +93,13 @@ style = "inside"
 height = "menu-bar"
 ```
 
-Three optional shortcuts, none set by default. `toggle-shortcut` hides and
+Four optional shortcuts, none set by default. `toggle-shortcut` hides and
 shows the bar. `reveal-shortcut` appends the other applications' status items,
-the same thing the chevron does. `menu-shortcut` shows the frontmost
-application's menu titles in place of the workspace pills and holds them there
-until you press it again or switch application.
+the same thing the chevron does, and only opens the row: it does nothing if
+the row is already open. `reveal-hide-shortcut` is the only key that closes
+it again. `menu-shortcut` shows the frontmost application's menu titles in
+place of the workspace pills and holds them there until you press it again or
+switch application.
 
 A combination another application already holds is refused by macOS, and Stege
 says which and why in the system log rather than doing nothing:
@@ -157,7 +159,9 @@ with what was measured, why it is like that, and what would close it.
 ## Permissions
 
 Asked for only when a widget you have enabled needs one. A window at first launch
-lists whatever is still missing.
+lists whatever is still missing, and right-clicking the bar and choosing
+Permissions reopens it at any time, to grant, review, or jump to System
+Settings and revoke.
 
 | Permission | Needed for |
 | --- | --- |
