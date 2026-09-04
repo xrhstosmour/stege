@@ -24,5 +24,11 @@
 	<string>AppIcon</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Stege shows which Bluetooth devices are connected and their battery levels in the menu bar.</string>
+	<!-- `INFOPLIST_KEY_*` build settings merge into this file at build time, so
+	     this key was already reaching the built app, but only from a value no
+	     bundle inspection of the shipped Info.plist itself could confirm. Kept
+	     here instead, next to the other TCC strings, so it is never in doubt. -->
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Stege shows today's events in the clock popup and counts down to the next one.</string>
 </dict>
 </plist>
