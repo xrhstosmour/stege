@@ -70,7 +70,13 @@ private struct SpaceView: View {
                     .font(.headline)
                     .frame(minWidth: 15)
                     .fixedSize(horizontal: true, vertical: false)
-                Spacer().frame(width: 5)
+                // Separates the key from the window icons, so it only belongs
+                // here when there are icons. Unconditional, an empty
+                // workspace's pill got 10pt on the left of its key and 15pt on
+                // the right, since this ran with nothing after it to separate.
+                if !space.windows.isEmpty {
+                    Spacer().frame(width: 5)
+                }
             }
             HStack(spacing: 2) {
                 ForEach(space.windows) { window in
