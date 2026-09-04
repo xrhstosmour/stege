@@ -8,8 +8,10 @@ struct AeroWindow: WindowModel {
     var appIcon: NSImage?
     let workspace: String?
     let bundleID: String?
-    /// Reported alongside every window, which is what removes the need for the
-    /// separate `list-workspaces --focused` call.
+    /// Reported alongside every window, which removes the need for a
+    /// `list-workspaces --focused` call in the common case. An empty focused
+    /// workspace carries no window, so it carries none of this either, see
+    /// `AerospaceSpacesProvider.fetchFocusedWorkspace()`.
     let workspaceIsFocused: Bool
     /// Which display the window's workspace is on, as an index into
     /// `NSScreen.screens` counting from one. `AeroSpace` assigns workspaces to
@@ -74,5 +76,17 @@ struct AeroSpace: SpaceModel {
         self.isFocused = isFocused
         self.windows = windows
         self.monitorScreenID = monitorScreenID
+    }
+}
+
+/// The focused workspace, asked for directly. Only needed when it has no
+/// windows, so `%{workspace-is-focused}` on a window record never names it.
+struct AeroFocusedWorkspace: Decodable {
+    let workspace: String
+    let monitorScreenID: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case workspace
+        case monitorScreenID = "monitor-appkit-nsscreen-screens-id"
     }
 }
