@@ -135,9 +135,8 @@ final class ConfigManager: ObservableObject {
             #
             # Everything available:
             #   default.appleMenu    default.spaces      default.applicationMenu
-            #   default.reveal       default.monitor     default.privacy
-            #   default.stayawake    default.notifications
-            #   default.updates      default.display     default.audio
+            #   default.reveal       default.notifications
+            #   default.display      default.audio
             #   default.microphone   default.keyboardLayout
             #   default.bluetooth    default.network     default.battery
             #   default.time         spacer              divider
@@ -192,35 +191,11 @@ final class ConfigManager: ObservableObject {
             # always-show = ["Docker"]      # never behind the chevron
             # hidden = ["1Password"]        # never shown at all, by name or id
 
-            [widgets.default.monitor]
-            # Upload and download throughput.
-            show-network = false
-            warning-level = 80
-
-            [widgets.default.privacy]
-            # A dot even when nothing is listening.
-            always-show = false
-            # Icon, dot.
-            style = "icon"
-
-            [widgets.default.stayawake]
-            always-show = false
-
             [widgets.default.notifications]
             show-control-centre = false
             # Off because remembering writes every notification's title, subtitle
             # and body to ~/Library/Preferences in plaintext.
             remember-between-launches = false
-
-            [widgets.default.updates]
-            # Hidden while nothing is waiting.
-            always-show = false
-            show-count = false
-            # What macOS found last time it looked.
-            macos = true
-            # Brew outdated, local data only.
-            homebrew = true
-            refresh-interval = 30
 
             [widgets.default.display]
             show-percentage = false
