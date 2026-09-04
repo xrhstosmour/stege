@@ -255,7 +255,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         for (index, screen) in screens.enumerated() {
-            let frame = screen.frame
+            let frame = barPanelFrame(on: screen)
             if index < backgroundPanels.count {
                 reposition(
                     backgroundPanels[index], to: frame,
@@ -294,6 +294,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         show: BarVisibility.shared.isCollapsed))
             }
         }
+    }
+
+    /// The top strip a screen's background and bar panels cover.
+    ///
+    /// Not the whole screen. `NSHostingView` resizing the panel down to its
+    /// content used to be worked around by making the panel the full screen,
+    /// but that is not what the content actually needs, and a full-screen
+    /// mouse-accepting panel over every display's bottom edge blocked the
+    /// real Dock's hover-to-reveal there. `sizingOptions = []` in
+    /// `makePanel` already stops the resize on its own, so the panel can be
+    /// sized to just the bar instead.
+    private func barPanelFrame(on screen: NSScreen) -> CGRect {
+        let configuration = ConfigManager.shared.config.bar
+        let height = max(
+            configuration.foreground.resolveHeight(),
+            configuration.background.resolveHeight() ?? 0)
+        let frame = screen.frame
+        return CGRect(
+            x: frame.minX, y: frame.maxY - height,
+            width: frame.width, height: height)
     }
 
     /// Where the button that brings the bar back sits while it is away.
