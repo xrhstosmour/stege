@@ -134,6 +134,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Each of these calls what the click calls. Nothing synthesises a
         // press: a shortcut that worked by clicking its own bar would break
         // the moment the bar was hidden, which is exactly when it is wanted.
+        //
+        // One-directional, not a toggle: this key only opens the row.
+        // Closing it is `revealHideShortcut`'s job alone, so pressing this one
+        // again while the row is already open does nothing rather than
+        // closing it out from under whoever is still reading it.
         GlobalShortcut.shared.apply(
             configuration.revealShortcut, name: "reveal"
         ) {
@@ -141,10 +146,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if !visibility.isShowingExtras {
                 MenuBarExtrasReader.shared.refresh()
             }
-            visibility.isShowingExtras.toggle()
+            visibility.isShowingExtras = true
         }
-        // One-directional, unlike the toggle above: always closes the row,
-        // whichever key opened it.
+        // One-directional the other way: always closes the row, whichever
+        // key opened it.
         GlobalShortcut.shared.apply(
             configuration.revealHideShortcut, name: "reveal-hide"
         ) {
