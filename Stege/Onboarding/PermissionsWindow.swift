@@ -131,6 +131,7 @@ final class PermissionsWindowController {
     static let shared = PermissionsWindowController()
     private var window: NSWindow?
     private let model = PermissionsModel()
+    private var windowCloseObserver: NSObjectProtocol?
 
     private init() {}
 
@@ -161,6 +162,8 @@ final class PermissionsWindowController {
     }
 
     func show() {
+        model.startPolling()
+
         if let window {
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
@@ -189,6 +192,16 @@ final class PermissionsWindowController {
         window.setContentSize(hosting.fittingSize)
         window.center()
         self.window = window
+        // The Done button closes the window, but so does the traffic-light
+        // close button, so polling stops here rather than in that button's
+        // action, or it would keep running for the rest of the process, the
+        // same way it once did for the whole of every launch.
+        windowCloseObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification, object: window,
+            queue: .main
+        ) { [weak self] _ in
+            self?.model.stopPolling()
+        }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
