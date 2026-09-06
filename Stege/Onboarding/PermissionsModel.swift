@@ -26,18 +26,36 @@ final class PermissionsModel: ObservableObject {
     var missing: [PermissionItem] { items.filter { $0.isRequired && !$0.isGranted } }
 
     private var timer: Timer?
+    /// Read once and kept, rather than a fresh `CLLocationManager()` on every
+    /// tick of the timer below, which would otherwise repeat its XPC setup
+    /// with `locationd` every 1.5 seconds for as long as polling runs.
+    private let locationManager = CLLocationManager()
 
-    init() {
-        refresh()
-        // Grants happen in System Settings, which posts nothing back, so this
-        // polls while the window is open and stops when it closes.
+    init() { refresh() }
+
+    deinit { timer?.invalidate() }
+
+    /// Starts polling for changes made in System Settings, which posts
+    /// nothing back. Call when the window becomes visible.
+    ///
+    /// `PermissionsModel` used to start this timer from `init`, but it is a
+    /// stored property of `PermissionsWindowController.shared`, which never
+    /// deallocates, so `deinit` never ran and every launch polled four
+    /// authorization APIs every 1.5 seconds for the rest of the process,
+    /// window shown or not.
+    func startPolling() {
+        guard timer == nil else { return }
         timer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) {
             [weak self] _ in
             self?.refresh()
         }
     }
 
-    deinit { timer?.invalidate() }
+    /// Stops polling. Call when the window is no longer visible.
+    func stopPolling() {
+        timer?.invalidate()
+        timer = nil
+    }
 
     func refresh() {
         let displayed = ConfigManager.shared.config.rootToml.widgets.displayed
@@ -80,7 +98,7 @@ final class PermissionsModel: ObservableObject {
                     "Read the Wi-Fi network name. The connection itself is shown without it.",
                 settingsURL:
                     "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices",
-                isGranted: CLLocationManager().authorizationStatus
+                isGranted: locationManager.authorizationStatus
                     == .authorizedAlways,
                 isRequired: uses(["default.network"])),
         ]
