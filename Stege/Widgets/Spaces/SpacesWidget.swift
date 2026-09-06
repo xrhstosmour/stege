@@ -3,8 +3,12 @@ import SwiftUI
 struct SpacesWidget: View {
     @ObservedObject var viewModel = SpacesViewModel.shared
     @Environment(\.barScreenIndex) private var screenIndex
+    @EnvironmentObject var configProvider: ConfigProvider
 
     @ObservedObject var configManager = ConfigManager.shared
+    var remembersMinimizedWindows: Bool {
+        configProvider.config["remember-minimized-windows"]?.boolValue ?? true
+    }
     /// The app menus widget takes this widget's place while it is revealed, so
     /// the bar shows either the workspaces or the frontmost application's
     /// menus, never both at once.
@@ -41,6 +45,10 @@ struct SpacesWidget: View {
         .animation(.smooth(duration: 0.15), value: isStandingAside)
         .foregroundStyle(Color("Foreground"))
         .environmentObject(viewModel)
+        .onAppear {
+            MinimizedWindowMemory.shared.remembersAcrossLaunches =
+                remembersMinimizedWindows
+        }
     }
 }
 
