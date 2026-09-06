@@ -101,19 +101,24 @@ struct PermissionsView: View {
                     .controlSize(.small)
             }
 
-            // Reopening this window closes no door: `request(_:)` above
-            // prompts once and never again after that, so a permission
-            // granted or denied by accident, or reset by macOS across an
-            // update, otherwise has no way back short of hunting through
-            // System Settings by hand.
+            // No API lets an app revoke its own grant, only System Settings
+            // can, so this is the same button for granting and revoking:
+            // `request(_:)` above prompts once and never again after that,
+            // and this is the only way back for a permission granted or
+            // denied by accident, or reset by macOS across an update.
             Button {
                 model.openSettings(item)
             } label: {
-                Image(systemName: "gearshape")
+                Image(
+                    systemName: item.isGranted
+                        ? "gearshape.fill" : "gearshape")
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
-            .help("Open \(item.title) in System Settings")
+            .help(
+                item.isGranted
+                    ? "Revoke \(item.title) in System Settings"
+                    : "Open \(item.title) in System Settings")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)

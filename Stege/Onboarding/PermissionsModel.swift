@@ -94,7 +94,10 @@ final class PermissionsModel: ObservableObject {
         case .accessibility:
             AppMenuReader.requestTrust()
         case .calendar:
-            EKEventStore().requestFullAccessToEvents { _, _ in }
+            // Not a fresh `EKEventStore()`: nothing here would keep it alive
+            // long enough for the async round trip to `tccd` to finish, so the
+            // request died silently and the row never left "Grant".
+            CalendarManager.shared.requestAccessIfNeeded()
         case .bluetooth, .location:
             NSWorkspace.shared.open(URL(string: item.settingsURL)!)
         }
