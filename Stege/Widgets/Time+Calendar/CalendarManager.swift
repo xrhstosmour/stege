@@ -78,12 +78,25 @@ final class CalendarManager: ObservableObject {
     ///
     /// Called more than once, because both of those can happen repeatedly.
     /// `notDetermined` is the only state that asks, so the rest are no-ops.
+    ///
+    /// Stege is `LSUIElement`, so it never becomes the frontmost application,
+    /// only its windows become key. TCC does not queue a Calendar consent
+    /// prompt for a requester that is not frontmost, it silently answers
+    /// `NO` instead, measured with the request completing in under a
+    /// millisecond and no dialog ever drawn. Becoming `.regular` for exactly
+    /// as long as the request is outstanding is what lets the prompt appear,
+    /// and it reverts whether the person allows or denies.
     func requestAccessIfNeeded() {
         guard EKEventStore.authorizationStatus(for: .event) == .notDetermined
         else { return }
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
         eventStore.requestFullAccessToEvents { [weak self] granted, error in
-            guard granted, error == nil else { return }
-            DispatchQueue.main.async { self?.refresh() }
+            DispatchQueue.main.async {
+                NSApp.setActivationPolicy(.accessory)
+                guard granted, error == nil else { return }
+                self?.refresh()
+            }
         }
     }
 
