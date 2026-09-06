@@ -124,6 +124,11 @@ window.show-title = true
 window.title.max-length = 50
 # Always show the app name rather than the window title for these.
 window.title.always-display-app-name-for = ["Mail", "Chrome", "Arc"]
+# Keep minimized windows on their workspace pill across a restart. On by
+# default, or an application update would lose every window that happened to
+# be minimized at the time. Off, the same window titles this widget already
+# draws in the bar stop being written to ~/Library/Preferences in plaintext.
+remember-minimized-windows = true
 
 [widgets.default.applicationMenu]
 # any whole number, default 6. Chrome exposes 11, which crowds a laptop bar.

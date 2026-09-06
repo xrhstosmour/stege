@@ -21,6 +21,21 @@ final class MinimizedWindowMemory {
     /// that happened to be minimized at the time.
     private var notes: [Int: MinimizedWindowNote] = [:]
 
+    /// Whether minimized-window notes survive a restart.
+    ///
+    /// On by default: losing every minimized window off the bar the moment
+    /// Stege restarts, which is what this ledger exists to fix, would
+    /// otherwise happen on every update. Off, the same window titles this
+    /// widget already draws in the bar stop being written to
+    /// `~/Library/Preferences` in plaintext for anything else running as this
+    /// user to read once the bar has quit.
+    var remembersAcrossLaunches = true {
+        didSet {
+            guard !remembersAcrossLaunches else { return }
+            Self.discardStored()
+        }
+    }
+
     private init() {
         guard
             let data = UserDefaults.standard.data(forKey: Self.storageKey),
@@ -68,10 +83,15 @@ final class MinimizedWindowMemory {
     private func store(_ value: [Int: MinimizedWindowNote]) {
         guard value != notes else { return }
         notes = value
+        guard remembersAcrossLaunches else { return }
         guard let data = try? JSONEncoder().encode(Array(value.values)) else {
             return
         }
         UserDefaults.standard.set(data, forKey: Self.storageKey)
+    }
+
+    private static func discardStored() {
+        UserDefaults.standard.removeObject(forKey: storageKey)
     }
 
     /// Every ordinary window on the system, by identifier, with the name of the
