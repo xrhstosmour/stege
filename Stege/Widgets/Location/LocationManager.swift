@@ -9,7 +9,9 @@ import Foundation
 /// auto-hide. This restores that signal.
 final class LocationManager: ObservableObject {
     /// One instance. Location activity is a property of the machine, not of
-    /// a bar, and there is one bar per screen.
+    /// a bar, and there is one bar per screen. It is drawn unconditionally by
+    /// `MenuBarView`, not gated by any config entry, so this runs for as long
+    /// as the app does, the same as `NetworkStatusViewModel`.
     static let shared = LocationManager()
 
     @Published private(set) var isLocationInUse = false

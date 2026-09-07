@@ -1,5 +1,4 @@
 import AppKit
-import ApplicationServices
 import Foundation
 
 /// Whether anything is using Location Services.
@@ -38,19 +37,8 @@ enum LocationServicesReader {
     }()
 
     static func isInUse() -> Bool {
-        guard let description = controlCentreDescription() else { return false }
+        guard let description = MenuExtra.description(for: .controlCentre)
+        else { return false }
         return names.contains { description.localizedCaseInsensitiveContains($0) }
-    }
-
-    private static func controlCentreDescription() -> String? {
-        guard let extra = MenuExtra.element(for: .controlCentre) else {
-            return nil
-        }
-        var value: CFTypeRef?
-        guard
-            AXUIElementCopyAttributeValue(
-                extra, kAXDescriptionAttribute as CFString, &value) == .success
-        else { return nil }
-        return value as? String
     }
 }
