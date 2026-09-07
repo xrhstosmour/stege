@@ -56,6 +56,7 @@ struct AppMenusWidget: View {
     @StateObject private var modifiers = ModifierKeyMonitor.shared
     @ObservedObject private var reveal = AppMenusReveal.shared
     @State private var rects: [String: CGRect] = [:]
+    @Environment(\.barScreenIndex) private var barScreenIndex
 
     /// Whether the menus are drawn at all.
     ///
@@ -185,7 +186,8 @@ struct AppMenusWidget: View {
             title: menu.title, emphasised: emphasised,
             onFrameChange: {
                 rects[menu.id] = $0
-                manager.titleFrames[menu.id] = $0
+                manager.titleFrames[barScreenIndex ?? 0, default: [:]][menu.id] =
+                    $0
             },
             action: {
                 AppMenuPresenter.present(
