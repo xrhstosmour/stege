@@ -1,4 +1,5 @@
 import Carbon.HIToolbox
+import Combine
 import Foundation
 
 /// System-wide shortcuts.
@@ -11,7 +12,7 @@ import Foundation
 /// This used to be one hard-coded shortcut with one hot key reference. There are
 /// two now, hiding the bar and stepping through it, so registration is keyed by
 /// name and each one carries its own action.
-final class GlobalShortcut {
+final class GlobalShortcut: ObservableObject {
     static let shared = GlobalShortcut()
 
     private struct Registration {
@@ -20,6 +21,12 @@ final class GlobalShortcut {
         /// than an unregister and register cycle.
         let shortcut: String
     }
+
+    /// Why a configured shortcut is not registered, keyed by the same `name`
+    /// passed to `apply`. The system log already says this, but nothing short
+    /// of `log stream` could see it, so a shortcut that lost a conflict just
+    /// looked like it did nothing. Read by the Permissions window.
+    @Published private(set) var failures: [String: String] = [:]
 
     private var registrations: [String: Registration] = [:]
     private var actions: [UInt32: () -> Void] = [:]
@@ -36,6 +43,7 @@ final class GlobalShortcut {
             .lowercased()
         if registrations[name]?.shortcut == normalised { return }
         unregister(name)
+        failures[name] = nil
         guard let normalised else { return }
         guard let combination = ShortcutParser.parse(normalised) else {
             Log.shortcut.error(
@@ -44,6 +52,8 @@ final class GlobalShortcut {
                 understands: \(normalised, privacy: .public). Modifiers then \
                 a key, joined with "+", at least one modifier.
                 """)
+            failures[name] =
+                "\"\(normalised)\" is not a shortcut this understands"
             return
         }
         installHandlerIfNeeded()
@@ -68,6 +78,8 @@ final class GlobalShortcut {
                 error \(status, privacy: .public). Another application \
                 probably holds it already.
                 """)
+            failures[name] =
+                "\"\(normalised)\" is probably already used by another app"
             return
         }
         registrations[name] = Registration(

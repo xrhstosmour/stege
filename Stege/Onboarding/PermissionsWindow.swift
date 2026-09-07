@@ -37,6 +37,10 @@ struct PermissionsView: View {
                     .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
             )
 
+            if !model.shortcutFailures.isEmpty {
+                shortcutFailures
+            }
+
             HStack(spacing: 12) {
                 Text("A permission applies the moment it is granted.")
                     .font(.callout)
@@ -69,6 +73,48 @@ struct PermissionsView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    /// Shortcuts the config file asked for that never registered, most often
+    /// because another application already holds the same combination. Purely
+    /// informational: unlike a permission there is nothing here to grant, only
+    /// a different key to pick in the config file.
+    private var shortcutFailures: some View {
+        VStack(spacing: 0) {
+            ForEach(
+                Array(model.shortcutFailures.enumerated()), id: \.offset
+            ) { index, failure in
+                if index > 0 {
+                    Divider().padding(.leading, 52)
+                }
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 15))
+                        .foregroundStyle(Color.orange)
+                        .frame(width: 20)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(failure.name) shortcut").font(.body)
+                        Text(failure.reason)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer(minLength: 12)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.primary.opacity(0.05))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+        )
     }
 
     @ViewBuilder
@@ -158,11 +204,16 @@ final class PermissionsWindowController {
     /// second and a half later than it would have.
     func showIfNeeded() {
         model.refresh()
-        guard !model.missing.isEmpty else { return }
+        guard !model.missing.isEmpty || !model.shortcutFailures.isEmpty else {
+            return
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
             guard let self else { return }
             self.model.refresh()
-            guard !self.model.missing.isEmpty else { return }
+            guard
+                !self.model.missing.isEmpty
+                    || !self.model.shortcutFailures.isEmpty
+            else { return }
             self.show()
         }
     }
