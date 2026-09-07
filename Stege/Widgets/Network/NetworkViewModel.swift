@@ -357,16 +357,45 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
         joining = network.ssid
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let interface = CWWiFiClient.shared().interface(),
-                let match = (try? interface.scanForNetworks(
-                    withSSID: network.ssid.data(using: .utf8)))?.first
-            else {
+            guard let interface = CWWiFiClient.shared().interface() else {
+                DispatchQueue.main.async {
+                    self?.joining = nil
+                    self?.joinFailure = "Can't join \(network.ssid), Wi-Fi is off"
+                }
+                return
+            }
+
+            // The fast path: one SSID-filtered scan, all a join normally
+            // needs. A missed beacon is the exception, not the rule, so the
+            // slower unfiltered retry below only runs once this comes up empty.
+            var match = (try? interface.scanForNetworks(
+                withSSID: network.ssid.data(using: .utf8)))?
+                .max { $0.rssiValue < $1.rssiValue }
+
+            // A single SSID-filtered scan pass is probabilistic, it can miss
+            // an access point's beacon even when the network was visible in
+            // this popup's own list moments ago. Use the same
+            // unfiltered-scan-then-filter shape `scanForNetworks()` already
+            // relies on, retried a couple of times before giving up.
+            if match == nil {
+                for attempt in 0..<2 {
+                    if attempt > 0 { Thread.sleep(forTimeInterval: 1.0) }
+                    let found = (try? interface.scanForNetworks(withSSID: nil)) ?? []
+                    match = found
+                        .filter { $0.ssid == network.ssid }
+                        .max { $0.rssiValue < $1.rssiValue }
+                    if match != nil { break }
+                }
+            }
+
+            guard let match else {
                 DispatchQueue.main.async {
                     self?.joining = nil
                     self?.joinFailure = "\(network.ssid) is no longer in range"
                 }
                 return
             }
+
             do {
                 try interface.associate(to: match, password: password)
                 DispatchQueue.main.async {
