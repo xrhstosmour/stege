@@ -55,9 +55,11 @@ struct MenuBarView: View {
                     .trailing,
                     Constants.privacyIndicatorColumnCenter
                         - LocationWidget.diameter / 2)
-                .padding(
-                    .top,
-                    max(configManager.config.bar.foreground.resolveHeight(), 1.0) + 2)
+                // A small nudge off the top edge, not the row's own height:
+                // this overlay's parent frame is the row itself, so padding by
+                // its full height pushed the dot a whole row past the top edge
+                // and into the empty panel space below the visible bar.
+                .padding(.top, 2)
         }
         .environment(\.barScreenIndex, screenIndex)
         .preferredColorScheme(configManager.config.colorScheme)
