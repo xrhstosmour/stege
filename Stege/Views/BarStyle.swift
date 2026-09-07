@@ -51,9 +51,10 @@ enum BarStyle {
     /// lock on a widget missing its permission.
     static let badgeSize: CGFloat = 9
 
-    /// Chevrons and other pure navigation marks, which macOS also draws
-    /// smaller than the things they act on.
-    static let chevronSize: CGFloat = 12
+    /// Matches `glyphSize`: the chevron that reveals the other apps' status
+    /// items was drawn smaller than everything else in the bar, which made it
+    /// the one mark that read as undersized rather than as navigation.
+    static let chevronSize: CGFloat = glyphSize
 
     // MARK: - Colour and hover
 
