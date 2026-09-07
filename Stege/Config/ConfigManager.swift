@@ -242,10 +242,6 @@ final class ConfigManager: ObservableObject {
             # calendar.allow-list = ["Home"]  # only these calendars
             # calendar.deny-list = ["Work"]   # every calendar but these
 
-            [widgets.default.time.popup]
-            # Box, vertical.
-            view-variant = "box"
-
             [bar.foreground]
             # "menu-bar" or a number of points.
             height = "menu-bar"

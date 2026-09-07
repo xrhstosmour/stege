@@ -290,10 +290,6 @@ calendar.countdown = true
 # calendar.allow-list = ["Home", "Personal"]
 # calendar.deny-list = ["Work"]
 
-[widgets.default.time.popup]
-# "box" | "vertical" | "horizontal"
-view-variant = "box"
-
 # --- Appearance ------------------------------------------------------------
 
 [bar.background]
