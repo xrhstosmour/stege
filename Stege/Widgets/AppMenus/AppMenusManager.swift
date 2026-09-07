@@ -20,10 +20,16 @@ final class AppMenusManager: ObservableObject {
     @Published private(set) var appleMenu: AppMenuEntry?
     @Published private(set) var isTrusted: Bool = AppMenuReader.isTrusted
 
-    /// Where each menu title is drawn, in screen coordinates, written by the
+    /// Where each menu title is drawn, per screen, written by that screen's
     /// widget as it lays out. The shortcut needs somewhere to put the menu, and
     /// the only thing that knows is the view.
-    var titleFrames: [String: CGRect] = [:]
+    ///
+    /// Keyed by screen because there is one bar per screen and each reports its
+    /// titles in that bar's own panel-local coordinates: a single shared
+    /// dictionary had every screen's widget overwrite the same key, so whichever
+    /// one last laid out decided where the keyboard shortcut opened the menu on
+    /// every screen, not just its own.
+    var titleFrames: [Int: [String: CGRect]] = [:]
 
     private var observers: [NSObjectProtocol] = []
     private var trustPollingTimer: Timer?
@@ -37,21 +43,28 @@ final class AppMenusManager: ObservableObject {
         guard let first = menus.first else { return }
         AppMenuPresenter.present(
             menu: first, manager: self,
-            below: titleFrames[first.id] ?? fallbackFrame())
+            below: titleFrames[currentScreenIndex]?[first.id] ?? fallbackFrame())
+    }
+
+    /// Which screen's title frames to use, matching `AppMenuPresenter.present`'s
+    /// own screen resolution: the one under the pointer is the one the menu
+    /// will actually be popped up on.
+    private var currentScreenIndex: Int {
+        let pointer = NSEvent.mouseLocation
+        let index =
+            NSScreen.screens.firstIndex { $0.frame.contains(pointer) } ?? 0
+        return index + 1
     }
 
     /// Where to put a menu when the titles are not drawn, which is every
-    /// `visibility` mode but `always`. Under the left of the bar on whichever
-    /// screen holds the pointer, which is where the titles would have been.
+    /// `visibility` mode but `always`, or before layout has happened at all.
+    /// Under the left of the bar, in the same panel-local coordinates a
+    /// drawn title would report: `AppMenuPresenter.present` resolves the real
+    /// screen and its origin itself, so this only has to describe where on
+    /// that screen's own bar the titles would have been.
     private func fallbackFrame() -> CGRect {
-        let pointer = NSEvent.mouseLocation
-        let screen =
-            NSScreen.screens.first { $0.frame.contains(pointer) }
-            ?? NSScreen.main
-        guard let frame = screen?.frame else { return .zero }
         let height = ConfigManager.shared.config.bar.foreground.resolveHeight()
-        return CGRect(
-            x: frame.minX + 12, y: frame.minY, width: 1, height: height)
+        return CGRect(x: 12, y: 0, width: 1, height: height)
     }
 
     private init() {

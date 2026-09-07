@@ -29,6 +29,11 @@ struct PermissionItem: Identifiable {
 /// of those are still missing.
 final class PermissionsModel: ObservableObject {
     @Published private(set) var items: [PermissionItem] = []
+    /// Shortcuts configured but not registered, e.g. because another
+    /// application already holds the combination. Nothing here can be
+    /// granted, so this is read separately from `items` rather than forced
+    /// into `PermissionItem`'s grant/settings shape.
+    @Published private(set) var shortcutFailures: [(name: String, reason: String)] = []
     var missing: [PermissionItem] { items.filter { $0.isRequired && !$0.isGranted } }
 
     private var timer: Timer?
@@ -113,6 +118,10 @@ final class PermissionsModel: ObservableObject {
                     == .authorizedAlways,
                 isRequired: uses(["default.network"])),
         ]
+
+        shortcutFailures = GlobalShortcut.shared.failures
+            .sorted { $0.key < $1.key }
+            .map { (name: $0.key, reason: $0.value) }
     }
 
     /// Asks the system directly where an app can, and opens the relevant

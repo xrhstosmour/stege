@@ -39,10 +39,19 @@ final class AppMenuPresenter: NSObject, NSMenuDelegate {
         // `NSMenu` positions from the bottom-left in screen coordinates, while
         // SwiftUI reports frames top-left with y growing downward, so the origin
         // has to be flipped against the screen holding the bar.
+        //
+        // `rect` is in its own bar panel's local space, which starts at zero on
+        // every screen alike, so the screen it was measured on has to come from
+        // the pointer instead: the same fix `MenuBarPopup.moveToClickedScreen()`
+        // already applies to the shared popup panel. Testing `rect` against
+        // every screen's frame always answered the screen at the desktop
+        // origin, which is why the menu opened on the main display no matter
+        // which one was clicked.
+        let pointer = NSEvent.mouseLocation
         let screen =
-            NSScreen.screens.first { $0.frame.intersects(rect) } ?? NSScreen.main
-        let screenHeight = screen?.frame.maxY ?? 0
-        let origin = NSPoint(x: rect.minX, y: screenHeight - rect.maxY)
+            NSScreen.screens.first { $0.frame.contains(pointer) } ?? NSScreen.main
+        let frame = screen?.frame ?? .zero
+        let origin = NSPoint(x: frame.minX + rect.minX, y: frame.maxY - rect.maxY)
 
         nsMenu.popUp(positioning: nil, at: origin, in: nil)
     }
