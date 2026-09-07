@@ -143,7 +143,8 @@ final class ConfigManager: ObservableObject {
             #   default.display      default.audio
             #   default.microphone   default.keyboardLayout
             #   default.bluetooth    default.network     default.battery
-            #   default.time         spacer              divider
+            #   default.location     default.time         spacer
+            #   divider
             displayed = [
                 "default.appleMenu",
                 "default.spaces",
@@ -222,6 +223,9 @@ final class ConfigManager: ObservableObject {
             [widgets.default.network]
             show-name = false
             hide-when-disconnected = false
+
+            [widgets.default.location]
+            always-show = false
 
             [widgets.default.battery]
             # Inside, beside, off.

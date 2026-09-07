@@ -82,6 +82,9 @@ struct MenuBarView: View {
         case "default.bluetooth":
             BluetoothWidget().environmentObject(config)
 
+        case "default.location":
+            LocationWidget().environmentObject(config)
+
         case "default.appleMenu":
             AppleMenuWidget().environmentObject(config)
 

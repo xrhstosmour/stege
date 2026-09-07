@@ -78,6 +78,14 @@ hidden = false
 #   default.microphone       the microphone on its own
 #   default.bluetooth        Bluetooth state and connected device battery
 #   default.network          Wi-Fi and Ethernet state
+#   default.location         Location Services in use, macOS draws no
+#                            corner dot for this the way it does for the
+#                            microphone, camera and screen recording.
+#                            Put it last in the list below: the reserved
+#                            trailing space that keeps the bar clear of
+#                            that corner dot sits right after whichever
+#                            widget is last, so that is the one spot that
+#                            lands next to it.
 #   default.battery          charge, with health and cycles in the popup
 #   default.time             the clock, with a calendar popup
 #   spacer                   pushes everything after it to the right
@@ -252,6 +260,11 @@ hide-when-off = false
 # this is on, or when the popup that displays it is opened.
 show-name = false
 hide-when-disconnected = false
+
+[widgets.default.location]
+# Off by default: macOS itself only shows this while Location is in use. On
+# keeps it in the bar, dimmed, the rest of the time instead of hiding it.
+always-show = false
 
 [widgets.default.battery]
 # "inside" | "plain", inside putting the number in the battery and plain beside
