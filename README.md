@@ -139,9 +139,8 @@ of each, Night Shift and True Tone. It says when the lid is shut.
 
 ![The calendar popup](.github/assets/calendar.png)
 
-**Wi-Fi**, **Bluetooth**, **notifications**, **updates waiting**, **CPU and
-memory**, **the input source**, and **microphone, camera and screen recording
-in-use indicators**.
+**Wi-Fi**, **Bluetooth**, **notifications**, **the input source**, and
+**Location Services in use**, the one sensor macOS draws no corner dot for.
 
 ## What it will not do
 
