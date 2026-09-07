@@ -145,7 +145,9 @@ class SpacesViewModel: ObservableObject {
             let restored = spaces.map {
                 MinimizedWindowMemory.shared.reconcile($0)
             }
-            let sorted = restored?.sorted { $0.id < $1.id } ?? []
+            let sorted =
+                restored?.sorted { WorkspaceOrder.areInIncreasingOrder($0.id, $1.id) }
+                ?? []
             DispatchQueue.main.async {
                 self.isLoading = false
                 // Assigning an identical value still republishes and redraws
