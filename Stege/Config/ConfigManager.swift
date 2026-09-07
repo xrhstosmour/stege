@@ -143,8 +143,11 @@ final class ConfigManager: ObservableObject {
             #   default.display      default.audio
             #   default.microphone   default.keyboardLayout
             #   default.bluetooth    default.network     default.battery
-            #   default.location     default.time         spacer
-            #   divider
+            #   default.time         spacer              divider
+            #
+            # Location Services in use draws its own small dot next to the
+            # corner where macOS draws the microphone/camera/screen-recording
+            # one, always, whether or not anything below mentions it.
             displayed = [
                 "default.appleMenu",
                 "default.spaces",
@@ -223,9 +226,6 @@ final class ConfigManager: ObservableObject {
             [widgets.default.network]
             show-name = false
             hide-when-disconnected = false
-
-            [widgets.default.location]
-            always-show = false
 
             [widgets.default.battery]
             # Inside, beside, off.

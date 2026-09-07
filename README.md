@@ -67,11 +67,14 @@ Every widget you can put in the bar:
 | `default.keyboardLayout` | The input source |
 | `default.bluetooth` | The radio and its devices |
 | `default.network` | Wi-Fi, its networks, and joining one |
-| `default.location` | Location Services in use, macOS draws no corner dot for this one |
 | `default.battery` | Charge, health, and the power source |
 | `default.time` | The clock, a calendar, and the day's events |
 | `spacer` | Pushes what follows to the right |
 | `divider` | A rule |
+
+Location Services in use draws its own small dot next to the corner where
+macOS draws the microphone/camera/screen-recording one, always, it is not
+a widget and is not in the list above.
 
 The shape of it:
 

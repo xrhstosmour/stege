@@ -30,5 +30,10 @@ struct Constants {
     /// with a horizontal padding of 12 the clock was drawn under it.
     static let privacyIndicatorClearance = CGFloat(24)
 
+    /// Where the centre of that same corner dot sits, from the right edge:
+    /// the middle of the 13.5 to 22.0 point span it was measured at, for
+    /// anything drawn directly under it in the same column.
+    static let privacyIndicatorColumnCenter = CGFloat(13.5 + 22.0) / 2
+
     static let menuBarHorizontalPadding = CGFloat(25)
 }
