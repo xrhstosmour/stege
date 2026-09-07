@@ -45,6 +45,20 @@ struct MenuBarView: View {
                 PermissionsWindowController.shared.show()
             }
         }
+        // Fixed to the one column macOS's own corner dot occupies, directly
+        // beneath it, rather than a widget in the row above: a widget there
+        // would take its own slot in the row and shift everything already
+        // to its left sideways every time it appeared or disappeared.
+        .overlay(alignment: .topTrailing) {
+            LocationWidget()
+                .padding(
+                    .trailing,
+                    Constants.privacyIndicatorColumnCenter
+                        - LocationWidget.diameter / 2)
+                .padding(
+                    .top,
+                    max(configManager.config.bar.foreground.resolveHeight(), 1.0) + 2)
+        }
         .environment(\.barScreenIndex, screenIndex)
         .preferredColorScheme(configManager.config.colorScheme)
     }

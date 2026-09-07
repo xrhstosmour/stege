@@ -17,6 +17,12 @@ struct PermissionItem: Identifiable {
     /// Whether any configured widget actually needs it. Nothing is asked for
     /// unless something in the bar uses it.
     var isRequired: Bool
+    /// Whether tapping the button below would still show a system prompt.
+    /// EventKit records a Calendar decision permanently and never re-prompts
+    /// once one is made, unlike Accessibility, which macOS lets ask again
+    /// indefinitely. A denied/restricted Calendar status means "Grant" would
+    /// silently do nothing, so the button offers Settings instead.
+    var canPrompt: Bool = true
 }
 
 /// Tracks which permissions are needed by the current configuration and which
@@ -63,6 +69,7 @@ final class PermissionsModel: ObservableObject {
         func uses(_ ids: [String]) -> Bool {
             ids.contains { displayed.contains($0) }
         }
+        let calendarStatus = EKEventStore.authorizationStatus(for: .event)
 
         items = [
             PermissionItem(
@@ -73,7 +80,11 @@ final class PermissionsModel: ObservableObject {
                 settingsURL:
                     "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
                 isGranted: AppMenuReader.isTrusted,
-                isRequired: uses(["default.applicationMenu", "default.appleMenu"])),
+                // Always required, not gated by `uses(...)`: the Location
+                // in-use dot reads Control Center over this same API, no
+                // permission of its own, and is drawn unconditionally by
+                // `MenuBarView` regardless of what is configured.
+                isRequired: true),
             PermissionItem(
                 id: .bluetooth,
                 title: "Bluetooth",
@@ -88,9 +99,9 @@ final class PermissionsModel: ObservableObject {
                 explanation: "Show today's events in the clock popup.",
                 settingsURL:
                     "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars",
-                isGranted: EKEventStore.authorizationStatus(for: .event)
-                    == .fullAccess,
-                isRequired: uses(["default.time"])),
+                isGranted: calendarStatus == .fullAccess,
+                isRequired: uses(["default.time"]),
+                canPrompt: calendarStatus == .notDetermined),
             PermissionItem(
                 id: .location,
                 title: "Location",

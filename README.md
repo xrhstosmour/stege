@@ -72,6 +72,10 @@ Every widget you can put in the bar:
 | `spacer` | Pushes what follows to the right |
 | `divider` | A rule |
 
+Location Services in use draws its own small dot next to the corner where
+macOS draws the microphone/camera/screen-recording one, always, it is not
+a widget and is not in the list above.
+
 The shape of it:
 
 ```toml
@@ -138,9 +142,8 @@ of each, Night Shift and True Tone. It says when the lid is shut.
 
 ![The calendar popup](.github/assets/calendar.png)
 
-**Wi-Fi**, **Bluetooth**, **notifications**, **updates waiting**, **CPU and
-memory**, **the input source**, and **microphone, camera and screen recording
-in-use indicators**.
+**Wi-Fi**, **Bluetooth**, **notifications**, **the input source**, and
+**Location Services in use**, the one sensor macOS draws no corner dot for.
 
 ## What it will not do
 

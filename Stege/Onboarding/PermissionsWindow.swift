@@ -96,8 +96,14 @@ struct PermissionsView: View {
                 Text("Granted")
                     .font(.callout)
                     .foregroundStyle(.secondary)
-            } else {
+            } else if item.canPrompt {
                 Button("Grant") { model.request(item) }
+                    .controlSize(.small)
+            } else {
+                // A denied/restricted status the request API will never
+                // re-prompt for on its own, so send it to the pane that can
+                // still change it instead of a "Grant" that would do nothing.
+                Button("Open Settings") { model.openSettings(item) }
                     .controlSize(.small)
             }
 

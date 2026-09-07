@@ -9,20 +9,7 @@ import SwiftUI
 /// nothing to navigate with. This holds the visible month and the selected day
 /// as state instead.
 struct CalendarMonthView: View {
-    /// How the month and the day's events are arranged. The three values match
-    /// the popup variants the time widget already offered, so switching variant
-    /// still changes something now that all three navigate.
-    enum Layout {
-        /// The month on its own.
-        case monthOnly
-        /// The month, with the day's events under it.
-        case stacked
-        /// The month, with the day's events beside it.
-        case sideBySide
-    }
-
     let calendarManager: CalendarManager
-    var layout: Layout = .stacked
 
     @EnvironmentObject var configProvider: ConfigProvider
     private var calendarConfig: ConfigData? {
@@ -75,27 +62,13 @@ struct CalendarMonthView: View {
             .onChange(of: visibleMonth) { _, _ in reload() }
     }
 
-    @ViewBuilder
     private var content: some View {
-        switch layout {
-        case .monthOnly:
-            monthSection.frame(width: Self.contentWidth)
-
-        case .stacked:
-            VStack(alignment: .leading, spacing: 0) {
-                monthSection
-                Divider().padding(.vertical, 6)
-                daySection
-            }
-            .frame(width: Self.contentWidth)
-
-        case .sideBySide:
-            HStack(alignment: .top, spacing: 16) {
-                monthSection.frame(width: Self.contentWidth)
-                Divider()
-                daySection.frame(width: 220)
-            }
+        VStack(alignment: .leading, spacing: 0) {
+            monthSection
+            Divider().padding(.vertical, 6)
+            daySection
         }
+        .frame(width: Self.contentWidth)
     }
 
     private var monthSection: some View {
@@ -109,9 +82,7 @@ struct CalendarMonthView: View {
     /// No trailing `Spacer`. There was one, and the popup is placed in a panel
     /// the size of the whole screen, so the spacer took every point of it: the
     /// month and the day's events drew at the top and several hundred points of
-    /// empty popup hung underneath them, all the way down the display. The
-    /// side-by-side layout is already top aligned by its `HStack`, which is the
-    /// only thing the spacer was there for.
+    /// empty popup hung underneath them, all the way down the display.
     private var daySection: some View {
         VStack(alignment: .leading, spacing: 0) {
             dayHeading

@@ -87,6 +87,11 @@ hidden = false
 # but it is not in the list above because it no longer draws anything useful:
 # what is playing moved into the sound popup. It leaves a dimmed note that opens
 # that popup and says so. Remove the entry to drop the mark.
+#
+# Location Services in use draws its own small dot next to the corner where
+# macOS draws the microphone/camera/screen-recording one, always: it is not
+# a widget, has no identifier, and nothing above or in `displayed` below
+# controls it.
 displayed = [
     "default.appleMenu",
     "default.spaces",
@@ -276,10 +281,6 @@ calendar.show-events = true
 calendar.countdown = true
 # calendar.allow-list = ["Home", "Personal"]
 # calendar.deny-list = ["Work"]
-
-[widgets.default.time.popup]
-# "box" | "vertical" | "horizontal"
-view-variant = "box"
 
 # --- Appearance ------------------------------------------------------------
 

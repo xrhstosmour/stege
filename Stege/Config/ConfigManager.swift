@@ -144,6 +144,10 @@ final class ConfigManager: ObservableObject {
             #   default.microphone   default.keyboardLayout
             #   default.bluetooth    default.network     default.battery
             #   default.time         spacer              divider
+            #
+            # Location Services in use draws its own small dot next to the
+            # corner where macOS draws the microphone/camera/screen-recording
+            # one, always, whether or not anything below mentions it.
             displayed = [
                 "default.appleMenu",
                 "default.spaces",
@@ -237,10 +241,6 @@ final class ConfigManager: ObservableObject {
             calendar.countdown = true
             # calendar.allow-list = ["Home"]  # only these calendars
             # calendar.deny-list = ["Work"]   # every calendar but these
-
-            [widgets.default.time.popup]
-            # Box, vertical.
-            view-variant = "box"
 
             [bar.foreground]
             # "menu-bar" or a number of points.

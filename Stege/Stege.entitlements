@@ -4,5 +4,11 @@
 <dict>
 	<key>com.apple.security.automation.apple-events</key>
 	<true/>
+	<!-- Hardened runtime blocks Calendar TCC access outright without this,
+	     with no prompt and no entry in System Settings, rather than merely
+	     denying it: `NSCalendarsFullAccessUsageDescription` alone is not
+	     enough once hardened runtime is enabled. -->
+	<key>com.apple.security.personal-information.calendars</key>
+	<true/>
 </dict>
 </plist>

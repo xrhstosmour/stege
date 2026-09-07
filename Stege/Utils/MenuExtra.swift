@@ -30,6 +30,16 @@ enum MenuExtra {
             == .success
     }
 
+    /// The human-readable description Control Center shows for an extra,
+    /// "Control Center, Location is in use" while a sensor is active, the
+    /// same mechanism the corner privacy dot is built on.
+    static func description(for identifier: Identifier) -> String? {
+        guard let element = element(for: identifier),
+            let value = attribute(element, kAXDescriptionAttribute as String)
+        else { return nil }
+        return value as? String
+    }
+
     /// Presses a status item belonging to some other application.
     ///
     /// Used by the row of menu bar extras, where the element comes from that
@@ -65,7 +75,38 @@ enum MenuExtra {
         return AXUIElementCreateApplication(controlCentre.processIdentifier)
     }
 
+    /// Elements found before, kept across calls: each lookup below is a
+    /// process listing plus several cross-process AX round trips, and
+    /// neither the extras nor their identifiers change while Control Center
+    /// keeps running. Re-resolved only once a cached one stops answering.
+    ///
+    /// Read and written from more than one thread: `LocationManager` polls
+    /// this off the main thread, while a press from the bar itself reaches
+    /// it on the main thread. A plain dictionary is not safe under that, the
+    /// same reasoning `IconCache` already locks around.
+    private static var cachedElements: [Identifier: AXUIElement] = [:]
+    private static let cacheLock = NSLock()
+
     static func element(for identifier: Identifier) -> AXUIElement? {
+        cacheLock.lock()
+        let cached = cachedElements[identifier]
+        cacheLock.unlock()
+        if let cached, attribute(cached, kAXRoleAttribute as String) != nil {
+            return cached
+        }
+        guard let resolved = resolveElement(for: identifier) else {
+            cacheLock.lock()
+            cachedElements[identifier] = nil
+            cacheLock.unlock()
+            return nil
+        }
+        cacheLock.lock()
+        cachedElements[identifier] = resolved
+        cacheLock.unlock()
+        return resolved
+    }
+
+    private static func resolveElement(for identifier: Identifier) -> AXUIElement? {
         guard let application = controlCentreApplication() else { return nil }
         // Menu bar extras hang off `AXExtrasMenuBar`, not `AXMenuBar`. The
         // latter is the application's own menus, which Control Center does not

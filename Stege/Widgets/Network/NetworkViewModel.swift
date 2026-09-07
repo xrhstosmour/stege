@@ -29,6 +29,19 @@ struct VPNApplication {
     let name: String
 }
 
+/// A VPN tunnel found active in the configuration store.
+private struct ActiveTunnel {
+    /// What `vpnName` shows: the service's `UserDefinedName`, or the bare
+    /// interface name when the service never registered one.
+    let displayName: String
+    let interface: String
+    /// The raw service identifier from the `State:` key path, when the key
+    /// had the expected shape. A daemon-managed service like WARP's often
+    /// carries no `UserDefinedName` at all, making this the only string that
+    /// still ties the tunnel back to the app that owns it.
+    let serviceIdentifier: String?
+}
+
 /// A network seen by the last scan.
 struct WifiNetwork: Identifiable, Equatable {
     /// The BSSID is withheld without Location, and two access points can share
@@ -239,13 +252,13 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
     }
 
     func updateWiFiInfo() {
-        let newVpnName = Self.activeVPN()
+        let tunnel = Self.activeVPN()
         // Scans every running application's bundle, so only worth doing when
         // which VPN is active, if any, has actually changed.
-        if newVpnName != vpnName {
-            vpnApplication = newVpnName != nil ? Self.vpnApplication() : nil
+        if tunnel?.displayName != vpnName {
+            vpnApplication = tunnel.flatMap { Self.vpnApplication(for: $0) }
         }
-        vpnName = newVpnName
+        vpnName = tunnel?.displayName
         let client = CWWiFiClient.shared()
         if let interface = client.interface() {
             // A nil SSID means "not readable", which is not the same as "not
@@ -344,16 +357,45 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
         joining = network.ssid
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let interface = CWWiFiClient.shared().interface(),
-                let match = (try? interface.scanForNetworks(
-                    withSSID: network.ssid.data(using: .utf8)))?.first
-            else {
+            guard let interface = CWWiFiClient.shared().interface() else {
+                DispatchQueue.main.async {
+                    self?.joining = nil
+                    self?.joinFailure = "Can't join \(network.ssid), Wi-Fi is off"
+                }
+                return
+            }
+
+            // The fast path: one SSID-filtered scan, all a join normally
+            // needs. A missed beacon is the exception, not the rule, so the
+            // slower unfiltered retry below only runs once this comes up empty.
+            var match = (try? interface.scanForNetworks(
+                withSSID: network.ssid.data(using: .utf8)))?
+                .max { $0.rssiValue < $1.rssiValue }
+
+            // A single SSID-filtered scan pass is probabilistic, it can miss
+            // an access point's beacon even when the network was visible in
+            // this popup's own list moments ago. Use the same
+            // unfiltered-scan-then-filter shape `scanForNetworks()` already
+            // relies on, retried a couple of times before giving up.
+            if match == nil {
+                for attempt in 0..<2 {
+                    if attempt > 0 { Thread.sleep(forTimeInterval: 1.0) }
+                    let found = (try? interface.scanForNetworks(withSSID: nil)) ?? []
+                    match = found
+                        .filter { $0.ssid == network.ssid }
+                        .max { $0.rssiValue < $1.rssiValue }
+                    if match != nil { break }
+                }
+            }
+
+            guard let match else {
                 DispatchQueue.main.async {
                     self?.joining = nil
                     self?.joinFailure = "\(network.ssid) is no longer in range"
                 }
                 return
             }
+
             do {
                 try interface.associate(to: match, password: password)
                 DispatchQueue.main.async {
@@ -423,7 +465,7 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
     /// `State:/Network/Service/<id>/IPv4` naming the interface it runs over. A
     /// service running over a tunnel is a VPN, and the matching `Setup:` key
     /// carries the name the user gave it.
-    private static func activeVPN() -> String? {
+    private static func activeVPN() -> ActiveTunnel? {
         guard
             let store = SCDynamicStoreCreate(
                 nil, "stege.network" as CFString, nil, nil),
@@ -442,13 +484,20 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
 
             // "State:/Network/Service/<id>/IPv4" -> the service identifier.
             let parts = key.split(separator: "/")
-            guard parts.count >= 4 else { return interface }
+            guard parts.count >= 4 else {
+                return ActiveTunnel(
+                    displayName: interface, interface: interface,
+                    serviceIdentifier: nil)
+            }
             let identifier = String(parts[parts.count - 2])
             let setup =
                 SCDynamicStoreCopyValue(
                     store, "Setup:/Network/Service/\(identifier)" as CFString)
                 as? [String: Any]
-            return (setup?["UserDefinedName"] as? String) ?? interface
+            let userDefinedName = setup?["UserDefinedName"] as? String
+            return ActiveTunnel(
+                displayName: userDefinedName ?? interface, interface: interface,
+                serviceIdentifier: identifier)
         }
         return nil
     }
@@ -464,7 +513,7 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
     /// from another's: not by name, which nothing declares anywhere public,
     /// but by the entitlement a provider is signed with. First match wins,
     /// which only matters when more than one is running at once.
-    private static func vpnApplication() -> VPNApplication? {
+    private static func vpnApplication(for tunnel: ActiveTunnel) -> VPNApplication? {
         for app in NSWorkspace.shared.runningApplications {
             guard let bundleURL = app.bundleURL,
                 providesNetworkExtension(in: bundleURL)
@@ -475,7 +524,38 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
                 ?? bundleURL.deletingPathExtension().lastPathComponent
             return VPNApplication(icon: icon, name: name)
         }
-        return nil
+        return vpnApplicationByName(for: tunnel)
+    }
+
+    /// A privileged-helper VPN, WARP included, drives its `utun` interface
+    /// directly and never registers a Network Extension provider, so the
+    /// strict entitlement check above can never find it. The only thing left
+    /// tying the tunnel back to an app is whatever it's called, both by the
+    /// running app itself and by whatever name the tunnel's own service
+    /// carries, so fall back to matching those against each other.
+    private static func vpnApplicationByName(for tunnel: ActiveTunnel)
+        -> VPNApplication?
+    {
+        let candidates = VPNNameMatcher.candidates(
+            from: [tunnel.displayName, tunnel.serviceIdentifier])
+        guard !candidates.isEmpty else { return nil }
+
+        let apps = NSWorkspace.shared.runningApplications.compactMap {
+            app -> (app: NSRunningApplication, bundleURL: URL, name: String)? in
+            guard app.activationPolicy != .prohibited,
+                let bundleURL = app.bundleURL,
+                let name = app.localizedName
+            else { return nil }
+            return (app, bundleURL, name)
+        }
+        guard
+            let index = VPNNameMatcher.bestMatch(
+                candidates: candidates, names: apps.map(\.name))
+        else { return nil }
+        let match = apps[index]
+        let icon =
+            match.app.icon ?? NSWorkspace.shared.icon(forFile: match.bundleURL.path)
+        return VPNApplication(icon: icon, name: match.name)
     }
 
     /// A Network Extension provider ships as a `.systemextension` next to
