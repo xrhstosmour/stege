@@ -77,8 +77,11 @@ final class NotificationCenterReader: ObservableObject {
     /// notification happens to arrive.
     private static let storageKey = "stege.notifications.list"
     private var observer: AXObserver?
+    private var retryTimer: Timer?
 
     private init() {}
+
+    deinit { retryTimer?.invalidate() }
 
     var isTrusted: Bool { AXIsProcessTrusted() }
 
@@ -91,8 +94,19 @@ final class NotificationCenterReader: ObservableObject {
     /// a window in its own process and announces it, and that announcement is
     /// the only thing that ever fills this list.
     func startWatching() {
-        guard observer == nil, isTrusted else { return }
-        guard let centre = Self.centre() else { return }
+        guard observer == nil else { return }
+        guard isTrusted else {
+            startRetryingIfNeeded()
+            return
+        }
+        // Notification Center's process is not always up yet the one time this
+        // is called, from the widget's own `onAppear`, and nothing posts a
+        // notification back once it is, so without a retry a launch that beat
+        // it left every banner uncaught for the rest of the run.
+        guard let centre = Self.centre() else {
+            startRetryingIfNeeded()
+            return
+        }
 
         let element = AXUIElementCreateApplication(centre.processIdentifier)
         var created: AXObserver?
@@ -106,7 +120,10 @@ final class NotificationCenterReader: ObservableObject {
             AXObserverCreate(
                 centre.processIdentifier, callback, &created) == .success,
             let created
-        else { return }
+        else {
+            startRetryingIfNeeded()
+            return
+        }
 
         AXObserverAddNotification(
             created, element, kAXWindowCreatedNotification as CFString,
@@ -115,6 +132,21 @@ final class NotificationCenterReader: ObservableObject {
             CFRunLoopGetMain(), AXObserverGetRunLoopSource(created),
             .defaultMode)
         observer = created
+        retryTimer?.invalidate()
+        retryTimer = nil
+    }
+
+    /// Retries until watching actually starts. Granting Accessibility happens
+    /// outside the app and posts no notification, the same reason
+    /// `AppMenusManager` polls for it, and Notification Center's own process
+    /// can equally not be running yet at launch.
+    private func startRetryingIfNeeded() {
+        guard retryTimer == nil else { return }
+        retryTimer = Timer.scheduledTimer(
+            withTimeInterval: 2.0, repeats: true
+        ) { [weak self] _ in
+            self?.startWatching()
+        }
     }
 
     private func windowAppeared(_ window: AXUIElement) {
@@ -130,10 +162,14 @@ final class NotificationCenterReader: ObservableObject {
             return
         }
         // Anything else is a banner arriving, carrying everything a row in the
-        // list carries, so it goes straight into the list.
-        let arriving = Self.parseArriving(in: window)
-        guard !arriving.isEmpty else { return }
-        DispatchQueue.main.async { self.merge(arriving) }
+        // list carries, so it goes straight into the list. The search that
+        // reaches deep enough for an Electron banner's tree is expensive
+        // enough to be worth doing off this, the main, thread.
+        DispatchQueue.global(qos: .userInitiated).async {
+            let arriving = Self.parseArriving(in: window)
+            guard !arriving.isEmpty else { return }
+            DispatchQueue.main.async { self.merge(arriving) }
+        }
     }
 
     /// Folds arriving banners into the list. A banner publishes the identifier
@@ -172,6 +208,12 @@ final class NotificationCenterReader: ObservableObject {
     /// panel apart from a banner, which carries the same window title.
     private static let listIdentifier = "AXNotificationListItems"
     private static let bannerSubrolePrefix = "AXNotificationCenterBanner"
+    /// How deep a banner's own accessibility tree is searched, for its subrole
+    /// and for its text. A native app's banner is a handful of levels deep, but
+    /// an Electron/Chromium one, Slack among them, wraps its content in enough
+    /// extra layers that 8 gave up before reaching either, and the banner was
+    /// silently skipped as if it carried nothing at all.
+    private static let maximumSearchDepth = 16
     /// As many as are worth keeping. The popup shows the first handful, and a
     /// list that grows without bound is one more thing to leak.
     private static let limit = 32
@@ -244,16 +286,18 @@ final class NotificationCenterReader: ObservableObject {
                 subtitle: labelled["subtitle"] ?? "",
                 body: labelled["body"] ?? "",
                 // A banner writes no timestamp, because it is arriving as it is
-                // read. The panel would have written the clock time, so that is
-                // what stands in until a read replaces it.
-                time: untagged.last ?? arrivedAt ?? "")
+                // read, so `arrivedAt` stands in for one until a read replaces
+                // it. Checked first: an Electron banner's untagged text can
+                // otherwise win by being non-empty, and it is prose, not a
+                // time.
+                time: arrivedAt ?? untagged.last ?? "")
         }
     }
 
     private static func bannerElements(
         under element: AXUIElement, depth: Int
     ) -> [AXUIElement] {
-        guard depth < 8 else { return [] }
+        guard depth < maximumSearchDepth else { return [] }
         if let subrole = string(element, kAXSubroleAttribute as String),
             subrole.hasPrefix(bannerSubrolePrefix)
         {
@@ -302,7 +346,7 @@ final class NotificationCenterReader: ObservableObject {
         _ element: AXUIElement, into labelled: inout [String: String],
         untagged: inout [String], depth: Int
     ) {
-        guard depth < 8 else { return }
+        guard depth < maximumSearchDepth else { return }
         if string(element, kAXRoleAttribute as String)
             == (kAXStaticTextRole as String),
             let value = string(element, kAXValueAttribute as String)
