@@ -23,7 +23,7 @@ struct TimeWidget: View {
     /// pushes the divider and everything left of it sideways as the next
     /// meeting changes.
     var calendarTitleMaxLength: Int {
-        max(1, calendarConfig?["title-max-length"]?.intValue ?? 40)
+        max(1, calendarConfig?["title-max-length"]?.intValue ?? 20)
     }
 
     @State private var currentTime = Date()

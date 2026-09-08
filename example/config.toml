@@ -279,7 +279,7 @@ calendar.show-events = true
 # "Dinner (in 25m)" rather than "Dinner (20:30)". The useful question from a bar
 # is how long you have, not what the clock will read when it starts.
 calendar.countdown = true
-# calendar.title-max-length = 40
+# calendar.title-max-length = 20
 # calendar.allow-list = ["Home", "Personal"]
 # calendar.deny-list = ["Work"]
 
