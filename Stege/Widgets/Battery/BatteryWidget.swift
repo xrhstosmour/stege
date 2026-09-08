@@ -60,8 +60,12 @@ struct BatteryWidget: View {
     private var plainBody: some View {
         HStack(spacing: 4) {
             if showPercentage {
+                // Sized on its own rather than `BarStyle.labelFont`: the
+                // battery body is already drawn bigger than the shared glyph
+                // scale for legibility, and the number beside it needs to
+                // match rather than read as an afterthought.
                 Text("\(level)%")
-                    .font(BarStyle.labelFont)
+                    .font(.system(size: 15, weight: .medium))
                     .monospacedDigit()
             }
             BatteryBody(
@@ -111,7 +115,7 @@ struct BatteryWidget: View {
         // outline top and bottom and read as printed over the battery rather
         // than inside it.
         Text("\(level)")
-            .font(.system(size: 9.5, weight: .semibold))
+            .font(.system(size: 13, weight: .semibold))
             .monospacedDigit()
             .transition(.blurReplace)
             .foregroundStyle(Color("Foreground Outside"))
@@ -203,12 +207,12 @@ private struct BatteryBody<Overlay: View>: View {
     let mark: BatteryPowerMark
     @ViewBuilder var overlay: Overlay
 
-    static var width: CGFloat { 30 }
-    static var height: CGFloat { 13.5 }
-    private static var inset: CGFloat { 1.75 }
+    static var width: CGFloat { 38 }
+    static var height: CGFloat { 18 }
+    private static var inset: CGFloat { 2.25 }
     /// Held open whether or not there is a mark to put in it, so plugging the
     /// charger in does not shift every widget to the left of the battery.
-    private static var markSlot: CGFloat { 7 }
+    private static var markSlot: CGFloat { 9 }
 
     var body: some View {
         HStack(spacing: 1) {
@@ -242,7 +246,7 @@ private struct BatteryBody<Overlay: View>: View {
             Group {
                 if let symbol = mark.symbol {
                     Image(systemName: symbol)
-                        .font(.system(size: 8))
+                        .font(.system(size: 10))
                         .foregroundStyle(outline)
                         .transition(.blurReplace)
                 }

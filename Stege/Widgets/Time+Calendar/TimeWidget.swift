@@ -19,6 +19,12 @@ struct TimeWidget: View {
     var calendarShowEvents: Bool {
         calendarConfig?["show-events"]?.boolValue ?? true
     }
+    /// A long event title otherwise grows the widget without bound, which
+    /// pushes the divider and everything left of it sideways as the next
+    /// meeting changes.
+    var calendarTitleMaxLength: Int {
+        max(1, calendarConfig?["title-max-length"]?.intValue ?? 40)
+    }
 
     @State private var currentTime = Date()
 
@@ -63,6 +69,7 @@ struct TimeWidget: View {
                 Text(eventText(for: event))
                     .opacity(0.8)
                     .font(.subheadline)
+                    .lineLimit(1)
             }
         }
         .font(.headline)
@@ -136,12 +143,20 @@ struct TimeWidget: View {
     /// bar can do for you. Past the start it counts up as `now`, so a meeting
     /// you are late for says so. `countdown = false` goes back to the time.
     private func eventText(for event: EKEvent) -> String {
-        let title = event.title ?? ""
+        let title = truncated(event.title ?? "")
         guard !event.isAllDay, let start = event.startDate else { return title }
         guard calendarCountdown else {
             return "\(title) (\(formattedTime(pattern: calendarFormat, from: start)))"
         }
         return "\(title) (\(Self.countdown(to: start)))"
+    }
+
+    /// Cut to `calendarTitleMaxLength`, so the countdown that follows it is
+    /// never the part that gets truncated away.
+    private func truncated(_ title: String) -> String {
+        let maxLength = calendarTitleMaxLength
+        guard title.count > maxLength else { return title }
+        return String(title.prefix(maxLength)) + "…"
     }
 
     /// Rounded to the unit that matters: minutes inside an hour, hours and
