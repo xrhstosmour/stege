@@ -286,6 +286,18 @@ final class NotificationCenterReader: ObservableObject {
         notifications.removeAll { $0.id == notification.id }
     }
 
+    /// Opens whatever posted this notification, the same as clicking a real
+    /// macOS notification does. Resolved by display name, the same way
+    /// `IconCache` resolves its icon: nothing in Notification Center's
+    /// accessibility tree carries a bundle identifier to look it up by
+    /// instead. Silently does nothing if the application has quit since the
+    /// notification arrived.
+    func open(_ notification: SystemNotification) {
+        NSWorkspace.shared.runningApplications
+            .first { $0.localizedName == notification.application }?
+            .activate()
+    }
+
     /// Empties Stege's own list, for the same reason.
     func forgetAll() {
         notifications.removeAll()
