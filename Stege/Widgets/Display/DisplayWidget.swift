@@ -107,31 +107,27 @@ struct DisplayPopup: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: PopupStyle.spacing) {
-            VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
-                if manager.isLidClosed {
+            if manager.isLidClosed {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Built-in Display")
+                        .font(.system(size: PopupStyle.captionSize))
+                        .opacity(0.6)
+                        .lineLimit(1)
                     HStack(spacing: 10) {
-                        Image(systemName: "macbook.slash")
+                        Image(systemName: "sun.max.fill")
                             .font(.system(size: PopupStyle.bodySize))
-                            .foregroundStyle(.secondary)
                             .frame(width: PopupStyle.iconColumn)
                         Text("Lid closed")
                             .font(.system(size: PopupStyle.bodySize))
+                            .opacity(0.6)
                         Spacer(minLength: 8)
-                        Text("built-in display off")
-                            .font(.system(size: PopupStyle.captionSize))
-                            .opacity(0.5)
                     }
-                    .popupStaticRow()
                 }
+                .popupStaticRow()
+            }
+            VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
                 ForEach(manager.displays) { display in
                     brightnessRow(display)
-                }
-                if manager.displays.allSatisfy({ $0.brightness == nil }) {
-                    Text("No display reports a settable brightness")
-                        .font(.system(size: PopupStyle.bodySize))
-                        .opacity(0.6)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .popupStaticRow()
                 }
             }
 
@@ -328,7 +324,7 @@ struct DisplayPopup: View {
                         .opacity(0.6)
                         .frame(width: 40, alignment: .trailing)
                 } else {
-                    Text("Not adjustable from here")
+                    Text("Not adjustable")
                         .font(.system(size: PopupStyle.bodySize))
                         .opacity(0.6)
                     Spacer(minLength: 8)
