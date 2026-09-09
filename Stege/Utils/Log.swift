@@ -24,4 +24,6 @@ enum Log {
     static let spaces = Logger(subsystem: subsystem, category: "spaces")
     static let calendar = Logger(subsystem: subsystem, category: "calendar")
     static let shortcut = Logger(subsystem: subsystem, category: "shortcut")
+    static let notifications = Logger(
+        subsystem: subsystem, category: "notifications")
 }

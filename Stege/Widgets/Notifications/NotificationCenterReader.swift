@@ -77,11 +77,26 @@ final class NotificationCenterReader: ObservableObject {
     /// notification happens to arrive.
     private static let storageKey = "stege.notifications.list"
     private var observer: AXObserver?
+    /// The process `observer` was created against, kept alongside it so a
+    /// teardown can address the right process rather than whatever `centre()`
+    /// happens to return by the time it runs.
+    private var observedProcessIdentifier: pid_t?
     private var retryTimer: Timer?
+    /// Watches for Notification Center's own process restarting, so a crash,
+    /// a macOS update, or an MDM-triggered relaunch after `startWatching()`
+    /// already attached an observer does not leave the bell silently dead for
+    /// the rest of the run: `observer` would otherwise still be non-`nil` and
+    /// pointing at a process that is gone.
+    private var workspaceObservers: [NSObjectProtocol] = []
 
     private init() {}
 
-    deinit { retryTimer?.invalidate() }
+    deinit {
+        retryTimer?.invalidate()
+        workspaceObservers.forEach {
+            NSWorkspace.shared.notificationCenter.removeObserver($0)
+        }
+    }
 
     var isTrusted: Bool { AXIsProcessTrusted() }
 
@@ -94,8 +109,11 @@ final class NotificationCenterReader: ObservableObject {
     /// a window in its own process and announces it, and that announcement is
     /// the only thing that ever fills this list.
     func startWatching() {
+        watchForRestart()
         guard observer == nil else { return }
         guard isTrusted else {
+            Log.notifications.notice(
+                "Not watching: Accessibility is not trusted")
             startRetryingIfNeeded()
             return
         }
@@ -104,11 +122,14 @@ final class NotificationCenterReader: ObservableObject {
         // notification back once it is, so without a retry a launch that beat
         // it left every banner uncaught for the rest of the run.
         guard let centre = Self.centre() else {
+            Log.notifications.notice(
+                "Not watching: Notification Center's process is not running")
             startRetryingIfNeeded()
             return
         }
 
-        let element = AXUIElementCreateApplication(centre.processIdentifier)
+        let pid = centre.processIdentifier
+        let element = AXUIElementCreateApplication(pid)
         var created: AXObserver?
         let callback: AXObserverCallback = { _, window, _, context in
             guard let context else { return }
@@ -117,10 +138,11 @@ final class NotificationCenterReader: ObservableObject {
             reader.windowAppeared(window)
         }
         guard
-            AXObserverCreate(
-                centre.processIdentifier, callback, &created) == .success,
+            AXObserverCreate(pid, callback, &created) == .success,
             let created
         else {
+            Log.notifications.error(
+                "AXObserverCreate failed, pid \(pid, privacy: .public)")
             startRetryingIfNeeded()
             return
         }
@@ -132,8 +154,60 @@ final class NotificationCenterReader: ObservableObject {
             CFRunLoopGetMain(), AXObserverGetRunLoopSource(created),
             .defaultMode)
         observer = created
+        observedProcessIdentifier = pid
         retryTimer?.invalidate()
         retryTimer = nil
+        Log.notifications.notice(
+            "Watching Notification Center, pid \(pid, privacy: .public)")
+    }
+
+    /// Drops the current observer, unregistering it from the run loop and the
+    /// process it was watching first. `CFRunLoopAddSource` retains its source,
+    /// which retains the observer, so clearing the property alone leaks both
+    /// and leaves a dead source registered against a pid that is gone.
+    private func detachObserver() {
+        guard let observer, let pid = observedProcessIdentifier else {
+            return
+        }
+        let element = AXUIElementCreateApplication(pid)
+        AXObserverRemoveNotification(
+            observer, element, kAXWindowCreatedNotification as CFString)
+        CFRunLoopRemoveSource(
+            CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer),
+            .defaultMode)
+        self.observer = nil
+        observedProcessIdentifier = nil
+    }
+
+    /// Re-attaches if Notification Center's own process restarts. Without
+    /// this, `observer` stays non-`nil` and pointing at a dead process, so
+    /// `startWatching()`'s own guard would skip re-creating it forever.
+    private func watchForRestart() {
+        guard workspaceObservers.isEmpty else { return }
+        workspaceObservers.append(
+            NSWorkspace.shared.notificationCenter.addObserver(
+                forName: NSWorkspace.didTerminateApplicationNotification,
+                object: nil, queue: .main
+            ) { [weak self] notification in
+                guard
+                    let application = notification.userInfo?[
+                        NSWorkspace.applicationUserInfoKey]
+                        as? NSRunningApplication,
+                    application.bundleIdentifier
+                        == Self.notificationCenterBundleIdentifier
+                else { return }
+                Log.notifications.notice(
+                    "Notification Center's process terminated, will retry attaching"
+                )
+                // Not `startWatching()` directly: `NSWorkspace.runningApplications`
+                // is a cached snapshot that can still list the dying process
+                // for a moment, and the replacement is not up yet either.
+                // Attaching to either produces an observer that never fires
+                // again, silently, which is the exact bug this is fixing.
+                // The retry timer waits it out instead.
+                self?.detachObserver()
+                self?.startRetryingIfNeeded()
+            })
     }
 
     /// Retries until watching actually starts. Granting Accessibility happens
@@ -142,6 +216,7 @@ final class NotificationCenterReader: ObservableObject {
     /// can equally not be running yet at launch.
     private func startRetryingIfNeeded() {
         guard retryTimer == nil else { return }
+        Log.notifications.notice("Retrying every 2s until watching starts")
         retryTimer = Timer.scheduledTimer(
             withTimeInterval: 2.0, repeats: true
         ) { [weak self] _ in
@@ -149,25 +224,39 @@ final class NotificationCenterReader: ObservableObject {
         }
     }
 
+    /// Tells a banner from the real panel by what is inside it rather than by
+    /// its size. Both used to carry the same window title with only the
+    /// panel tall enough to fill half the screen, but on some macOS versions
+    /// a single banner's window reports that same full-screen height, which
+    /// made every banner misread as an empty panel and dropped silently.
+    /// `Self.parse` returns `nil`, not an empty array, when the window is not
+    /// the panel at all, so a genuinely empty panel still clears the list
+    /// instead of being indistinguishable from a banner carrying nothing. Both
+    /// searches move off this, the observer callback's own thread: the panel
+    /// search only looks a fixed few levels down when the window actually is
+    /// the panel, but walks the whole subtree, up to the same depth an
+    /// Electron banner needs its own search to reach, before giving up when it
+    /// is not, which is every banner, so it is not cheap enough to run on the
+    /// main thread unconditionally.
     private func windowAppeared(_ window: AXUIElement) {
-        // A banner and the panel are both titled `Notification Center`, so the
-        // size is what tells them apart. See `isPanel`. When the panel is
-        // opened by hand its list is right there to be taken rather than asked
-        // for again.
-        if Self.isPanel(window) {
-            let found = Self.parse(window)
-            DispatchQueue.main.async {
-                self.notifications = found
-            }
-            return
-        }
-        // Anything else is a banner arriving, carrying everything a row in the
-        // list carries, so it goes straight into the list. The search that
-        // reaches deep enough for an Electron banner's tree is expensive
-        // enough to be worth doing off this, the main, thread.
         DispatchQueue.global(qos: .userInitiated).async {
+            if let found = Self.parse(window) {
+                Log.notifications.notice(
+                    "Notification list read, \(found.count, privacy: .public) entries"
+                )
+                DispatchQueue.main.async { self.notifications = found }
+                return
+            }
             let arriving = Self.parseArriving(in: window)
-            guard !arriving.isEmpty else { return }
+            guard !arriving.isEmpty else {
+                Log.notifications.notice(
+                    "Notification window appeared but nothing was parsed from it"
+                )
+                return
+            }
+            Log.notifications.notice(
+                "Banner arrived, parsed \(arriving.count, privacy: .public) entries"
+            )
             DispatchQueue.main.async { self.merge(arriving) }
         }
     }
@@ -203,9 +292,10 @@ final class NotificationCenterReader: ObservableObject {
     }
 
 
-    private static let panelTitle = "Notification Center"
-    /// The group the panel keeps its rows in, and the only thing that tells the
-    /// panel apart from a banner, which carries the same window title.
+    private static let notificationCenterBundleIdentifier =
+        "com.apple.notificationcenterui"
+    /// The group the panel keeps its rows in, the marker `windowAppeared`
+    /// uses to tell it apart from a banner.
     private static let listIdentifier = "AXNotificationListItems"
     private static let bannerSubrolePrefix = "AXNotificationCenterBanner"
     /// How deep a banner's own accessibility tree is searched, for its subrole
@@ -218,41 +308,18 @@ final class NotificationCenterReader: ObservableObject {
     /// list that grows without bound is one more thing to leak.
     private static let limit = 32
 
-    private static func isPanel(_ window: AXUIElement) -> Bool {
-        guard string(window, kAXTitleAttribute as String) == panelTitle,
-            let height = size(of: window)?.height
-        else { return false }
-        return height >= Self.tallestDisplayHeight / 2
-    }
-
-    /// Read through `CoreGraphics` rather than `NSScreen`, because the panel is
-    /// looked for on a background queue and `NSScreen` belongs to the main one.
-    private static var tallestDisplayHeight: CGFloat {
-        var count: UInt32 = 0
-        guard CGGetActiveDisplayList(0, nil, &count) == .success, count > 0
-        else { return 0 }
-        var displays = [CGDirectDisplayID](repeating: 0, count: Int(count))
-        guard CGGetActiveDisplayList(count, &displays, &count) == .success
-        else { return 0 }
-        return displays.map { CGDisplayBounds($0).height }.max() ?? 0
-    }
-
-    private static func size(of element: AXUIElement) -> CGSize? {
-        var value: CFTypeRef?
-        guard
-            AXUIElementCopyAttributeValue(
-                element, kAXSizeAttribute as CFString, &value) == .success,
-            let value, CFGetTypeID(value) == AXValueGetTypeID()
-        else { return nil }
-        var size = CGSize.zero
-        AXValueGetValue(value as! AXValue, .cgSize, &size)
-        return size
-    }
-
     // MARK: - Parsing
 
-    private static func parse(_ panel: AXUIElement) -> [SystemNotification] {
-        entries(banners(in: panel), arrivedAt: nil)
+    /// `nil` when `panel` is not the real panel at all, an empty array when it
+    /// is and simply has nothing in it. Collapsing those two into one empty
+    /// array is what let a banner misread as the panel drop every entry it
+    /// carried, the bug this file exists to fix.
+    private static func parse(_ panel: AXUIElement) -> [SystemNotification]? {
+        guard
+            let list = descendant(
+                of: panel, identifiedBy: listIdentifier, depth: 0)
+        else { return nil }
+        return entries(banners(in: list), arrivedAt: nil)
     }
 
     /// The banners in a window Notification Center has just drawn. They sit
@@ -271,6 +338,8 @@ final class NotificationCenterReader: ObservableObject {
     ) -> [SystemNotification] {
         elements.compactMap { entry in
             guard let identifier = string(entry, "AXIdentifier") else {
+                Log.notifications.notice(
+                    "Dropped a banner element with no AXIdentifier")
                 return nil
             }
             var labelled: [String: String] = [:]
@@ -278,7 +347,15 @@ final class NotificationCenterReader: ObservableObject {
             collectText(entry, into: &labelled, untagged: &untagged, depth: 0)
 
             let title = labelled["title"] ?? untagged.first ?? ""
-            guard !title.isEmpty else { return nil }
+            guard !title.isEmpty else {
+                // `identifier` is not marked `.public`: it is text the
+                // notifying application supplied, not something this app
+                // controls, so it is not known safe for a system-wide log.
+                Log.notifications.notice(
+                    "Dropped a banner with no readable title text, id \(identifier)"
+                )
+                return nil
+            }
             return SystemNotification(
                 id: identifier,
                 application: application(of: entry, fallback: title),
@@ -327,15 +404,11 @@ final class NotificationCenterReader: ObservableObject {
         return first.trimmingCharacters(in: .whitespaces)
     }
 
-    /// One element per notification. A stack, where several from the same
-    /// application are collapsed together, has its own subrole and is treated
-    /// as the one entry macOS is showing.
-    private static func banners(in panel: AXUIElement) -> [AXUIElement] {
-        guard
-            let list = descendant(
-                of: panel, identifiedBy: listIdentifier, depth: 0)
-        else { return [] }
-        return children(of: list).filter {
+    /// One element per notification, out of the panel's own list. A stack,
+    /// where several from the same application are collapsed together, has
+    /// its own subrole and is treated as the one entry macOS is showing.
+    private static func banners(in list: AXUIElement) -> [AXUIElement] {
+        children(of: list).filter {
             guard let subrole = string($0, kAXSubroleAttribute as String)
             else { return false }
             return subrole.hasPrefix(bannerSubrolePrefix)
@@ -391,7 +464,7 @@ final class NotificationCenterReader: ObservableObject {
 
     private static func centre() -> NSRunningApplication? {
         NSWorkspace.shared.runningApplications.first {
-            $0.bundleIdentifier == "com.apple.notificationcenterui"
+            $0.bundleIdentifier == notificationCenterBundleIdentifier
         }
     }
 
