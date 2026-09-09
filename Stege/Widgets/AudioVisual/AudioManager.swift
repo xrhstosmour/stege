@@ -79,6 +79,24 @@ final class AudioManager: ObservableObject {
     /// Applications making sound right now. Only read while a popup is open.
     @Published private(set) var sources: [AudioSource] = []
 
+    /// Whether the current output sounds like headphones or earbuds rather
+    /// than a speaker, so the bar glyph can show a different mark for it.
+    ///
+    /// `CoreAudio` has no device-kind property for this, only a transport,
+    /// how a device connects rather than what it is, so a Bluetooth speaker
+    /// and a pair of AirPods report the same transport. Matched by name
+    /// instead, the same way `BluetoothWidget` already picks a symbol for a
+    /// paired device it cannot otherwise classify.
+    var isOutputHeadphones: Bool {
+        guard
+            let name = outputDevices.first(where: { $0.id == currentOutputID }
+            )?.name
+        else { return false }
+        let lowered = name.lowercased()
+        return lowered.contains("airpod") || lowered.contains("headphone")
+            || lowered.contains("buds") || lowered.contains("headset")
+    }
+
     /// The registered block is kept alongside the address because
     /// `AudioObjectRemovePropertyListenerBlock` only removes the exact block it
     /// was given. Passing a fresh one silently removes nothing and leaks.
