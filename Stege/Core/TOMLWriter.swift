@@ -56,7 +56,9 @@ enum TOMLWriter {
                 continue
             }
 
-            if insideTargetTable, !updatedKey, let value = value(of: actualKey, in: line) {
+            if insideTargetTable, !updatedKey,
+                let value = value(of: actualKey, in: trimmed)
+            {
                 newLines.append("\(actualKey) = \(rawValue)")
                 updatedKey = true
                 openArrayDepth = max(0, depthChange(in: value))
@@ -90,7 +92,7 @@ enum TOMLWriter {
             }
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             if !trimmed.hasPrefix("#"), !updatedAtLeastOnce,
-                let value = value(of: key, in: line)
+                let value = value(of: key, in: trimmed)
             {
                 newLines.append("\(key) = \(rawValue)")
                 updatedAtLeastOnce = true
