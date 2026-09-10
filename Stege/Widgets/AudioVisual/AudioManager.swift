@@ -54,6 +54,23 @@ enum AudioDeviceTransport {
     }
 }
 
+/// What the current output physically is, as far as a device's own name says.
+enum AudioOutputKind {
+    case speaker
+    case headphones
+    case earbuds
+
+    /// The bar's mark for it. Nil for a speaker, which draws its own
+    /// level-filled arcs rather than a fixed symbol.
+    var symbol: String? {
+        switch self {
+        case .speaker: return nil
+        case .headphones: return "headphones"
+        case .earbuds: return "earbuds"
+        }
+    }
+}
+
 /// Output volume and microphone mute state, via public `CoreAudio`.
 ///
 /// Both are driven by property listeners rather than a timer: `CoreAudio` posts
@@ -79,22 +96,30 @@ final class AudioManager: ObservableObject {
     /// Applications making sound right now. Only read while a popup is open.
     @Published private(set) var sources: [AudioSource] = []
 
-    /// Whether the current output sounds like headphones or earbuds rather
-    /// than a speaker, so the bar glyph can show a different mark for it.
+    /// What the current output sounds like, so the bar glyph can show a mark
+    /// for it instead of always drawing a speaker.
     ///
     /// `CoreAudio` has no device-kind property for this, only a transport,
     /// how a device connects rather than what it is, so a Bluetooth speaker
     /// and a pair of AirPods report the same transport. Matched by name
     /// instead, the same way `BluetoothWidget` already picks a symbol for a
-    /// paired device it cannot otherwise classify.
-    var isOutputHeadphones: Bool {
+    /// paired device it cannot otherwise classify. `AirPods Max` is checked
+    /// before the bare `airpod` match: it is the one AirPods model that goes
+    /// over the ear rather than in it.
+    var outputKind: AudioOutputKind {
         guard
             let name = outputDevices.first(where: { $0.id == currentOutputID }
             )?.name
-        else { return false }
+        else { return .speaker }
         let lowered = name.lowercased()
-        return lowered.contains("airpod") || lowered.contains("headphone")
-            || lowered.contains("buds") || lowered.contains("headset")
+        if lowered.contains("airpods max") { return .headphones }
+        if lowered.contains("airpod") || lowered.contains("buds") {
+            return .earbuds
+        }
+        if lowered.contains("headphone") || lowered.contains("headset") {
+            return .headphones
+        }
+        return .speaker
     }
 
     /// The registered block is kept alongside the address because
