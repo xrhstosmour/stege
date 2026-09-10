@@ -22,8 +22,11 @@ final class LocationManager: ObservableObject {
 
     /// Control Center exposes no notification for this, only its own
     /// `AXDescription` changing, so it is polled the same way screen
-    /// recording used to be.
-    private let interval: TimeInterval = 2.0
+    /// recording used to be. A privacy dot is worth noticing promptly, but not
+    /// so promptly that a passive indicator that runs for the app's entire
+    /// life pays for a cross-process accessibility walk twice as often as it
+    /// needs to for something nobody is staring at.
+    private let interval: TimeInterval = 4.0
 
     private init() {
         refresh()
