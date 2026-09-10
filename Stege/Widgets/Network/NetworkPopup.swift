@@ -47,7 +47,9 @@ struct NetworkPopup: View {
         .onAppear {
             viewModel.requestSSIDAccessIfNeeded()
             viewModel.scanForNetworks()
+            traffic.startPolling()
         }
+        .onDisappear { traffic.stopPolling() }
     }
 
     // MARK: - Current connection

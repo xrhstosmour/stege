@@ -26,14 +26,27 @@ final class SystemMonitorManager: ObservableObject {
     init(interval: TimeInterval = 2.0) {
         self.interval = interval
         refreshTraffic()
+    }
+
+    deinit {
+        timer?.invalidate()
+    }
+
+    /// Called when the Wi-Fi popup opens and closes. Each tick is a cheap,
+    /// in-process `sysctl` call, but with no stop this ran for the rest of
+    /// the process's life the moment the popup was opened once, the same bug
+    /// class `AGENTS.md` documents four other popups having had.
+    func startPolling() {
+        guard timer == nil else { return }
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) {
             [weak self] _ in
             self?.refreshTraffic()
         }
     }
 
-    deinit {
+    func stopPolling() {
         timer?.invalidate()
+        timer = nil
     }
 
     /// Interface counters are cumulative, so throughput is the delta over the
