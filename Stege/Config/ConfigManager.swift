@@ -267,11 +267,28 @@ final class ConfigManager: ObservableObject {
     /// reload silently stops working after the first edit made in a real
     /// editor. On those events the watch is torn down and re-established
     /// against the new file.
-    private func startWatchingFile(at path: String) {
+    private func startWatchingFile(at path: String, attempt: Int = 0) {
         stopWatchingFile()
 
         fileDescriptor = open(path, O_EVTONLY)
-        if fileDescriptor == -1 { return }
+        if fileDescriptor == -1 {
+            // A `.rename`/`.delete` save can land here before the replacement
+            // file exists yet: a slow disk or a busy system can still be
+            // writing it past the delay below. Retried a few times rather
+            // than left permanently dead, which is the exact failure this
+            // watcher exists to avoid, see the class doc.
+            guard attempt < 5 else {
+                Log.configuration.error(
+                    "Gave up watching the configuration file after \(attempt, privacy: .public) attempts"
+                )
+                return
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                [weak self] in
+                self?.startWatchingFile(at: path, attempt: attempt + 1)
+            }
+            return
+        }
 
         let source = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: fileDescriptor,
