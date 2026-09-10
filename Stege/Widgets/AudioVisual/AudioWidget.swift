@@ -23,6 +23,7 @@ struct AudioWidget: View {
             SoundGlyph(
                 level: manager.volume,
                 isOutputMuted: manager.isOutputMuted,
+                isHeadphones: manager.isOutputHeadphones,
                 style: glyphStyle)
 
             if showPercentage {
