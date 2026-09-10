@@ -23,9 +23,8 @@ struct SoundGlyph: View {
     /// Output volume, 0 to 1.
     var level: Double
     var isOutputMuted: Bool
-    /// Whether the current output is headphones or earbuds rather than a
-    /// speaker. See `AudioManager.isOutputHeadphones`.
-    var isHeadphones: Bool = false
+    /// What the current output physically is. See `AudioManager.outputKind`.
+    var outputKind: AudioOutputKind = .speaker
     var style: SoundGlyphStyle = .speaker
     var size: CGFloat = BarStyle.glyphSize
 
@@ -57,12 +56,15 @@ struct SoundGlyph: View {
             // Muted and silent are drawn the same way, because they sound the
             // same, whatever the output is routed to.
             Image(systemName: "speaker.slash.fill")
-                .barGlyphBox(widest: "speaker.wave.3.fill", "headphones")
-        } else if isHeadphones {
-            // No arcs: `headphones` has no variable-value rendering, and the
-            // level is already shown by the slider in the popup.
-            Image(systemName: "headphones")
-                .barGlyphBox(widest: "speaker.wave.3.fill", "headphones")
+                .barGlyphBox(
+                    widest: "speaker.wave.3.fill", "headphones", "earbuds")
+        } else if let symbol = outputKind.symbol {
+            // No arcs: neither `headphones` nor `earbuds` has a
+            // variable-value rendering, and the level is already shown by the
+            // slider in the popup.
+            Image(systemName: symbol)
+                .barGlyphBox(
+                    widest: "speaker.wave.3.fill", "headphones", "earbuds")
         } else {
             // Two passes, because a variable value hides the arcs it has not
             // reached rather than dimming them, and the bar is now laid out on
@@ -83,7 +85,8 @@ struct SoundGlyph: View {
                     systemName: "speaker.wave.3.fill",
                     variableValue: level)
             }
-            .barGlyphBox(widest: "speaker.wave.3.fill", "headphones")
+            .barGlyphBox(
+                widest: "speaker.wave.3.fill", "headphones", "earbuds")
         }
     }
 }
