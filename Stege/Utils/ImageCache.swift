@@ -6,7 +6,14 @@ import SwiftUI
 
 /// A singleton cache for storing downloaded NSImage objects.
 final class ImageCache {
-    static let shared = NSCache<NSString, NSImage>()
+    static let shared: NSCache<NSString, NSImage> = {
+        let cache = NSCache<NSString, NSImage>()
+        // A long listening session cycling through many distinct tracks would
+        // otherwise hold every decoded piece of artwork until macOS itself
+        // decides memory is tight enough to reclaim them.
+        cache.countLimit = 30
+        return cache
+    }()
 }
 
 // MARK: - Image Loader
