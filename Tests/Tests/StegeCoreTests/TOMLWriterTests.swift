@@ -162,6 +162,40 @@ struct TOMLWriterTests {
         #expect(updated.contains("\nhidden = []"))
     }
 
+    /// `TOML` allows indenting a key under its table, and the search for the
+    /// existing assignment has to see past that indentation or it appends a
+    /// second, un-indented line for the same key instead of replacing the
+    /// first.
+    @Test func anIndentedKeyIsReplacedInPlace() {
+        let original = """
+            [widgets.default.reveal]
+                mode = "extras"
+                hidden = []
+            """
+        #expect(
+            TOMLWriter.setting(
+                original, key: "widgets.default.reveal.hidden",
+                rawValue: "[\"Docker\"]")
+                == """
+                [widgets.default.reveal]
+                    mode = "extras"
+                hidden = ["Docker"]
+                """)
+    }
+
+    @Test func anIndentedTopLevelKeyIsReplaced() {
+        let original = """
+              theme = "system"
+            hidden = false
+            """
+        #expect(
+            TOMLWriter.setting(original, key: "theme", rawValue: "\"dark\"")
+                == """
+                theme = "dark"
+                hidden = false
+                """)
+    }
+
     @Test func aTopLevelKeyIsReplaced() {
         let original = """
             theme = "system"

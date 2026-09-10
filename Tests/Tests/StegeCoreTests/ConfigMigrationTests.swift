@@ -123,6 +123,19 @@ struct ConfigMigrationTests {
         #expect(result.text.contains("blur = 7"))
     }
 
+    /// A whole-file substring replace would also rewrite an old name that
+    /// only happens to appear inside a comment, not the live assignment.
+    @Test func aNameMentionedInACommentIsLeftAlone() {
+        let result = ConfigMigration.migrate("""
+            # Used to be called default.appmenus.
+            [widgets.default.appmenus]
+            max-menus = 6
+            """)
+        #expect(
+            result.text.contains("# Used to be called default.appmenus."))
+        #expect(result.text.contains("[widgets.default.applicationMenu]"))
+    }
+
     /// Ordering matters: a rule that matched inside a longer name would leave
     /// half of it rewritten. Nothing in the table does today, and this fails
     /// if a future rule does.
