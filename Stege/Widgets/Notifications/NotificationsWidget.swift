@@ -197,8 +197,11 @@ struct NotificationsPopup: View {
                 }
             }
         }
-        .popupRow { centre.forget(entry) }
-        .help("Dismiss")
+        .popupRow {
+            centre.open(entry)
+            centre.forget(entry)
+        }
+        .help("Open")
     }
 
     /// The posting application, in the leading column every other popup row
