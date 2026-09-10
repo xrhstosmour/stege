@@ -1,9 +1,11 @@
 import Combine
 import SwiftUI
+import UserNotifications
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var configObserver: AnyCancellable?
     private var shortcutObserver: AnyCancellable?
+    private var configErrorObserver: AnyCancellable?
     // One pair of panels per screen. A single panel sized to `NSScreen.main`
     // leaves every other display with no bar at all.
     private var backgroundPanels: [NSPanel] = []
@@ -68,6 +70,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         observeHiddenSetting()
         observeToggleShortcut()
+        observeConfigErrors()
+    }
+
+    /// A parse failure past this point came from a live edit, not the file
+    /// this launch started with: that one already went through the
+    /// synchronous check above, which quits before this is ever reached. The
+    /// previous, still-valid configuration stays in effect, so this is a
+    /// notice rather than the fatal alert, and there is nowhere on the sparse
+    /// bar itself to put a persistent error mark for it.
+    private func observeConfigErrors() {
+        configErrorObserver = ConfigManager.shared.$initError
+            .compactMap { $0 }
+            .receive(on: DispatchQueue.main)
+            .sink { message in Self.notifyConfigError(message) }
+    }
+
+    private static func notifyConfigError(_ message: String) {
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert]) { granted, _ in
+            guard granted else { return }
+            let content = UNMutableNotificationContent()
+            content.title = "Configuration Error"
+            content.body =
+                "\(message)\n\nThe previous configuration is still in effect."
+            // Fixed, so a second failure replaces the first rather than
+            // piling up: only the latest error is still relevant.
+            let request = UNNotificationRequest(
+                identifier: "stege.configuration-error",
+                content: content, trigger: nil)
+            center.add(request)
+        }
     }
 
     /// Applies `hidden` from the config file, now and on every reload.

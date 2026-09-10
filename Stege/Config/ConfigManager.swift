@@ -74,19 +74,25 @@ final class ConfigManager: ObservableObject {
         }
     }
 
+    /// Mutates `config`/`initError` directly rather than hopping to the main
+    /// thread itself: it used to always dispatch, which meant the very first
+    /// call, made synchronously from `init()` while already on the main
+    /// thread, only actually applied on the next run loop turn. That left
+    /// `AppDelegate`'s launch-time check of `initError` racing a parse it had
+    /// no way to see the result of yet, so a broken existing configuration
+    /// silently ran on default settings instead of showing the fatal alert.
+    /// Callers on another thread, the file watcher included, are responsible
+    /// for hopping to the main thread themselves before calling this.
     private func parseConfigFile(at path: String) {
         do {
             let content = try String(contentsOfFile: path, encoding: .utf8)
             let decoder = TOMLDecoder()
             let rootToml = try decoder.decode(RootToml.self, from: content)
-            DispatchQueue.main.async {
-                self.config = Config(rootToml: rootToml)
-            }
+            config = Config(rootToml: rootToml)
+            initError = nil
         } catch {
-            // `initError` is `@Published`, and this runs on the file watch
-            // queue, so it has to hop to the main thread like `config` does.
             let message = "Error parsing TOML file: \(error.localizedDescription)"
-            DispatchQueue.main.async { self.initError = message }
+            initError = message
             Log.configuration.error(
                 "Could not parse the configuration: \(error.localizedDescription, privacy: .public)")
         }
@@ -299,7 +305,9 @@ final class ConfigManager: ObservableObject {
             guard let self, let path = self.configFilePath else { return }
             let events = source.data
 
-            self.parseConfigFile(at: path)
+            // This handler runs on the queue the source was created against,
+            // not the main thread `parseConfigFile` now requires.
+            DispatchQueue.main.async { self.parseConfigFile(at: path) }
 
             if events.contains(.rename) || events.contains(.delete) {
                 // Re-open against whatever now lives at the path. A small delay
