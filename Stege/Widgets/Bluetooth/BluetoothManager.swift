@@ -506,7 +506,16 @@ final class BluetoothManager: NSObject, ObservableObject {
         ]
         let levels = keys.compactMap { entry[$0] as? Double }.filter { $0 > 0 }
         guard let lowest = levels.min() else { return nil }
-        // Stored as a fraction by some devices and a percentage by others.
+        // Stored as a fraction by some devices and a percentage by others,
+        // and exactly `1` is genuinely ambiguous between them: a fraction
+        // device at 100% and a percentage device at 1% write the identical
+        // value here, with nothing else in this dictionary to tell them
+        // apart. Left resolving to the fraction reading on purpose. A fully
+        // charged fraction device hits this constantly, every time such a
+        // device tops off, where a percentage device sitting at exactly 1%
+        // is a narrow, rare snapshot. Reading the operator the other way
+        // does not fix the ambiguity, it only breaks the common case to fix
+        // the rare one.
         return lowest > 1 ? lowest / 100 : lowest
     }
 }
