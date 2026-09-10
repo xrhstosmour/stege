@@ -30,11 +30,26 @@ enum ConfigMigration {
     /// identifier draws nothing. Upgrading past the renames would otherwise
     /// have quietly cost the Apple menu, the application menus, the input
     /// source and every appearance setting, with no error anywhere to say why.
+    ///
+    /// Comment lines are left alone. A whole-file substring replace would
+    /// also rewrite an old name mentioned in a comment, not just the live
+    /// assignment it was meant for.
     static func migrate(_ original: String) -> Result {
         var text = original
         var applied: [String] = []
-        for rename in renames where text.contains(rename.old) {
-            text = text.replacingOccurrences(of: rename.old, with: rename.new)
+        for rename in renames {
+            let lines = text.components(separatedBy: "\n")
+            var changed = false
+            let rewritten = lines.map { line -> String in
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                guard !trimmed.hasPrefix("#"), line.contains(rename.old)
+                else { return line }
+                changed = true
+                return line.replacingOccurrences(
+                    of: rename.old, with: rename.new)
+            }
+            guard changed else { continue }
+            text = rewritten.joined(separator: "\n")
             applied.append("\(rename.old) to \(rename.new)")
         }
         return Result(text: text, applied: applied)
