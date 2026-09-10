@@ -29,6 +29,13 @@ final class MinimizedWindowMemory {
     /// widget already draws in the bar stop being written to
     /// `~/Library/Preferences` in plaintext for anything else running as this
     /// user to read once the bar has quit.
+    ///
+    /// `NotificationCenterReader.remembersBetweenLaunches` weighs the
+    /// identical trade-off and lands the other way, deliberately: turning it
+    /// off there only leaves the bell empty until the next banner arrives,
+    /// which costs nothing this widget doesn't. Turning this one off costs
+    /// the one thing the ledger exists for, on every single restart, not just
+    /// the first one after an update. Different defaults, not an oversight.
     var remembersAcrossLaunches = true {
         didSet {
             guard !remembersAcrossLaunches else { return }
