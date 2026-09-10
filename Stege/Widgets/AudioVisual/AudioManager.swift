@@ -308,18 +308,24 @@ final class AudioManager: ObservableObject {
         return AudioDeviceTransport(raw)
     }
 
+    /// `CoreAudio` writes the returned `CFStringRef` into this pointer under
+    /// the create rule, one reference this call owns and must release.
+    /// `Unmanaged` receives it without `ARC` retaining or moving anything
+    /// behind the raw pointer `AudioObjectGetPropertyData` writes through,
+    /// which a plain `var name: CFString` handed to `&name` cannot promise.
     private static func name(of device: AudioObjectID) -> String? {
         var address = AudioObjectPropertyAddress(
             mSelector: kAudioObjectPropertyName,
             mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain)
-        var name: CFString = "" as CFString
-        var size = UInt32(MemoryLayout<CFString>.size)
+        var name: Unmanaged<CFString>?
+        var size = UInt32(MemoryLayout<CFString?>.size)
         guard
             AudioObjectGetPropertyData(device, &address, 0, nil, &size, &name)
-                == noErr
+                == noErr,
+            let name
         else { return nil }
-        return name as String
+        return name.takeRetainedValue() as String
     }
 
     /// Switches the system default device, which is what the menu bar picker
