@@ -18,6 +18,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// the menu bar it is sitting on.
     private static let collapsedButtonSize = CGSize(width: 26, height: 22)
 
+    /// Coalesces bursts of `screenParametersDidChange`. A Space switch or a
+    /// window going full-screen on a multi-monitor rig can fire that
+    /// notification several times in a row, and each firing re-orders every
+    /// panel on every screen, which reads as a flash independent of anything
+    /// the panels are actually showing.
+    private var screenParametersWorkItem: DispatchWorkItem?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // A second copy would draw an overlapping bar on every display and
         // double every timer and `aerospace` invocation behind it.
@@ -244,9 +251,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func screenParametersDidChange(_ notification: Notification) {
-        setupPanels()
-        // A panel built for a newly attached screen starts with no appearance.
-        applyAppearance(ConfigManager.shared.config)
+        screenParametersWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            self?.setupPanels()
+            // A panel built for a newly attached screen starts with no
+            // appearance.
+            self?.applyAppearance(ConfigManager.shared.config)
+        }
+        screenParametersWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
     }
 
     /// Above ordinary and floating windows, below anything laid over the
