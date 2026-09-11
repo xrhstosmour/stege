@@ -13,15 +13,29 @@ import Foundation
 final class AppMenusReveal: ObservableObject {
     static let shared = AppMenusReveal()
 
-    @Published private(set) var isRevealed = false
+    /// Keyed by screen, one-based to match `NSScreen.screens`. There is one
+    /// bar, and one independent `AppMenusWidget`/`SpacesWidget` pair, per
+    /// screen, and this used to be a single flat value all of them shared: a
+    /// hover on one screen cross-faded every screen's row, since every bar
+    /// observes this same object. Keying every piece of per-interaction state
+    /// here by screen is what keeps one screen's reveal from leaking into
+    /// another's, the same fix already applied once to the sibling
+    /// `AppMenusManager.titleFrames` for the same reason.
+    @Published private(set) var isRevealed: [Int: Bool] = [:]
 
     /// False when the menus sit beside the pills rather than in place of them,
     /// which is what `visibility = "always"` does, and while no app menus
     /// widget is in the bar at all.
+    ///
+    /// Global rather than keyed by screen: every bar reads the same config
+    /// file, so every screen's widget always writes the same value here. There
+    /// is nothing screen-specific to key.
     @Published var swapsSpaces = false
 
     /// True under `visibility = "hover"`, where the pointer resting on the pill
     /// of the window that is already focused is what reveals the menus.
+    ///
+    /// Global, for the same reason as `swapsSpaces`.
     @Published var revealsOnHover = false
 
     /// True under `visibility = "click"`, where the pill of the window that is
@@ -30,6 +44,8 @@ final class AppMenusReveal: ObservableObject {
     /// Read by the spaces widget, which owns that pill. Clicking the focused
     /// window is otherwise a request to focus what is already focused, so the
     /// gesture costs nothing that was doing anything.
+    ///
+    /// Global, for the same reason as `swapsSpaces`.
     @Published var togglesOnClick = false
 
     enum Source {
@@ -37,7 +53,7 @@ final class AppMenusReveal: ObservableObject {
         case menus
     }
 
-    /// Held open by the shortcut rather than by the pointer.
+    /// Held open by the shortcut rather than by the pointer, per screen.
     ///
     /// Under `hover` the reveal is only ever as long as the pointer rests on
     /// the pill, and a watchdog closes it a quarter of a second after the
@@ -45,38 +61,45 @@ final class AppMenusReveal: ObservableObject {
     /// the row appeared and was shut again before it could be read. While
     /// latched the pointer decides nothing: the row stays until the shortcut is
     /// pressed again, or until another application comes to the front.
-    @Published private(set) var isLatched = false
+    @Published private(set) var isLatched: [Int: Bool] = [:]
 
+    /// One observer for every screen: the frontmost application is a property
+    /// of the machine, not of a screen, so a single `NSWorkspace` observer is
+    /// enough to unlatch whichever screens are currently latched.
     private var applicationObserver: NSObjectProtocol?
 
-    private var sources: Set<String> = []
-    private var pendingHide: DispatchWorkItem?
-    private var watchdog: Timer?
+    private var sources: [Int: Set<String>] = [:]
+    private var pendingHide: [Int: DispatchWorkItem] = [:]
+    private var watchdog: [Int: Timer] = [:]
     /// See `suppressUntilPointerLeaves`.
-    private var isSuppressed = false
-    private var suppression: Timer?
-    /// The horizontal span each side of the swap occupies, in screen points.
-    /// See `isPointerInHoldRegion`.
-    private var spans: [String: ClosedRange<CGFloat>] = [:]
+    private var isSuppressed: [Int: Bool] = [:]
+    private var suppression: [Int: Timer] = [:]
+    /// The horizontal span each side of the swap occupies on that screen, in
+    /// that screen's own panel-local points. See `isPointerInHoldRegion`.
+    private var spans: [Int: [String: ClosedRange<CGFloat>]] = [:]
 
     private init() {}
 
     /// Either widget can hold the reveal open. The pointer crosses from one to
     /// the other as they swap, and for a moment neither reports it, so a hide
     /// waits briefly instead of firing into that gap and flickering.
-    func setHovered(_ hovered: Bool, from source: Source) {
-        guard !isLatched else { return }
-        guard !(hovered && isSuppressed) else { return }
+    func setHovered(_ hovered: Bool, from source: Source, screen: Int) {
+        guard !(isLatched[screen] ?? false) else { return }
+        guard !(hovered && (isSuppressed[screen] ?? false)) else { return }
         let key = String(describing: source)
-        if hovered { sources.insert(key) } else { sources.remove(key) }
-        pendingHide?.cancel()
-        pendingHide = nil
+        if hovered {
+            sources[screen, default: []].insert(key)
+        } else {
+            sources[screen]?.remove(key)
+        }
+        pendingHide[screen]?.cancel()
+        pendingHide[screen] = nil
 
-        guard sources.isEmpty else {
-            set(true)
+        guard sources[screen]?.isEmpty ?? true else {
+            set(true, screen: screen)
             return
         }
-        scheduleHide()
+        scheduleHide(screen: screen)
     }
 
     /// Holds the reveal off until the pointer has left and come back.
@@ -88,27 +111,28 @@ final class AppMenusReveal: ObservableObject {
     /// the workspaces, as if the click had asked for them. It had not: it asked
     /// to switch windows. Hovering is what asks for the menus, so the next
     /// hover has to be a real one.
-    func suppressUntilPointerLeaves() {
-        isSuppressed = true
-        setRevealed(false)
-        startSuppressionWatch()
+    func suppressUntilPointerLeaves(screen: Int) {
+        isSuppressed[screen] = true
+        setRevealed(false, screen: screen)
+        startSuppressionWatch(screen: screen)
     }
 
     /// The pointer leaving cannot be waited for as an event. The view carrying
     /// the tracking area is rebuilt by the focus change itself, so the exit
     /// that would clear this is exactly the one that never arrives.
-    private func startSuppressionWatch() {
-        suppression?.invalidate()
-        suppression = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true)
-        { [weak self] timer in
+    private func startSuppressionWatch(screen: Int) {
+        suppression[screen]?.invalidate()
+        suppression[screen] = Timer.scheduledTimer(
+            withTimeInterval: 0.15, repeats: true
+        ) { [weak self] timer in
             guard let self else {
                 timer.invalidate()
                 return
             }
-            guard !self.isPointerInHoldRegion else { return }
-            self.isSuppressed = false
+            guard !self.isPointerInHoldRegion(for: screen) else { return }
+            self.isSuppressed[screen] = false
             timer.invalidate()
-            self.suppression = nil
+            self.suppression[screen] = nil
         }
     }
 
@@ -120,36 +144,41 @@ final class AppMenusReveal: ObservableObject {
     /// pill that was the trigger stops being one, and its tracker goes with no
     /// exit ever delivered. The reveal was then held by a source that could
     /// never let go, and the menus stayed up over the workspaces for good.
-    func forget(_ source: Source) {
-        spans.removeValue(forKey: String(describing: source))
-        setHovered(false, from: source)
+    func forget(_ source: Source, screen: Int) {
+        spans[screen]?.removeValue(forKey: String(describing: source))
+        setHovered(false, from: source, screen: screen)
     }
 
-    /// Where each side of the swap is, so the hold region can follow it.
+    /// Where each side of the swap is on that screen, so the hold region can
+    /// follow it.
     ///
     /// Only the horizontal extent is kept. Both views are in the same strip at
     /// the top of the screen, and their `global` frames are measured in a
     /// SwiftUI space whose y runs the other way from `NSEvent.mouseLocation`,
     /// so comparing x and the strip height avoids converting between the two.
-    func setSpan(_ frame: CGRect, for source: Source) {
+    /// `global` is local to that bar's own panel, not to the desktop, which is
+    /// why this is kept per screen rather than compared against another
+    /// screen's span.
+    func setSpan(_ frame: CGRect, for source: Source, screen: Int) {
         guard frame.width > 0 else { return }
-        spans[String(describing: source)] = frame.minX...frame.maxX
+        spans[screen, default: [:]][String(describing: source)] =
+            frame.minX...frame.maxX
     }
 
     /// The two views are different widths, so the pointer can end up over the
     /// trigger but past the end of the menus that replaced it, which on its own
     /// would reveal, hide, and reveal again forever. Nothing hides while the
     /// pointer is still over either of them.
-    private func scheduleHide() {
+    private func scheduleHide(screen: Int) {
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
-            guard !self.isPointerInHoldRegion else {
-                self.scheduleHide()
+            guard !self.isPointerInHoldRegion(for: screen) else {
+                self.scheduleHide(screen: screen)
                 return
             }
-            self.set(false)
+            self.set(false, screen: screen)
         }
-        pendingHide = work
+        pendingHide[screen] = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: work)
     }
 
@@ -163,52 +192,72 @@ final class AppMenusReveal: ObservableObject {
     /// menus were drawn over the pill that was being aimed at. It holds only
     /// over the trigger and the menus now, so anywhere else in the bar puts the
     /// workspaces back.
-    private var isPointerInHoldRegion: Bool {
+    ///
+    /// Requires the pointer to actually be over the screen this check is for,
+    /// not just anywhere spans happens to have an entry for: a span is in that
+    /// screen's own panel-local coordinates, so comparing it against the
+    /// pointer while on a different screen is comparing two different origins.
+    ///
+    /// The pointer itself also has to be translated into that same local
+    /// space before it can be compared: `NSEvent.mouseLocation` is a desktop
+    /// coordinate, at 0 only on whichever screen sits at the desktop's own
+    /// origin, so on every other screen comparing it directly against a
+    /// panel-local span, which starts at 0 on every screen alike, never
+    /// matched. `AppMenuPresenter.present` hit and fixed this same mismatch
+    /// once already, translating the other direction, panel-local to
+    /// desktop, before handing a rect to `NSMenu`.
+    private func isPointerInHoldRegion(for screen: Int) -> Bool {
         let location = NSEvent.mouseLocation
         guard
-            let screen = NSScreen.screens.first(where: {
+            let index = NSScreen.screens.firstIndex(where: {
                 $0.frame.contains(location)
-            }) ?? NSScreen.main
+            })
         else { return false }
+        guard index + 1 == screen else { return false }
+        let nsScreen = NSScreen.screens[index]
         let height = ConfigManager.shared.config.bar.foreground
             .resolveHeight()
-        guard screen.frame.maxY - location.y <= height else { return false }
-        return spans.values.contains { $0.contains(location.x) }
+        guard nsScreen.frame.maxY - location.y <= height else { return false }
+        let localX = location.x - nsScreen.frame.minX
+        return spans[screen]?.values.contains { $0.contains(localX) } ?? false
     }
 
     /// Reveals the menus when they are hidden, and puts the workspaces back
     /// when they are not.
-    func toggleRevealed() {
-        setRevealed(!isRevealed)
+    func toggleRevealed(screen: Int) {
+        setRevealed(!(isRevealed[screen] ?? false), screen: screen)
     }
 
     /// What the `menu-shortcut` calls. Shows the menus row in place of the
-    /// workspace pills and holds it there, or puts it away again.
-    func toggleLatched() {
-        isLatched ? unlatch() : latch()
+    /// workspace pills and holds it there, or puts it away again, on whichever
+    /// screen the pointer is over when the shortcut is pressed.
+    func toggleLatched(screen: Int) {
+        (isLatched[screen] ?? false) ? unlatch(screen: screen) : latch(screen: screen)
     }
 
-    private func latch() {
-        pendingHide?.cancel()
-        pendingHide = nil
-        sources.removeAll()
-        isLatched = true
-        set(true)
+    private func latch(screen: Int) {
+        pendingHide[screen]?.cancel()
+        pendingHide[screen] = nil
+        sources[screen] = []
+        isLatched[screen] = true
+        set(true, screen: screen)
         watchApplicationSwitch()
     }
 
-    func unlatch() {
-        guard isLatched else { return }
-        isLatched = false
-        stopWatchingApplicationSwitch()
-        set(false)
+    func unlatch(screen: Int) {
+        guard isLatched[screen] ?? false else { return }
+        isLatched[screen] = false
+        if !isLatched.values.contains(true) {
+            stopWatchingApplicationSwitch()
+        }
+        set(false, screen: screen)
     }
 
-    /// Switching application while the row is up puts it away. Its titles
+    /// Switching application while a row is up puts it away. Its titles
     /// belong to the application that was in front, so holding it open over a
     /// different one would be showing the wrong menus.
     ///
-    /// Except Stege's own activation, which is how the row gets the keyboard in
+    /// Except Stege's own activation, which is how a row gets the keyboard in
     /// the first place. Without that exception opening the row fired this and
     /// shut it again in the same breath, and the shortcut looked like it did
     /// nothing at all.
@@ -226,7 +275,10 @@ final class AppMenusReveal: ObservableObject {
                 guard application?.bundleIdentifier != ownIdentifier else {
                     return
                 }
-                self?.unlatch()
+                guard let self else { return }
+                let latchedScreens = self.isLatched.filter { $0.value }
+                    .map(\.key)
+                latchedScreens.forEach { self.unlatch(screen: $0) }
             }
     }
 
@@ -238,44 +290,80 @@ final class AppMenusReveal: ObservableObject {
         applicationObserver = nil
     }
 
-    /// For the modes that do not depend on the pointer, where the answer is
-    /// already known and there is no gap to wait out.
-    func setRevealed(_ revealed: Bool) {
-        pendingHide?.cancel()
-        pendingHide = nil
-        sources.removeAll()
-        set(revealed)
+    /// Drops every piece of state for a screen index that no longer has a
+    /// panel, so a display that is no longer connected cannot leave stale
+    /// reveal state behind for a future display to inherit at the same
+    /// index. `AppDelegate.setupPanels()` calls this with the current screen
+    /// count whenever the screen layout changes.
+    func forgetScreens(beyond count: Int) {
+        let knownScreens =
+            Set(isRevealed.keys)
+            .union(isLatched.keys)
+            .union(sources.keys)
+            .union(pendingHide.keys)
+            .union(watchdog.keys)
+            .union(isSuppressed.keys)
+            .union(suppression.keys)
+            .union(spans.keys)
+        for screen in knownScreens where screen > count {
+            if isLatched[screen] ?? false {
+                unlatch(screen: screen)
+            }
+            watchdog[screen]?.invalidate()
+            suppression[screen]?.invalidate()
+            pendingHide[screen]?.cancel()
+            isRevealed.removeValue(forKey: screen)
+            isLatched.removeValue(forKey: screen)
+            sources.removeValue(forKey: screen)
+            pendingHide.removeValue(forKey: screen)
+            watchdog.removeValue(forKey: screen)
+            isSuppressed.removeValue(forKey: screen)
+            suppression.removeValue(forKey: screen)
+            spans.removeValue(forKey: screen)
+        }
     }
 
-    private func set(_ value: Bool) {
-        guard value != isRevealed else { return }
-        isRevealed = value
+    /// For the modes that do not depend on the pointer, where the answer is
+    /// already known and there is no gap to wait out.
+    func setRevealed(_ revealed: Bool, screen: Int) {
+        pendingHide[screen]?.cancel()
+        pendingHide[screen] = nil
+        sources[screen] = []
+        set(revealed, screen: screen)
+    }
+
+    private func set(_ value: Bool, screen: Int) {
+        guard value != (isRevealed[screen] ?? false) else { return }
+        isRevealed[screen] = value
         // Only the pointer-driven mode, and only when the pointer is what is
         // holding it. Under `click`, `modifier` and the shortcut's latch the
         // pointer is nowhere in particular and the watchdog would close the
         // menus the instant they opened.
-        value && revealsOnHover && !isLatched
-            ? startWatchdog() : stopWatchdog()
+        value && revealsOnHover && !(isLatched[screen] ?? false)
+            ? startWatchdog(screen: screen) : stopWatchdog(screen: screen)
     }
 
     /// A second way out, in case a tracker is ever lost the way `forget`
     /// describes and nothing calls it. The pointer's position is the truth
     /// about whether the reveal should still be held, and `sources` is only a
     /// cache of it, so while the menus are up that truth is checked directly.
-    private func startWatchdog() {
-        stopWatchdog()
-        watchdog = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) {
-            [weak self] _ in
-            guard let self, !self.isPointerInHoldRegion else { return }
-            self.sources.removeAll()
-            self.pendingHide?.cancel()
-            self.pendingHide = nil
-            self.set(false)
+    private func startWatchdog(screen: Int) {
+        stopWatchdog(screen: screen)
+        watchdog[screen] = Timer.scheduledTimer(
+            withTimeInterval: 0.25, repeats: true
+        ) { [weak self] _ in
+            guard let self, !self.isPointerInHoldRegion(for: screen) else {
+                return
+            }
+            self.sources[screen] = []
+            self.pendingHide[screen]?.cancel()
+            self.pendingHide[screen] = nil
+            self.set(false, screen: screen)
         }
     }
 
-    private func stopWatchdog() {
-        watchdog?.invalidate()
-        watchdog = nil
+    private func stopWatchdog(screen: Int) {
+        watchdog[screen]?.invalidate()
+        watchdog[screen] = nil
     }
 }

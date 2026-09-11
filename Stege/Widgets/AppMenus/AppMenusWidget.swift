@@ -65,7 +65,7 @@ struct AppMenusWidget: View {
     /// shared state rather than this view's own: the pointer that opens them is
     /// usually over the pills, not over anything this widget drew.
     private var menusRevealed: Bool {
-        visibility == .always || reveal.isRevealed
+        visibility == .always || (reveal.isRevealed[barScreenIndex ?? 0] ?? false)
     }
 
     private var visibleMenus: [AppMenuEntry] {
@@ -99,15 +99,20 @@ struct AppMenusWidget: View {
             // `modifier` carry no tracking area at all.
             ZStack {
                 if visibility == .hover {
-                    HoverTracker { reveal.setHovered($0, from: .menus) }
+                    HoverTracker {
+                        reveal.setHovered(
+                            $0, from: .menus, screen: barScreenIndex ?? 0)
+                    }
                     GeometryReader { geometry in
                         Color.clear
                             .onAppear {
                                 reveal.setSpan(
-                                    geometry.frame(in: .global), for: .menus)
+                                    geometry.frame(in: .global), for: .menus,
+                                    screen: barScreenIndex ?? 0)
                             }
                             .onChange(of: geometry.frame(in: .global)) { _, new in
-                                reveal.setSpan(new, for: .menus)
+                                reveal.setSpan(
+                                    new, for: .menus, screen: barScreenIndex ?? 0)
                             }
                     }
                 }
@@ -124,7 +129,7 @@ struct AppMenusWidget: View {
         }
         .onChange(of: modifiers.isHolding(modifierKey)) { _, holding in
             guard visibility == .modifier else { return }
-            reveal.setRevealed(holding)
+            reveal.setRevealed(holding, screen: barScreenIndex ?? 0)
         }
         .animation(.smooth(duration: 0.15), value: manager.applicationName)
         .onChange(of: manager.applicationName) { _, _ in
@@ -150,7 +155,7 @@ struct AppMenusWidget: View {
         reveal.swapsSpaces = false
         reveal.revealsOnHover = false
         reveal.togglesOnClick = false
-        reveal.setRevealed(false)
+        reveal.setRevealed(false, screen: barScreenIndex ?? 0)
     }
 
     /// The frontmost application's icon, ahead of its name, so the swapped-in
@@ -169,7 +174,7 @@ struct AppMenusWidget: View {
                 .contentShape(Rectangle())
                 .onTapGesture {
                     guard visibility == .click else { return }
-                    reveal.setRevealed(false)
+                    reveal.setRevealed(false, screen: barScreenIndex ?? 0)
                 }
                 .help(
                     visibility == .click

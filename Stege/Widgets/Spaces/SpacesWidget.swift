@@ -16,7 +16,7 @@ struct SpacesWidget: View {
     var foregroundHeight: CGFloat { configManager.config.bar.foreground.resolveHeight() }
 
     private var isStandingAside: Bool {
-        reveal.swapsSpaces && reveal.isRevealed
+        reveal.swapsSpaces && (reveal.isRevealed[screenIndex ?? 0] ?? false)
     }
 
     /// The workspaces on this display.
@@ -56,6 +56,7 @@ struct SpacesWidget: View {
 private struct SpaceView: View {
     @EnvironmentObject var configProvider: ConfigProvider
     @EnvironmentObject var viewModel: SpacesViewModel
+    @Environment(\.barScreenIndex) private var screenIndex
 
     var config: ConfigData { configProvider.config }
     var spaceConfig: ConfigData { config["space"]?.dictionaryValue ?? [:] }
@@ -111,7 +112,8 @@ private struct SpaceView: View {
         .onTapGesture {
             // Switching is what was asked for, not the menus of whatever ends
             // up focused underneath the pointer afterwards.
-            AppMenusReveal.shared.suppressUntilPointerLeaves()
+            AppMenusReveal.shared.suppressUntilPointerLeaves(
+                screen: screenIndex ?? 0)
             viewModel.switchToSpace(space, needWindowFocus: true)
         }
         .animation(BarStyle.hoverAnimation, value: isHovered)
@@ -125,6 +127,7 @@ private struct SpaceView: View {
 private struct WindowView: View {
     @EnvironmentObject var configProvider: ConfigProvider
     @EnvironmentObject var viewModel: SpacesViewModel
+    @Environment(\.barScreenIndex) private var screenIndex
 
     var config: ConfigData { configProvider.config }
     var windowConfig: ConfigData { config["window"]?.dictionaryValue ?? [:] }
@@ -220,15 +223,20 @@ private struct WindowView: View {
         .background(
             ZStack {
                 if isRevealTrigger {
-                    HoverTracker { reveal.setHovered($0, from: .spaces) }
+                    HoverTracker {
+                        reveal.setHovered(
+                            $0, from: .spaces, screen: screenIndex ?? 0)
+                    }
                     GeometryReader { geometry in
                         Color.clear
                             .onAppear {
                                 reveal.setSpan(
-                                    geometry.frame(in: .global), for: .spaces)
+                                    geometry.frame(in: .global), for: .spaces,
+                                    screen: screenIndex ?? 0)
                             }
                             .onChange(of: geometry.frame(in: .global)) { _, new in
-                                reveal.setSpan(new, for: .spaces)
+                                reveal.setSpan(
+                                    new, for: .spaces, screen: screenIndex ?? 0)
                             }
                     }
                 }
@@ -236,18 +244,20 @@ private struct WindowView: View {
             // Focus moves to another workspace and this pill stops being the
             // trigger, taking its tracking area with it while the pointer is
             // still inside. Nothing would report the pointer leaving.
-            .onDisappear { reveal.forget(.spaces) }
+            .onDisappear {
+                reveal.forget(.spaces, screen: screenIndex ?? 0)
+            }
         )
         .onChange(of: isRevealTrigger) { _, isTrigger in
             guard !isTrigger else { return }
-            reveal.forget(.spaces)
+            reveal.forget(.spaces, screen: screenIndex ?? 0)
         }
         .onTapGesture {
             if reveal.togglesOnClick, window.isFocused {
-                reveal.toggleRevealed()
+                reveal.toggleRevealed(screen: screenIndex ?? 0)
                 return
             }
-            reveal.suppressUntilPointerLeaves()
+            reveal.suppressUntilPointerLeaves(screen: screenIndex ?? 0)
             viewModel.switchToSpaceAndWindow(space, window: window)
         }
         .onHover { value in

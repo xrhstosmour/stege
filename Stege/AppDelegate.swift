@@ -197,7 +197,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             configuration.menuShortcut, name: "menu"
         ) {
             AppMenusManager.shared.refresh()
-            AppMenusReveal.shared.toggleLatched()
+            // One-based, matching `NSScreen.screens`, the same convention
+            // `AppMenusManager.currentScreenIndex` and `AppMenuPresenter`
+            // resolve the pointer's screen by: latching every bar at once,
+            // the previous behaviour, made every other screen's row replay
+            // whichever one the pointer actually was over.
+            let pointer = NSEvent.mouseLocation
+            let screen =
+                (NSScreen.screens.firstIndex { $0.frame.contains(pointer) }
+                    ?? 0) + 1
+            AppMenusReveal.shared.toggleLatched(screen: screen)
         }
     }
 
@@ -298,6 +307,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         while collapsedPanels.count > screens.count {
             collapsedPanels.removeLast().close()
         }
+        // A screen index that no panel exists for any more can otherwise
+        // still be latched or mid-reveal: reconnecting a different display
+        // later, which macOS can enumerate at that same index, would then
+        // inherit that stale state on first appearance, no interaction of
+        // its own having caused it.
+        AppMenusReveal.shared.forgetScreens(beyond: screens.count)
 
         for (index, screen) in screens.enumerated() {
             let frame = screen.frame
