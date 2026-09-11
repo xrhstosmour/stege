@@ -119,6 +119,31 @@ final class CalendarManager: ObservableObject {
         return filtered
     }
 
+    /// Collapses an event that EventKit is exposing more than once. See
+    /// `EventDeduplication` for why.
+    ///
+    /// Applied after any calendar-name filtering, never before: two copies of
+    /// one meeting can sit on different calendars, and if the copy dedup
+    /// happens to keep is the one a deny-list would have excluded, filtering
+    /// it afterward would lose the event entirely instead of falling back to
+    /// the copy that should have stayed visible.
+    static func deduplicated(_ events: [EKEvent]) -> [EKEvent] {
+        let indices = EventDeduplication.firstOccurrenceIndices(
+            of: events.map {
+                (
+                    identifier: $0.calendarItemExternalIdentifier
+                        ?? $0.eventIdentifier,
+                    startDate: $0.startDate
+                )
+            }
+        )
+        return indices.map { events[$0] }
+    }
+
+    /// Not deduplicated here: `todaysEvents` still holds every raw copy, and
+    /// `TimeWidget.nextEvent` deduplicates after applying its allow/deny list,
+    /// so a copy on a denied calendar never survives dedup at the expense of
+    /// one that should have stayed visible.
     func fetchTodaysEvents() {
         let calendars = eventStore.calendars(for: .event)
         let now = Date()
@@ -205,9 +230,11 @@ extension CalendarManager {
         let predicate = eventStore.predicateForEvents(
             withStart: start, end: end,
             calendars: eventStore.calendars(for: .event))
-        return Self.filterEvents(
-            eventStore.events(matching: predicate),
-            allowList: allowList, denyList: denyList
+        return Self.deduplicated(
+            Self.filterEvents(
+                eventStore.events(matching: predicate),
+                allowList: allowList, denyList: denyList
+            )
         )
         .sorted {
             if $0.isAllDay != $1.isAllDay { return $0.isAllDay }

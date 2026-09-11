@@ -49,10 +49,16 @@ struct TimeWidget: View {
     /// The next event today, allow/deny-list applied. Regular events sort
     /// before all-day ones, matching the countdown line's preference for
     /// something with an actual start time to count down to.
+    ///
+    /// Deduplicated after filtering, not before: a meeting duplicated across
+    /// calendars should still show once it survives the allow/deny list, even
+    /// when the copy on a denied calendar is the one deduplication would
+    /// otherwise have kept.
     private var nextEvent: EKEvent? {
-        let filtered = CalendarManager.filterEvents(
-            calendarManager.todaysEvents,
-            allowList: allowList, denyList: denyList)
+        let filtered = CalendarManager.deduplicated(
+            CalendarManager.filterEvents(
+                calendarManager.todaysEvents,
+                allowList: allowList, denyList: denyList))
         return filtered.first(where: { !$0.isAllDay }) ?? filtered.first
     }
 
