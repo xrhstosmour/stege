@@ -8,15 +8,17 @@ import SwiftUI
 /// configured, and never displace anything either side of it the way an
 /// ordinary widget would.
 struct LocationWidget: View {
-    /// Matches the deleted Privacy widget's own dot size.
-    static let diameter: CGFloat = 8
+    /// Matches the deleted Privacy widget's own dot size, on the display the
+    /// real dot's size was last measured on. `MenuBarView` overrides this per
+    /// screen from `Constants.privacyIndicatorGeometry`.
+    var diameter: CGFloat = 8
 
     @ObservedObject private var manager = LocationManager.shared
 
     var body: some View {
         Circle()
             .fill(Color.blue)
-            .frame(width: Self.diameter, height: Self.diameter)
+            .frame(width: diameter, height: diameter)
             .opacity(manager.isLocationInUse ? 1 : 0)
             // Fully transparent when idle, so hovering it then shouldn't
             // surface a tooltip for a dot the user cannot see.

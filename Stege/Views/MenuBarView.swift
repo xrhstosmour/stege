@@ -20,6 +20,10 @@ struct MenuBarView: View {
     /// One-based, matching `NSScreen.screens`. Nil when there is only one bar
     /// or the caller did not say, and then nothing is filtered.
     var screenIndex: Int?
+    /// The screen this bar is drawn on, for sizing and positioning the
+    /// privacy-indicator dot to match. Defaults to Retina, the scale the dot
+    /// was last measured at, so a caller that does not say behaves as before.
+    var backingScaleFactor: CGFloat = 2.0
 
     var body: some View {
         let items = configManager.config.rootToml.widgets.displayed
@@ -50,11 +54,12 @@ struct MenuBarView: View {
         // would take its own slot in the row and shift everything already
         // to its left sideways every time it appeared or disappeared.
         .overlay(alignment: .topTrailing) {
-            LocationWidget()
+            let geometry = Constants.privacyIndicatorGeometry(
+                forScale: backingScaleFactor)
+            LocationWidget(diameter: geometry.diameter)
                 .padding(
                     .trailing,
-                    Constants.privacyIndicatorColumnCenter
-                        - LocationWidget.diameter / 2)
+                    geometry.columnCenter - geometry.diameter / 2)
                 // A small nudge off the top edge, not the row's own height:
                 // this overlay's parent frame is the row itself, so padding by
                 // its full height pushed the dot a whole row past the top edge
