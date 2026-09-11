@@ -40,4 +40,18 @@ enum EventDeduplication {
         }
         return kept
     }
+
+    /// `nil` if `identifier` is `nil` or empty, otherwise `identifier` itself.
+    ///
+    /// EventKit's `calendarItemExternalIdentifier` is documented as a
+    /// cross-calendar identity for a meeting, `nil` when the event was never
+    /// synced anywhere, but in practice it comes back `""` for that case, not
+    /// `nil`. A caller falling back to a different identifier when there is
+    /// no real cross-calendar identity, the way `CalendarManager.deduplicated`
+    /// does, needs that empty string normalized to `nil` first, or the
+    /// fallback never runs and two unrelated events both key on `""`.
+    static func normalizedIdentifier(_ identifier: String?) -> String? {
+        guard let identifier, !identifier.isEmpty else { return nil }
+        return identifier
+    }
 }

@@ -45,4 +45,14 @@ struct EventDeduplicationTests {
                 (identifier: "c", startDate: startDate),
             ]) == [0, 1, 2])
     }
+
+    /// `calendarItemExternalIdentifier` comes back `""`, not `nil`, for an
+    /// event that was never synced anywhere.
+    @Test func normalizedIdentifierTreatsEmptyStringAsNil() {
+        #expect(EventDeduplication.normalizedIdentifier("") == nil)
+        #expect(EventDeduplication.normalizedIdentifier(nil) == nil)
+        #expect(
+            EventDeduplication.normalizedIdentifier("team-sync")
+                == "team-sync")
+    }
 }
