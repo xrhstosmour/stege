@@ -310,6 +310,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     menuBarPanels[index], to: frame,
                     level: Self.barLevel,
                     show: shouldShow)
+                // `reposition` only moves the panel. A screen's scale factor
+                // can change with its index staying put, e.g. switching a
+                // scaled resolution on an external display, so the already
+                // existing bar's root view is rebuilt here too rather than
+                // left holding whatever scale it was created with.
+                if let hostingView = menuBarPanels[index].contentView
+                    as? NSHostingView<AnyView>
+                {
+                    hostingView.rootView = framedRootView(
+                        menuBarRootView(screenIndex: index + 1, on: screen))
+                }
                 reposition(
                     collapsedPanels[index], to: collapsedFrame(on: screen),
                     level: Int(CGWindowLevelForKey(.popUpMenuWindow)),
@@ -325,8 +336,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     makePanel(
                         frame: frame,
                         level: Self.barLevel,
-                        hostingRootView: AnyView(
-                            MenuBarView(screenIndex: index + 1)),
+                        hostingRootView: menuBarRootView(
+                            screenIndex: index + 1, on: screen),
                         show: shouldShow))
                 // Above the menu bar rather than behind it, because the whole
                 // point is to stay reachable while the real menu bar is the
@@ -382,6 +393,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if show { panel.orderFrontRegardless() } else { panel.orderOut(nil) }
     }
 
+    private func menuBarRootView(screenIndex: Int, on screen: NSScreen)
+        -> AnyView
+    {
+        AnyView(
+            MenuBarView(
+                screenIndex: screenIndex,
+                backingScaleFactor: screen.backingScaleFactor))
+    }
+
+    // Top aligned inside the panel, because the panel is the whole screen and
+    // the bar is a fixed height. Without this SwiftUI centres it, and the bar
+    // would be drawn halfway down the display.
+    private func framedRootView(_ view: AnyView) -> AnyView {
+        AnyView(
+            view.frame(
+                maxWidth: .infinity, maxHeight: .infinity, alignment: .top))
+    }
+
     private func makePanel(
         frame: CGRect, level: Int, hostingRootView: AnyView, show: Bool = true
     ) -> NSPanel {
@@ -400,13 +429,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.collectionBehavior = [
             .canJoinAllSpaces, .fullScreenAuxiliary, .stationary,
         ]
-        // Top aligned inside the panel, because the panel is the whole screen
-        // and the bar is a fixed height. Without this SwiftUI centres it, and
-        // the bar would be drawn halfway down the display.
         let hostingView = NSHostingView(
-            rootView: AnyView(
-                hostingRootView.frame(
-                    maxWidth: .infinity, maxHeight: .infinity, alignment: .top)))
+            rootView: framedRootView(hostingRootView))
         // The panel keeps the frame it is given. `NSHostingView` publishes its
         // root view's intrinsic size by default, and AppKit resizes the window
         // to match, so the screen-sized menu bar panel shrank to the 44 points
