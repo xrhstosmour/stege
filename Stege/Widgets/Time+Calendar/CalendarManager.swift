@@ -131,7 +131,8 @@ final class CalendarManager: ObservableObject {
         let indices = EventDeduplication.firstOccurrenceIndices(
             of: events.map {
                 (
-                    identifier: $0.calendarItemExternalIdentifier
+                    identifier: EventDeduplication.normalizedIdentifier(
+                        $0.calendarItemExternalIdentifier)
                         ?? $0.eventIdentifier,
                     startDate: $0.startDate
                 )
