@@ -42,7 +42,7 @@ struct MenuBarView: View {
         .padding(.horizontal, configManager.config.bar.foreground.horizontalPadding)
         // Extra on the right only. macOS draws its recording dot in the corner
         // above every window, so without this the clock is drawn through it.
-        .padding(.trailing, configManager.config.bar.foreground.trailingPadding)
+        .padding(.trailing, trailingPadding)
         .background(.black.opacity(0.001))
         .contextMenu {
             Button("Permissions…") {
@@ -68,6 +68,20 @@ struct MenuBarView: View {
         }
         .environment(\.barScreenIndex, screenIndex)
         .preferredColorScheme(configManager.config.colorScheme)
+    }
+
+    /// Set in config, the same value on every screen. Left unset, whatever
+    /// this screen's own scale factor still leaves short of
+    /// `Constants.privacyIndicatorClearance(forScale:)`, so a screen whose
+    /// dot needs less room than the built-in panel's is not left with the
+    /// built-in panel's leftover padding.
+    private var trailingPadding: CGFloat {
+        let foreground = configManager.config.bar.foreground
+        if let explicit = foreground.trailingPadding { return explicit }
+        return max(
+            0,
+            Constants.privacyIndicatorClearance(forScale: backingScaleFactor)
+                - foreground.horizontalPadding)
     }
 
     @ViewBuilder
