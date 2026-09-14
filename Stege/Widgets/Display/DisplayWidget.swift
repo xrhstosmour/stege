@@ -124,6 +124,11 @@ struct DisplayPopup: View {
                     }
                 }
                 .popupStaticRow()
+
+                // Only drawn alongside the row above, not as a fixed part of
+                // the popup's layout: with the lid up there is nothing on
+                // either side of it to separate.
+                PopupSeparator()
             }
             VStack(alignment: .leading, spacing: PopupStyle.rowSpacing) {
                 ForEach(manager.displays) { display in

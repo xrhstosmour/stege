@@ -14,29 +14,64 @@ import Foundation
 /// identifier is never treated as matching another `nil` identifier, so an
 /// event with no identifier at all is always kept rather than risking two
 /// unrelated events collapsing into one.
+///
+/// A second pass then catches what the identifier match cannot: the same
+/// meeting handed out under two different identifiers by two different
+/// sources, which happens on a shared or delegated calendar that mints its
+/// own identifier for a copy of an invite a personal calendar already carries
+/// under its own. Matched on title, start date and end date together, because
+/// two unrelated meetings sharing only one or two of those is far more likely
+/// than sharing all three. An empty title is never treated as matching another
+/// empty title, the same guard the identifier pass applies to `nil`.
 enum EventDeduplication {
-    /// A single array of `(identifier, startDate)` pairs, one per event,
-    /// rather than two parallel arrays, so there is no length mismatch for a
-    /// caller to get wrong.
+    /// A single array of event fields, one tuple per event, rather than
+    /// parallel arrays, so there is no length mismatch for a caller to get
+    /// wrong.
     static func firstOccurrenceIndices(
-        of events: [(identifier: String?, startDate: Date)]
+        of events: [
+            (identifier: String?, title: String, startDate: Date, endDate: Date)
+        ]
     ) -> [Int] {
-        struct Key: Hashable {
+        struct IdentifierKey: Hashable {
             let identifier: String
             let startDate: Date
         }
-        var seen = Set<Key>()
+        struct TitleKey: Hashable {
+            let title: String
+            let startDate: Date
+            let endDate: Date
+        }
+        var seenIdentifiers = Set<IdentifierKey>()
+        var seenTitles = Set<TitleKey>()
         var kept: [Int] = []
         for index in events.indices {
-            guard let identifier = events[index].identifier else {
-                kept.append(index)
+            let event = events[index]
+            let identifierKey = event.identifier.map {
+                IdentifierKey(identifier: $0, startDate: event.startDate)
+            }
+            let title = event.title
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+            let titleKey =
+                title.isEmpty
+                ? nil
+                : TitleKey(
+                    title: title, startDate: event.startDate,
+                    endDate: event.endDate)
+
+            // Checked against both sets before either is written to: an
+            // event dropped as a title duplicate must not also burn its
+            // identifier, or a later, genuinely distinct event sharing that
+            // identifier by coincidence would be dropped as well, losing a
+            // meeting this pass was never meant to touch.
+            if let identifierKey, seenIdentifiers.contains(identifierKey) {
                 continue
             }
-            let key = Key(
-                identifier: identifier, startDate: events[index].startDate)
-            if seen.insert(key).inserted {
-                kept.append(index)
-            }
+            if let titleKey, seenTitles.contains(titleKey) { continue }
+
+            if let identifierKey { seenIdentifiers.insert(identifierKey) }
+            if let titleKey { seenTitles.insert(titleKey) }
+            kept.append(index)
         }
         return kept
     }

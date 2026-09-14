@@ -292,11 +292,8 @@ struct BluetoothPopup: View {
                             .opacity(0.6)
                     }
                     ProgressView().controlSize(.mini)
-                } else if let level = device.batteryLevel {
-                    Text("\(Int((level * 100).rounded()))%")
-                        .font(.system(size: PopupStyle.bodySize))
-                        .monospacedDigit()
-                        .opacity(0.7)
+                } else {
+                    DeviceTrailingLabel(device: device)
                 }
             }
 
@@ -350,5 +347,33 @@ struct BluetoothPopup: View {
         }
         if lowered.contains("speaker") { return "hifispeaker" }
         return "dot.radiowaves.left.and.right"
+    }
+}
+
+/// A connected device's battery, replaced by "Disconnect" while its row is
+/// hovered. A row that reports no battery shows nothing until it is hovered,
+/// the same way a device with a level shows nothing on the row above it until
+/// the pointer arrives.
+///
+/// Text, not a real button: the whole row is already clickable, the same way
+/// the nearby list's "Pair" label is a hint rather than a second hit target.
+/// The tooltip already says "Disconnect" on hover too, but a tooltip takes a
+/// moment to appear and disappears the instant the pointer moves, where this
+/// is there from the first frame the row is highlighted.
+private struct DeviceTrailingLabel: View {
+    let device: BluetoothDevice
+    @Environment(\.isPopupRowHighlighted) private var isHighlighted
+
+    var body: some View {
+        if device.isConnected && isHighlighted {
+            Text("Disconnect")
+                .font(.system(size: PopupStyle.bodySize))
+                .opacity(0.7)
+        } else if let level = device.batteryLevel {
+            Text("\(Int((level * 100).rounded()))%")
+                .font(.system(size: PopupStyle.bodySize))
+                .monospacedDigit()
+                .opacity(0.7)
+        }
     }
 }

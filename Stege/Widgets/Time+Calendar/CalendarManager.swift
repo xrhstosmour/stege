@@ -134,7 +134,9 @@ final class CalendarManager: ObservableObject {
                     identifier: EventDeduplication.normalizedIdentifier(
                         $0.calendarItemExternalIdentifier)
                         ?? $0.eventIdentifier,
-                    startDate: $0.startDate
+                    title: $0.title ?? "",
+                    startDate: $0.startDate,
+                    endDate: $0.endDate
                 )
             }
         )
