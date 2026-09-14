@@ -205,6 +205,10 @@ show-control-centre = false
 # in plaintext, where anything running as you can read them. Left off, the bell
 # starts empty after a restart and fills as banners arrive.
 remember-between-launches = false
+# Notifications clear themselves once they are this many hours old, or the
+# moment the lid closes, whichever comes first. Zero turns the automatic
+# clearing off.
+auto-clear-after-hours = 24
 
 # The screen. Brightness in the bar and on the scroll wheel, and in the popup
 # a brightness slider per display, the resolution and refresh rate of each one,

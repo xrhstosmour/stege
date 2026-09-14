@@ -14,6 +14,46 @@ struct SystemNotification: Identifiable, Equatable, Codable {
     /// The time exactly as macOS wrote it, "11:35" or "Yesterday, 20:46". Not
     /// re-derived, because Notification Center is the one that knows.
     let time: String
+    /// When this entry was read, standing in for a real arrival time the same
+    /// way `time` does for a banner: nothing here carries a machine-readable
+    /// timestamp, only text meant for a person. What auto-clearing measures
+    /// its age against.
+    let receivedAt: Date
+
+    init(
+        id: String, application: String, title: String, subtitle: String,
+        body: String, time: String, receivedAt: Date
+    ) {
+        self.id = id
+        self.application = application
+        self.title = title
+        self.subtitle = subtitle
+        self.body = body
+        self.time = time
+        self.receivedAt = receivedAt
+    }
+
+    /// Hand-written rather than synthesized, so a list stored by a build
+    /// before `receivedAt` existed still decodes: the key is simply missing
+    /// from that JSON, and a synthesized `init(from:)` would throw on the
+    /// whole array over one absent field, silently emptying a remembered list
+    /// on the first launch after updating.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        application = try container.decode(String.self, forKey: .application)
+        title = try container.decode(String.self, forKey: .title)
+        subtitle = try container.decode(String.self, forKey: .subtitle)
+        body = try container.decode(String.self, forKey: .body)
+        time = try container.decode(String.self, forKey: .time)
+        receivedAt =
+            try container.decodeIfPresent(Date.self, forKey: .receivedAt)
+            ?? Date()
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, application, title, subtitle, body, time, receivedAt
+    }
 }
 
 /// What macOS has shown a banner for since Stege started.
@@ -89,10 +129,30 @@ final class NotificationCenterReader: ObservableObject {
     /// pointing at a process that is gone.
     private var workspaceObservers: [NSObjectProtocol] = []
 
+    /// How long a notification sits in the list before it clears itself.
+    /// Sourced from `notifications.auto-clear-after-hours` in config, and
+    /// applied the moment it is set as well as on the timer below, so
+    /// changing it in a live-reloaded config takes effect immediately rather
+    /// than waiting for the next tick. Zero turns the automatic clearing off.
+    var autoClearAfterHours = 24 {
+        didSet { clearExpired() }
+    }
+    /// How often the list is checked against `autoClearAfterHours`. Nothing
+    /// else re-checks it: an entry's age moves on its own even when no
+    /// notification arrives to trigger a read.
+    private static let clearCheckInterval: TimeInterval = 5 * 60
+    private var clearTimer: Timer?
+    /// Cleared the moment the lid shuts, on top of the age-based clearing
+    /// above. `DisplayManager` already tracks this from `IOPMrootDomain` for
+    /// the Displays popup, so this reads that rather than opening a second
+    /// route to the same fact.
+    private var lidClosedCancellable: AnyCancellable?
+
     private init() {}
 
     deinit {
         retryTimer?.invalidate()
+        clearTimer?.invalidate()
         workspaceObservers.forEach {
             NSWorkspace.shared.notificationCenter.removeObserver($0)
         }
@@ -117,6 +177,12 @@ final class NotificationCenterReader: ObservableObject {
             startRetryingIfNeeded()
             return
         }
+        // Started only once watching can actually fill the list: with
+        // Accessibility untrusted there is nothing in it yet for either to
+        // act on, only a `DisplayManager` instantiated and a timer ticking
+        // over an empty array for as long as the permission is withheld.
+        watchForLidClose()
+        scheduleClearing()
         // Notification Center's process is not always up yet the one time this
         // is called, from the widget's own `onAppear`, and nothing posts a
         // notification back once it is, so without a retry a launch that beat
@@ -210,6 +276,47 @@ final class NotificationCenterReader: ObservableObject {
             })
     }
 
+    // MARK: - Auto-clearing
+
+    /// Clears the list the moment the lid shuts. Guarded the same way
+    /// `watchForRestart()` is, so a widget appearing on more than one screen
+    /// does not stack up a subscription per screen.
+    ///
+    /// `dropFirst()`, not the value `$isLidClosed` publishes immediately on
+    /// subscription: a launch that happens to find the lid already shut is
+    /// not the moment the lid closed, and should not empty a list that has
+    /// not had the chance to show anything yet.
+    private func watchForLidClose() {
+        guard lidClosedCancellable == nil else { return }
+        lidClosedCancellable = DisplayManager.shared.$isLidClosed
+            .dropFirst()
+            .removeDuplicates()
+            .sink { [weak self] isLidClosed in
+                guard isLidClosed, let self, self.autoClearAfterHours > 0
+                else { return }
+                self.forgetAll()
+            }
+    }
+
+    /// Starts the periodic age check. Guarded the same way `watchForRestart()`
+    /// is.
+    private func scheduleClearing() {
+        guard clearTimer == nil else { return }
+        clearExpired()
+        clearTimer = Timer.scheduledTimer(
+            withTimeInterval: Self.clearCheckInterval, repeats: true
+        ) { [weak self] _ in
+            self?.clearExpired()
+        }
+    }
+
+    private func clearExpired() {
+        guard autoClearAfterHours > 0 else { return }
+        let cutoff = Date().addingTimeInterval(
+            -Double(autoClearAfterHours) * 3600)
+        notifications.removeAll { $0.receivedAt < cutoff }
+    }
+
     /// Retries until watching actually starts. Granting Accessibility happens
     /// outside the app and posts no notification, the same reason
     /// `AppMenusManager` polls for it, and Notification Center's own process
@@ -244,7 +351,10 @@ final class NotificationCenterReader: ObservableObject {
                 Log.notifications.notice(
                     "Notification list read, \(found.count, privacy: .public) entries"
                 )
-                DispatchQueue.main.async { self.notifications = found }
+                DispatchQueue.main.async {
+                    self.notifications = Self.preservingReceivedAt(
+                        found, existing: self.notifications)
+                }
                 return
             }
             let arriving = Self.parseArriving(in: window)
@@ -271,6 +381,29 @@ final class NotificationCenterReader: ObservableObject {
             merged.insert(entry, at: 0)
         }
         notifications = Array(merged.prefix(Self.limit))
+    }
+
+    /// Carries each entry's original `receivedAt` over into a fresh panel
+    /// read. The panel is re-scraped, and every row in it re-stamped with
+    /// `Date()`, whenever Notification Center's own window is opened, not
+    /// only when something new arrives, so without this an entry that had
+    /// been sitting for days would look brand new the moment the user opened
+    /// the real panel and never reach the auto-clear cutoff.
+    private static func preservingReceivedAt(
+        _ found: [SystemNotification], existing: [SystemNotification]
+    ) -> [SystemNotification] {
+        let previousReceivedAt = Dictionary(
+            existing.map { ($0.id, $0.receivedAt) },
+            uniquingKeysWith: { first, _ in first })
+        return found.map { entry in
+            guard let receivedAt = previousReceivedAt[entry.id] else {
+                return entry
+            }
+            return SystemNotification(
+                id: entry.id, application: entry.application,
+                title: entry.title, subtitle: entry.subtitle,
+                body: entry.body, time: entry.time, receivedAt: receivedAt)
+        }
     }
 
     // MARK: - Forgetting
@@ -379,7 +512,8 @@ final class NotificationCenterReader: ObservableObject {
                 // it. Checked first: an Electron banner's untagged text can
                 // otherwise win by being non-empty, and it is prose, not a
                 // time.
-                time: arrivedAt ?? untagged.last ?? "")
+                time: arrivedAt ?? untagged.last ?? "",
+                receivedAt: Date())
         }
     }
 

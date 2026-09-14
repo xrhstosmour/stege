@@ -31,6 +31,13 @@ struct NotificationsWidget: View {
             ?? config["show-control-center"]?.boolValue ?? false
     }
 
+    /// How long a notification stays in the list before it clears itself, or
+    /// as soon as the lid closes, whichever comes first. Zero turns the
+    /// automatic clearing off.
+    var autoClearAfterHours: Int {
+        config["auto-clear-after-hours"]?.intValue ?? 24
+    }
+
     @ObservedObject private var centre = NotificationCenterReader.shared
     @State private var rect: CGRect = .zero
 
@@ -76,6 +83,7 @@ struct NotificationsWidget: View {
         )
         .onAppear {
             centre.remembersBetweenLaunches = remembersBetweenLaunches
+            centre.autoClearAfterHours = autoClearAfterHours
             centre.startWatching()
         }
     }
