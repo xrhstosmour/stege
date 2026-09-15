@@ -27,6 +27,19 @@ struct Constants {
     struct PrivacyIndicatorGeometry {
         let diameter: CGFloat
         let columnCenter: CGFloat
+        /// How far below the bar's own top edge `LocationWidget` has to sit
+        /// to land beneath this scale's dot rather than on top of it.
+        ///
+        /// Not measured, only estimated: assumes the real dot's own bottom
+        /// edge sits about the same distance from the screen's top edge on
+        /// every scale, so a smaller `diameter` at a smaller scale needs a
+        /// bigger `topOffset` to still clear that same edge, not a smaller
+        /// one. A flat `2` regardless of scale, ignoring `diameter`
+        /// entirely, is what had the blue dot land on top of the real one
+        /// on an external display instead of beneath it. Still needs
+        /// confirming against real hardware, the way `diameter` and
+        /// `columnCenter` already were.
+        let topOffset: CGFloat
     }
 
     private static let privacyIndicatorGeometryByScale:
@@ -36,13 +49,17 @@ struct Constants {
             // dot spans 13.5 to 22.0 points in from the right edge, 8.5 points
             // across.
             2: PrivacyIndicatorGeometry(
-                diameter: 8, columnCenter: CGFloat(13.5 + 22.0) / 2),
+                diameter: 8, columnCenter: CGFloat(13.5 + 22.0) / 2, topOffset: 2),
             // Measured the same way on two 1920x1080 external monitors, both
             // reporting a backingScaleFactor of 1: the dot spans 5 to 11
             // points in from the right edge, 6 points across. Nowhere near
             // double the Retina measurement in either direction.
+            //
+            // `topOffset` is the estimate described on the field itself:
+            // `topOffset + diameter` kept level with Retina's own `2 + 8`,
+            // so `10 - 6 = 4` here.
             1: PrivacyIndicatorGeometry(
-                diameter: 6, columnCenter: CGFloat(5 + 11) / 2),
+                diameter: 6, columnCenter: CGFloat(5 + 11) / 2, topOffset: 4),
         ]
 
     /// Falls back to the Retina measurement for a scale factor that has not
