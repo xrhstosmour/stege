@@ -96,6 +96,14 @@ final class BluetoothManager: NSObject, ObservableObject {
     /// in the meantime.
     private var refreshQueued = false
 
+    /// The direction each device with an outstanding `toggleConnection` call
+    /// is waiting on, keyed by address, so a connect/disconnect notification
+    /// that arrives after `confirmToggle` gave up can still resolve that
+    /// device correctly without disturbing any other device's own pending
+    /// toggle. See `confirmToggle` for why its own poll budget is not always
+    /// enough on its own.
+    private var pendingToggles: [String: Bool] = [:]
+
     /// Held so they can be unregistered. `IOBluetooth` hands back a
     /// notification object per registration, and dropping it without
     /// unregistering leaves the callback live.
@@ -169,6 +177,7 @@ final class BluetoothManager: NSObject, ObservableObject {
         // Registered per device, because `IOBluetooth` has no global
         // disconnect notification the way it has a global connect one.
         watchForDisconnect(of: device)
+        resolvePendingToggle(for: device, shouldConnect: true)
         refresh()
     }
 
@@ -177,7 +186,40 @@ final class BluetoothManager: NSObject, ObservableObject {
     ) {
         notification.unregister()
         disconnectNotifications.removeAll { $0 === notification }
+        resolvePendingToggle(for: device, shouldConnect: false)
         refresh()
+    }
+
+    /// Clears a toggle's busy state and, importantly, a failure message it
+    /// already showed, once the real notification for it arrives, however
+    /// long that took.
+    ///
+    /// `confirmToggle` cannot poll forever without blocking every other row
+    /// for as long as it waits, so it has a short budget and can give up
+    /// before a real but slow disconnect, a JBL Flip 4 among them, actually
+    /// lands. Without this, that gave up-too-soon read stuck around as a
+    /// false `Could not disconnect` even after the device had, moments
+    /// later, genuinely disconnected.
+    private func resolvePendingToggle(for device: IOBluetoothDevice, shouldConnect: Bool) {
+        guard let address = device.addressString,
+            pendingToggles[address] == shouldConnect
+        else { return }
+        pendingToggles[address] = nil
+        // A pending entry outlives `busy` on purpose, see `confirmToggle`, so
+        // by the time a slow notification lands `busy` may already belong to
+        // a different device's toggle or to a pairing. Only clear the shared
+        // published state when it is still this device's to clear.
+        guard busy == address else { return }
+        clearBusyState()
+        failure = nil
+    }
+
+    /// Clears the busy spinner and its label. Shared by `resolvePendingToggle`
+    /// and `confirmToggle` so the two places a toggle can finish agree on what
+    /// finishing clears.
+    private func clearBusyState() {
+        busy = nil
+        activity = nil
     }
 
     /// Reads on a background queue, never on the main thread.
@@ -428,6 +470,7 @@ final class BluetoothManager: NSObject, ObservableObject {
                 // reconnects itself right after being told to disconnect
                 // look, for a moment the row had already stopped watching,
                 // like the disconnect had worked.
+                self.pendingToggles[address] = shouldConnect
                 self.confirmToggle(
                     device: device, target: target,
                     shouldConnect: shouldConnect, attempt: 0)
@@ -472,6 +515,10 @@ final class BluetoothManager: NSObject, ObservableObject {
             let matches = target.isConnected() == shouldConnect
             DispatchQueue.main.async {
                 guard let self else { return }
+                // A connect/disconnect notification already resolved this
+                // device's toggle, see `resolvePendingToggle`, so there is
+                // nothing left for this poll to decide.
+                guard self.pendingToggles[device.id] == shouldConnect else { return }
                 guard matches || attempt >= 6 else {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                         [weak self] in
@@ -483,14 +530,18 @@ final class BluetoothManager: NSObject, ObservableObject {
                     }
                     return
                 }
-                self.busy = nil
-                self.activity = nil
+                self.clearBusyState()
                 if !matches && !observedDesiredState {
-                    // Gave up without ever seeing the state move, so this is
-                    // a real failure worth saying, not a disconnect that
-                    // quietly never happened.
+                    // Gave up without ever seeing the state move. This
+                    // device's `pendingToggles` entry is left set on purpose,
+                    // a real but slow notification, a JBL Flip 4's disconnect
+                    // among them, can still arrive and clear this failure
+                    // through `resolvePendingToggle`, so this is only ever a
+                    // provisional answer, not the final word.
                     self.failure = Self.toggleFailureMessage(
                         name: device.name, shouldConnect: shouldConnect)
+                } else {
+                    self.pendingToggles[device.id] = nil
                 }
                 self.refresh()
             }
