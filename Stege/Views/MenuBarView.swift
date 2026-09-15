@@ -63,8 +63,11 @@ struct MenuBarView: View {
                 // A small nudge off the top edge, not the row's own height:
                 // this overlay's parent frame is the row itself, so padding by
                 // its full height pushed the dot a whole row past the top edge
-                // and into the empty panel space below the visible bar.
-                .padding(.top, 2)
+                // and into the empty panel space below the visible bar. Per
+                // scale, like the column above: a flat nudge left the dot
+                // landing on top of the real one on an external display
+                // instead of beneath it.
+                .padding(.top, geometry.topOffset)
         }
         .environment(\.barScreenIndex, screenIndex)
         .preferredColorScheme(configManager.config.colorScheme)
