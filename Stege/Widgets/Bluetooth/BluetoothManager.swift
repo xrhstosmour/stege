@@ -195,11 +195,11 @@ final class BluetoothManager: NSObject, ObservableObject {
     /// long that took.
     ///
     /// `confirmToggle` cannot poll forever without blocking every other row
-    /// for as long as it waits, so it has a short budget and can give up
-    /// before a real but slow disconnect, a JBL Flip 4 among them, actually
-    /// lands. Without this, that gave up-too-soon read stuck around as a
-    /// false `Could not disconnect` even after the device had, moments
-    /// later, genuinely disconnected.
+    /// for as long as it waits, so its budget, `confirmAttempts`, is wide
+    /// but still bounded and can still give up before a device slower than
+    /// even that lands. Without this, that gave-up-too-soon read stuck
+    /// around as a false `Could not connect`/`Could not disconnect` even
+    /// after the device had, moments later, genuinely finished.
     private func resolvePendingToggle(for device: IOBluetoothDevice, shouldConnect: Bool) {
         guard let address = device.addressString,
             pendingToggles[address] == shouldConnect
@@ -484,16 +484,27 @@ final class BluetoothManager: NSObject, ObservableObject {
         shouldConnect ? "Could not connect \(name)" : "Could not disconnect \(name)"
     }
 
+    /// How many quarter-second polls `confirmToggle` allows itself, five
+    /// seconds total. See `confirmToggle` for what this budget is sized
+    /// against.
+    private static let confirmAttempts = 20
+
     /// Polls the device's real state until it matches the action just taken,
     /// so the row keeps saying `Connecting…`/`Disconnecting…` for as long as
     /// that is actually true rather than for however long the API call
     /// happened to take to return.
     ///
-    /// A quarter second apart, up to one and a half seconds total, not the
-    /// three `readBackPower` allows itself for the radio: every other row is
-    /// blocked for as long as this one is busy, the same one-at-a-time rule
-    /// the nearby scan already follows, so this stays short rather than
-    /// leaning on the full budget a single toggle could use.
+    /// A quarter second apart, up to `confirmAttempts` times. A real JBL
+    /// Flip 4's A2DP teardown was measured taking longer than the one and a
+    /// half seconds this first allowed itself, showing a false failure that
+    /// `resolvePendingToggle` then had to clear after the fact once the real
+    /// notification finally arrived. Widened so that catching the real
+    /// disconnect in time, not a late notification cleaning up after a
+    /// missed one, is the common case, while `resolvePendingToggle` stays as
+    /// the safety net for whatever is still slower than even this. Every
+    /// other row is blocked for as long as this one is busy, the same
+    /// one-at-a-time rule the nearby scan already follows, so this is wide
+    /// rather than unbounded.
     ///
     /// `observedDesiredState` latches the first moment the real state
     /// actually matched, rather than only checking the very last sample: a
@@ -519,7 +530,7 @@ final class BluetoothManager: NSObject, ObservableObject {
                 // device's toggle, see `resolvePendingToggle`, so there is
                 // nothing left for this poll to decide.
                 guard self.pendingToggles[device.id] == shouldConnect else { return }
-                guard matches || attempt >= 6 else {
+                guard matches || attempt >= Self.confirmAttempts else {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                         [weak self] in
                         self?.confirmToggle(
