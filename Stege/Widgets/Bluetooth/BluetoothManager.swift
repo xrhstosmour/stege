@@ -88,6 +88,13 @@ final class BluetoothManager: NSObject, ObservableObject {
     /// Serialises reads so a slow one cannot overlap the next tick.
     private let queue = DispatchQueue(label: "stege.bluetooth", qos: .utility)
     private var isReading = false
+    /// Set when a refresh is asked for while one is already in flight, so
+    /// that request is not simply lost. A device reconnecting on its own
+    /// right after `toggleConnection` fired its own read otherwise had
+    /// nothing pick that reconnect back up until the thirty second
+    /// safety-net timer, leaving the popup on a stale "disconnected" answer
+    /// in the meantime.
+    private var refreshQueued = false
 
     /// Held so they can be unregistered. `IOBluetooth` hands back a
     /// notification object per registration, and dropping it without
@@ -180,7 +187,10 @@ final class BluetoothManager: NSObject, ObservableObject {
     /// thread freezes the whole bar, not just this widget: every other widget
     /// stops rendering until it returns.
     private func refresh() {
-        guard !isReading else { return }
+        guard !isReading else {
+            refreshQueued = true
+            return
+        }
         isReading = true
 
         let authorized = CBManager.authorization == .allowedAlways
@@ -189,7 +199,7 @@ final class BluetoothManager: NSObject, ObservableObject {
             guard let self else { return }
             guard authorized else {
                 DispatchQueue.main.async {
-                    self.isReading = false
+                    self.finishReading()
                     self.isAuthorized = false
                     self.isPoweredOn = false
                     self.devices = []
@@ -207,7 +217,7 @@ final class BluetoothManager: NSObject, ObservableObject {
             let connected = powered ? Self.connectedDevices() : []
 
             DispatchQueue.main.async {
-                self.isReading = false
+                self.finishReading()
                 self.isAuthorized = true
                 // Assigned separately. These used to share one guard, so a
                 // read where only the power had changed wrote the same stale
@@ -217,6 +227,15 @@ final class BluetoothManager: NSObject, ObservableObject {
                 if connected != self.devices { self.devices = connected }
             }
         }
+    }
+
+    /// Ends the in-flight read and starts the one that arrived while it was
+    /// running, if any, rather than leaving it dropped.
+    private func finishReading() {
+        isReading = false
+        guard refreshQueued else { return }
+        refreshQueued = false
+        refresh()
     }
 
     /// Turns the radio on or off.
@@ -393,15 +412,87 @@ final class BluetoothManager: NSObject, ObservableObject {
                 shouldConnect
                 ? target.openConnection() : target.closeConnection()
             DispatchQueue.main.async {
-                self?.busy = nil
-                self?.activity = nil
-                if result != kIOReturnSuccess {
-                    self?.failure =
-                        shouldConnect
-                        ? "Could not connect \(device.name)"
-                        : "Could not disconnect \(device.name)"
+                guard let self else { return }
+                guard result == kIOReturnSuccess else {
+                    self.busy = nil
+                    self.activity = nil
+                    self.failure = Self.toggleFailureMessage(
+                        name: device.name, shouldConnect: shouldConnect)
+                    self.refresh()
+                    return
                 }
-                self?.refresh()
+                // Success here only means the request was accepted, not that
+                // the link is actually up or down yet, the same gap
+                // `readBackPower` polls the radio across for `setPower`.
+                // Trusting it immediately is what let a device that
+                // reconnects itself right after being told to disconnect
+                // look, for a moment the row had already stopped watching,
+                // like the disconnect had worked.
+                self.confirmToggle(
+                    device: device, target: target,
+                    shouldConnect: shouldConnect, attempt: 0)
+            }
+        }
+    }
+
+    private static func toggleFailureMessage(
+        name: String, shouldConnect: Bool
+    ) -> String {
+        shouldConnect ? "Could not connect \(name)" : "Could not disconnect \(name)"
+    }
+
+    /// Polls the device's real state until it matches the action just taken,
+    /// so the row keeps saying `Connecting…`/`Disconnecting…` for as long as
+    /// that is actually true rather than for however long the API call
+    /// happened to take to return.
+    ///
+    /// A quarter second apart, up to one and a half seconds total, not the
+    /// three `readBackPower` allows itself for the radio: every other row is
+    /// blocked for as long as this one is busy, the same one-at-a-time rule
+    /// the nearby scan already follows, so this stays short rather than
+    /// leaning on the full budget a single toggle could use.
+    ///
+    /// `observedDesiredState` latches the first moment the real state
+    /// actually matched, rather than only checking the very last sample: a
+    /// device that disconnects and then reconnects itself within this window,
+    /// ordinary for paired HID and audio devices, really did disconnect, if
+    /// only briefly, and reporting that as a failure would be wrong.
+    /// `refresh()` at the end still picks up whichever state is current by
+    /// then, connected or not, regardless of which way this reads.
+    private func confirmToggle(
+        device: BluetoothDevice, target: IOBluetoothDevice,
+        shouldConnect: Bool, attempt: Int, observedDesiredState: Bool = false
+    ) {
+        // `isConnected()` off the main thread, the same as every other
+        // `IOBluetoothDevice` read in this file: `refresh()`'s own doc
+        // comment is why, crossing into `IOBluetooth` on the main thread
+        // freezes the whole bar for as long as the call takes, not just this
+        // widget.
+        queue.async { [weak self] in
+            let matches = target.isConnected() == shouldConnect
+            DispatchQueue.main.async {
+                guard let self else { return }
+                guard matches || attempt >= 6 else {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                        [weak self] in
+                        self?.confirmToggle(
+                            device: device, target: target,
+                            shouldConnect: shouldConnect,
+                            attempt: attempt + 1,
+                            observedDesiredState: observedDesiredState || matches)
+                    }
+                    return
+                }
+                self.busy = nil
+                self.activity = nil
+                if !matches && !observedDesiredState {
+                    // Gave up without ever seeing the state move, so this is
+                    // a real failure worth saying, not a disconnect that
+                    // quietly never happened.
+                    self.failure = Self.toggleFailureMessage(
+                        name: device.name, shouldConnect: shouldConnect)
+                }
+                self.refresh()
             }
         }
     }
