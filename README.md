@@ -16,6 +16,8 @@ beneath it, which is what a menu bar is.
 
 ![The Stege bar](.github/assets/bar.png)
 
+[![Watch the 20 second demo](.github/assets/promo.jpg)](.github/assets/promo.mp4)
+
 ## Install
 
 ```bash
