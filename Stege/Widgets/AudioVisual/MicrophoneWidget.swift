@@ -45,7 +45,10 @@ struct MicrophoneWidget: View {
         .overlay(
             PointerInput(
                 onClick: { showPopup() },
-                onScroll: { manager.nudgeInputVolume(by: Double($0) * 0.05) },
+                onScroll: {
+                    manager.nudgeInputVolume(
+                        by: Double($0) * AudioManager.scrollStep)
+                },
                 onRightClick: { manager.toggleInputMute() })
         )
         .help(tooltip)

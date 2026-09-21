@@ -434,6 +434,10 @@ final class AudioManager: ObservableObject {
         return wrote ? Double(value) : nil
     }
 
+    /// How much one scroll-wheel notch is worth, shared by the closed icon
+    /// and the open popup so scrolling feels the same in both.
+    static let scrollStep: Double = 0.05
+
     /// Moves the level by `delta`, clamped, and unmutes on the way up.
     ///
     /// Scrolling a muted control up and hearing nothing would look broken, and

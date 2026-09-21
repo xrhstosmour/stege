@@ -54,7 +54,9 @@ struct AudioWidget: View {
         .overlay(
             PointerInput(
                 onClick: { showPopup() },
-                onScroll: { manager.nudgeVolume(by: Double($0) * 0.05) },
+                onScroll: {
+                    manager.nudgeVolume(by: Double($0) * AudioManager.scrollStep)
+                },
                 onRightClick: { manager.toggleOutputMute() })
         )
         .help(tooltip)
@@ -169,6 +171,29 @@ struct AudioPopup: View {
             }
         }
         .popupContainer()
+        // Scroll works over the closed icon already; this keeps it working
+        // once the popup is open too, without stealing the clicks the
+        // slider, the mute glyph, and the device rows all still need.
+        //
+        // In front, not behind: the volume `Slider` is a real `NSSlider`
+        // under the hood, so a `.background` here would sit behind it and
+        // never even see a scroll landing on the track, `NSSlider` doesn't
+        // forward an unhandled scroll sideways to a background sibling, only
+        // up its own superview chain. `ScrollPassthrough` is on top instead,
+        // where it always gets first look at a scroll, and its own `hitTest`
+        // is what keeps every click going through to the slider underneath.
+        .overlay(
+            ScrollPassthrough(onScroll: { delta in
+                switch scope {
+                case .output:
+                    manager.nudgeVolume(
+                        by: Double(delta) * AudioManager.scrollStep)
+                case .input:
+                    manager.nudgeInputVolume(
+                        by: Double(delta) * AudioManager.scrollStep)
+                }
+            })
+        )
         .onAppear {
             guard scope == .output else { return }
             manager.startWatchingSources()
