@@ -219,11 +219,80 @@ enum AppMenuReader {
             function: raw & Modifier.function != 0)
     }
 
+    /// The application `element` belongs to, read from the element itself
+    /// rather than threaded in from a caller, since by the time a long menu
+    /// has been open a while, whichever app was frontmost when it opened may
+    /// no longer be.
+    private static func owningApplication(of element: AXUIElement) -> NSRunningApplication? {
+        var pid: pid_t = 0
+        guard AXUIElementGetPid(element, &pid) == .success else { return nil }
+        return NSRunningApplication(processIdentifier: pid)
+    }
+
+    /// How long to wait for `didActivateApplicationNotification` before
+    /// pressing anyway, in case activation never completes, for instance the
+    /// target app quit mid-flight.
+    private static let reactivationTimeout: TimeInterval = 0.3
+
+    /// Brings `application` to the front, then runs `press`.
+    ///
+    /// Clicking a row in Stege's own popped-up menu is a click inside
+    /// Stege's process, so by the time the click lands, macOS's notion of
+    /// frontmost can have already moved to Stege. Most menu actions do not
+    /// care, an AX press reaches the target's handler directly either way,
+    /// but one that spawns a new native window, `Open…` chief among them,
+    /// needs its owning app to actually be frontmost when it runs: Electron
+    /// ties `dialog.showOpenDialog` to whichever app is active, and the
+    /// sheet can silently fail to surface otherwise.
+    ///
+    /// Waits for `didActivateApplicationNotification` rather than a fixed
+    /// delay, since how long the window server takes depends on system load
+    /// Stege has no way to predict, the timer is only a backstop against an
+    /// activation that, for whatever reason, never completes.
+    private static func reactivate(
+        _ application: NSRunningApplication, then press: @escaping () -> Void
+    ) {
+        let center = NSWorkspace.shared.notificationCenter
+        var observer: NSObjectProtocol?
+        var fired = false
+        let finish = {
+            guard !fired else { return }
+            fired = true
+            if let observer { center.removeObserver(observer) }
+            press()
+        }
+        observer = center.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil, queue: .main
+        ) { note in
+            guard
+                let activated = note.userInfo?[NSWorkspace.applicationUserInfoKey]
+                    as? NSRunningApplication,
+                activated.processIdentifier == application.processIdentifier
+            else { return }
+            finish()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + reactivationTimeout, execute: finish)
+        application.activate()
+    }
+
     /// Activates a menu entry by pressing the real item, so whatever the
     /// application does on selection happens exactly as it normally would.
+    ///
+    /// Reports success only for the immediate path, when the target app
+    /// needs reactivating first, the actual press happens later and its
+    /// result has nowhere to go, the sole caller already discards it.
     @discardableResult
     static func activate(_ entry: AppMenuEntry) -> Bool {
         guard let element = entry.element, entry.isEnabled else { return false }
+
+        if let application = owningApplication(of: element), !application.isActive {
+            reactivate(application) {
+                AXUIElementPerformAction(element, kAXPressAction as CFString)
+            }
+            return true
+        }
+
         return AXUIElementPerformAction(element, kAXPressAction as CFString)
             == .success
     }
