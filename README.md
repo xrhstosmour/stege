@@ -16,7 +16,7 @@ beneath it, which is what a menu bar is.
 
 ![The Stege bar](.github/assets/bar.png)
 
-[![Watch the 20 second demo](.github/assets/promo.jpg)](.github/assets/promo.mp4)
+https://github.com/user-attachments/assets/f1cfe9c2-64ba-4784-99b3-e29cf34c47ad
 
 ## Install
 
