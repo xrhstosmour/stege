@@ -337,20 +337,41 @@ struct AerospaceConfig: Decodable {
 struct BarConfig: Decodable {
     let foreground: ForegroundConfig
     let background: BackgroundConfig
-    
+    /// Writes the bar's height into `aerospace.toml` as `outer.top`, so tiled
+    /// windows start below the bar on every screen.
+    let manageAerospaceGaps: Bool
+    /// Moves a window that opens under the bar down below it, which a window
+    /// manager's gap does not do for floating windows and dialogs.
+    let nudgeWindows: Bool
+
     enum CodingKeys: String, CodingKey {
         case foreground, background
+        case manageAerospaceGaps = "manage-aerospace-gaps"
+        case nudgeWindows = "nudge-windows"
     }
-    
+
     init() {
         self.foreground = ForegroundConfig()
         self.background = BackgroundConfig()
+        self.manageAerospaceGaps = true
+        self.nudgeWindows = true
     }
     
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         foreground = try container.decodeIfPresent(ForegroundConfig.self, forKey: .foreground) ?? ForegroundConfig()
         background = try container.decodeIfPresent(BackgroundConfig.self, forKey: .background) ?? BackgroundConfig()
+        manageAerospaceGaps = try container.decodeIfPresent(Bool.self, forKey: .manageAerospaceGaps) ?? true
+        nudgeWindows = try container.decodeIfPresent(Bool.self, forKey: .nudgeWindows) ?? true
+    }
+
+    /// The taller of the two layers: the background can be set taller than
+    /// the foreground, and it is the background that covers a window. One that
+    /// is not displayed covers nothing.
+    func resolveHeight() -> CGFloat {
+        max(
+            foreground.resolveHeight(),
+            background.displayed ? background.resolveHeight() ?? 0 : 0)
     }
 }
 

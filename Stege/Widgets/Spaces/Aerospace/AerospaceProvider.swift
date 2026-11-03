@@ -73,6 +73,23 @@ class AerospaceSpacesProvider: SpacesProvider, SwitchableSpacesProvider {
         ])
     }
 
+    /// The layout of the focused window, `floating` or one of the tiled
+    /// layouts. Nil when `AeroSpace` is not there to ask.
+    func focusedWindowLayout() -> String? {
+        guard
+            let data = runAerospaceCommand(arguments: [
+                "list-windows", "--focused", "--format", "%{window-layout}",
+            ]),
+            let text = String(data: data, encoding: .utf8)
+        else { return nil }
+        let layout = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return layout.isEmpty ? nil : layout
+    }
+
+    func reloadConfiguration() {
+        _ = runAerospaceCommand(arguments: ["reload-config"])
+    }
+
     private func runAerospaceCommand(arguments: [String]) -> Data? {
         guard TrustedExecutable.isTrusted(executablePath) else {
             Log.spaces.error(
