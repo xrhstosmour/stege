@@ -1,10 +1,12 @@
 name: Build and test
 
-# Every branch builds, not just pull requests, so a branch pushed before its
-# pull request exists is still verified.
+# Pull requests and `main` only. Building every branch push as well started two
+# full macOS runs per push, one for the push and one for the pull request. They
+# share a concurrency group, so on a busy runner pool each cancelled the other
+# before its `Test` job ever started, and a pull request could not go green.
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
 
 # Least privilege: this workflow only ever reads the repository.
