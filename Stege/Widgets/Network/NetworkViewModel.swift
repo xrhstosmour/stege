@@ -75,6 +75,17 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
     @Published var noise: Int = 0
     @Published var channel: String = "N/A"
 
+    /// Whether the Wi-Fi radio is on. Published, not read from CoreWLAN on
+    /// demand: turning the radio on with no network to join changes none of
+    /// the other published values, so a view reading the interface directly
+    /// was never told to redraw and the switch stayed on `Off`.
+    @Published private(set) var isPoweredOn = false
+    /// A power change is in flight, so a second tap cannot race the first.
+    @Published private(set) var isSwitchingPower = false
+    /// The power failure currently in `joinFailure`, so only that one is
+    /// cleared when the radio turns out to have moved.
+    private var powerFailure: String?
+
     /// Other networks in range, newest scan first. Empty until a scan runs.
     @Published var nearbyNetworks: [WifiNetwork] = []
     @Published var isScanning = false
@@ -260,7 +271,19 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
         }
         vpnName = tunnel?.displayName
         let client = CWWiFiClient.shared()
-        if let interface = client.interface() {
+        let interface = client.interface()
+        let powered = interface?.powerOn() ?? false
+        if powered != isPoweredOn {
+            isPoweredOn = powered
+            // The radio can land after the read-back gave up, so a "did not
+            // turn on" left showing would contradict the switch beside it.
+            if joinFailure == powerFailure { joinFailure = nil }
+            powerFailure = nil
+            // Here rather than after `setPower`, so turning Wi-Fi on from
+            // System Settings fills the list too.
+            if powered { scanForNetworks() }
+        }
+        if let interface {
             // A nil SSID means "not readable", which is not the same as "not
             // connected". The connection state comes from `NWPathMonitor`.
             self.ssid = interface.ssid()
@@ -421,29 +444,51 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
     /// on it, so having to leave for System Settings to flip it made the rest
     /// unreachable exactly when it mattered.
     func setPower(_ on: Bool) {
+        guard !isSwitchingPower, on != isPoweredOn else { return }
+        isSwitchingPower = true
+        joinFailure = nil
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let interface = CWWiFiClient.shared().interface() else {
+                DispatchQueue.main.async {
+                    self?.isSwitchingPower = false
+                    self?.reportPowerFailure("No Wi-Fi interface found")
+                }
                 return
             }
             do {
                 try interface.setPower(on)
-                DispatchQueue.main.async {
-                    self?.updateWiFiInfo()
-                    if on { self?.scanForNetworks() }
-                }
             } catch {
                 DispatchQueue.main.async {
-                    self?.joinFailure =
-                        on
-                        ? "Could not turn Wi-Fi on"
-                        : "Could not turn Wi-Fi off"
+                    self?.isSwitchingPower = false
+                    self?.reportPowerFailure(
+                        (on ? "Could not turn Wi-Fi on. " : "Could not turn Wi-Fi off. ")
+                            + error.localizedDescription)
+                }
+                return
+            }
+            // The call returns before the radio reports the new state, and
+            // `powerDidChange` can arrive before or after. Reading back until
+            // it matches, rather than once, is what stops the switch landing
+            // on the old answer.
+            var settled = false
+            for _ in 0..<12 {
+                if interface.powerOn() == on { settled = true; break }
+                Thread.sleep(forTimeInterval: 0.25)
+            }
+            DispatchQueue.main.async {
+                self?.isSwitchingPower = false
+                self?.updateWiFiInfo()
+                if !settled {
+                    self?.reportPowerFailure(
+                        on ? "Wi-Fi did not turn on" : "Wi-Fi did not turn off")
                 }
             }
         }
     }
 
-    var isPoweredOn: Bool {
-        CWWiFiClient.shared().interface()?.powerOn() ?? false
+    private func reportPowerFailure(_ message: String) {
+        powerFailure = message
+        joinFailure = message
     }
 
     func openWifiSettings() {
