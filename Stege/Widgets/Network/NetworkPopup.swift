@@ -63,8 +63,12 @@ struct NetworkPopup: View {
                 .font(.system(size: PopupStyle.bodySize))
                 .foregroundStyle(isConnected ? Color.blue : .secondary)
         } trailing: {
-            PopupSwitch(isOn: viewModel.isPoweredOn) {
-                viewModel.setPower(!viewModel.isPoweredOn)
+            if viewModel.isSwitchingPower {
+                ProgressView().controlSize(.mini)
+            } else {
+                PopupSwitch(isOn: viewModel.isPoweredOn) {
+                    viewModel.setPower(!viewModel.isPoweredOn)
+                }
             }
         }
     }

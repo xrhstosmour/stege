@@ -87,6 +87,13 @@ final class BluetoothManager: NSObject, ObservableObject {
     private var timer: Timer?
     /// Serialises reads so a slow one cannot overlap the next tick.
     private let queue = DispatchQueue(label: "stege.bluetooth", qos: .utility)
+    /// Where `openConnection` and `closeConnection` run. Both block until the
+    /// link comes up or the attempt times out, which for a device that is
+    /// switched off or out of range is many seconds. On `queue` they held up
+    /// every refresh and every `confirmToggle` poll behind them, so the row
+    /// sat on `Connecting…` with nothing reading the real state.
+    private let actionQueue = DispatchQueue(
+        label: "stege.bluetooth.action", qos: .userInitiated)
     private var isReading = false
     /// Set when a refresh is asked for while one is already in flight, so
     /// that request is not simply lost. A device reconnecting on its own
@@ -265,7 +272,14 @@ final class BluetoothManager: NSObject, ObservableObject {
                 // read where only the power had changed wrote the same stale
                 // device array straight back and the list kept its blue
                 // connected dots after the radio was switched off.
-                if powered != self.isPoweredOn { self.isPoweredOn = powered }
+                if powered != self.isPoweredOn {
+                    self.isPoweredOn = powered
+                    // The radio can move after `readBackPower` gave up, so
+                    // its "did not turn" message would contradict the switch.
+                    if self.failure?.hasPrefix("Bluetooth did not turn") == true {
+                        self.failure = nil
+                    }
+                }
                 if connected != self.devices { self.devices = connected }
             }
         }
@@ -330,6 +344,8 @@ final class BluetoothManager: NSObject, ObservableObject {
             // Gave up. The radio never reported the move, so let the switch go
             // rather than leaving it spinning for the rest of the session.
             isSwitchingPower = false
+            failure = previous
+                ? "Bluetooth did not turn off" : "Bluetooth did not turn on"
             return
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
@@ -441,7 +457,7 @@ final class BluetoothManager: NSObject, ObservableObject {
         let shouldConnect = !device.isConnected
         activity = shouldConnect ? .connecting : .disconnecting
 
-        queue.async { [weak self] in
+        actionQueue.async { [weak self] in
             guard let target = Self.device(withAddress: address) else {
                 DispatchQueue.main.async {
                     self?.busy = nil
