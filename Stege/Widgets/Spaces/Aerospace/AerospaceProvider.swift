@@ -73,6 +73,10 @@ class AerospaceSpacesProvider: SpacesProvider, SwitchableSpacesProvider {
         ])
     }
 
+    func reloadConfiguration() {
+        _ = runAerospaceCommand(arguments: ["reload-config"])
+    }
+
     private func runAerospaceCommand(arguments: [String]) -> Data? {
         guard TrustedExecutable.isTrusted(executablePath) else {
             Log.spaces.error(
