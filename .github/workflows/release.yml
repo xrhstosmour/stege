@@ -14,7 +14,7 @@ permissions:
 jobs:
   release:
     name: Build and publish
-    runs-on: macos-15
+    runs-on: macos-26
 
     # Secrets are lifted into the job environment because the `secrets` context
     # is not available to step-level `if` conditions, only `env` is.
