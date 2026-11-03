@@ -136,6 +136,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { [weak self] configuration in
                 self?.applyShortcuts(configuration)
                 self?.applyAppearance(configuration)
+                AerospaceGapSync.sync()
+                WindowNudger.shared.apply(configuration)
             }
     }
 
@@ -257,6 +259,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // A panel built for a newly attached screen starts with no
             // appearance.
             self?.applyAppearance(ConfigManager.shared.config)
+            // The inset is per screen, so a screen arriving or leaving changes
+            // what `outer.top` should say.
+            AerospaceGapSync.sync()
         }
         screenParametersWorkItem = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
