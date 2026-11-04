@@ -149,23 +149,71 @@ final class WindowNudger {
             guard let window = Self.windowElement(from: element),
                 Self.isOrdinary(window),
                 let frame = Self.frame(of: window),
-                let placed = WindowPlacement.nudged(
-                    frame: frame, screens: screens, barHeight: barHeight)
+                WindowPlacement.nudged(
+                    frame: frame, screens: screens, barHeight: barHeight) != nil
             else { return }
 
             // A tiled window is `AeroSpace`'s to place. Moving it here only
             // makes the two take turns, the window jumping on every focus
             // change. Only a floating one, or one `AeroSpace` does not know,
-            // is this file's job.
-            if let layout = provider.focusedWindowLayout(), layout != "floating" {
+            // is this file's job. It is the nudged window that is asked
+            // about, not the focused one, which is another window whenever
+            // focus has not followed the notification.
+            if Self.isTiled(window, frame: frame, provider: provider) {
                 return
             }
 
-            if placed.size != frame.size {
+            // Read again, because the check can wait for `AeroSpace` and the
+            // window may have been moved or resized meanwhile. Applying the
+            // earlier geometry would snap it back.
+            guard let current = Self.frame(of: window),
+                let placed = WindowPlacement.nudged(
+                    frame: current, screens: screens, barHeight: barHeight)
+            else { return }
+
+            if placed.size != current.size {
                 Self.set(size: placed.size, on: window)
             }
             Self.set(position: placed.origin, on: window)
         }
+    }
+
+    /// A window just created may not be in `AeroSpace`'s list yet, so an
+    /// unlisted window is asked about once more after a short wait. Still
+    /// unlisted after that means it is not one `AeroSpace` manages.
+    private static func isTiled(
+        _ window: AXUIElement, frame: CGRect, provider: AerospaceSpacesProvider
+    ) -> Bool {
+        var processID: pid_t = 0
+        guard AXUIElementGetPid(window, &processID) == .success,
+            let list = CGWindowListCopyWindowInfo(
+                [.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
+                as? [[String: Any]]
+        else { return false }
+
+        let entries: [WindowLayout.Entry] = list.compactMap { information in
+            guard let number = information[kCGWindowNumber as String] as? Int,
+                let owner = information[kCGWindowOwnerPID as String] as? Int32,
+                let bounds = information[kCGWindowBounds as String] as? NSDictionary,
+                let rectangle = CGRect(dictionaryRepresentation: bounds)
+            else { return nil }
+            return WindowLayout.Entry(
+                number: number, processID: owner, bounds: rectangle)
+        }
+        guard
+            let number = WindowLayout.number(
+                processID: processID, frame: frame, among: entries)
+        else { return false }
+
+        for attempt in 0..<2 {
+            guard let layouts = provider.windowLayouts() else { return false }
+            if layouts[number] != nil || attempt == 1 {
+                return WindowLayout.decision(number: number, layouts: layouts)
+                    == .leaveToWindowManager
+            }
+            Thread.sleep(forTimeInterval: 0.4)
+        }
+        return false
     }
 
     /// The notification is delivered on the application for a focus change
