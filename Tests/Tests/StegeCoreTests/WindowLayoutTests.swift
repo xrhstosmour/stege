@@ -52,6 +52,25 @@ struct WindowLayoutTests {
         #expect(WindowLayout.decision(number: 93, layouts: [93: "v_accordion"]) == .leaveToWindowManager)
     }
 
+    @Test func everyTilingLayoutIsLeftToTheWindowManager() {
+        for layout in ["h_tiles", "v_tiles", "h_accordion", "v_accordion"] {
+            #expect(WindowLayout.decision(number: 1, layouts: [1: layout]) == .leaveToWindowManager)
+        }
+    }
+
+    @Test func aWindowThatIsNotTilingMayBeMoved() {
+        for layout in [
+            "macos_native_fullscreen", "macos_native_minimized",
+            "macos_native_window_of_hidden_app", "NULL-WINDOW-LAYOUT",
+        ] {
+            #expect(WindowLayout.decision(number: 1, layouts: [1: layout]) == .mayMove)
+        }
+    }
+
+    @Test func emptyOutputParsesToNoWindows() {
+        #expect(WindowLayout.parse("").isEmpty)
+    }
+
     @Test func aFloatingWindowMayBeMoved() {
         #expect(WindowLayout.decision(number: 115, layouts: [115: "floating"]) == .mayMove)
     }

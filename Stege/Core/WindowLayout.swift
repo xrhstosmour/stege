@@ -52,12 +52,22 @@ enum WindowLayout {
     enum Decision: Equatable {
         /// `AeroSpace` tiles it, so it is not ours to move.
         case leaveToWindowManager
-        /// Floating, or not a window `AeroSpace` has listed.
+        /// Not tiled, or not a window `AeroSpace` has listed.
         case mayMove
     }
 
+    /// The four values `AeroSpace` prints for a window in a tiling container,
+    /// from `toLayoutString` in its `format.swift`. Everything else it can
+    /// print is not tiling: `floating`, `macos_native_fullscreen`,
+    /// `macos_native_minimized`, `macos_native_window_of_hidden_app` and
+    /// `NULL-WINDOW-LAYOUT` for a popup. Checked 2026-11-04.
+    private static let tiledLayouts: Set<String> = [
+        "h_tiles", "v_tiles", "h_accordion", "v_accordion",
+    ]
+
     static func decision(number: Int?, layouts: [Int: String]) -> Decision {
-        guard let number, let layout = layouts[number] else { return .mayMove }
-        return layout == "floating" ? .mayMove : .leaveToWindowManager
+        guard let number, let layout = layouts[number], tiledLayouts.contains(layout)
+        else { return .mayMove }
+        return .leaveToWindowManager
     }
 }
