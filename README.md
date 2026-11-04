@@ -89,7 +89,7 @@ A combination another application already holds is refused by macOS, and Stege
 says which and why in the system log rather than doing nothing:
 
 ```bash
-log stream --predicate 'subsystem == "com.xrhstosmour.stege"'
+/usr/bin/log stream --predicate 'subsystem == "com.xrhstosmour.stege"'
 ```
 
 ## What it does

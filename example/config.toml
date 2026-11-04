@@ -60,7 +60,7 @@ hidden = false
 # A combination another application already holds is refused by macOS. Stege
 # says so in the system log rather than doing nothing:
 #
-#     log stream --predicate 'subsystem == "com.xrhstosmour.stege"'
+#     /usr/bin/log stream --predicate 'subsystem == "com.xrhstosmour.stege"'
 # menu-shortcut = "cmd+alt+f"
 
 [widgets]
