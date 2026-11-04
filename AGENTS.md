@@ -43,8 +43,9 @@ adding a new one, measure it the same way rather than asserting it.
 
 ## Verifying a change
 
-There is no Xcode on the owner's machine, only Command Line Tools, so `xcodebuild` cannot be run
-locally. Two things can:
+Xcode is installed on the owner's machine (27.2, checked 2026-11-04), so the `Build` job's
+`xcodebuild` command from `.github/workflows/build.yml` runs locally and is the closest thing to CI.
+The release runner needs it too. Without Xcode, only Command Line Tools, two things still work:
 
 ```bash
 # Type-check the whole application. The baseline is ZERO errors.
