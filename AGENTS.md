@@ -43,8 +43,9 @@ adding a new one, measure it the same way rather than asserting it.
 
 ## Verifying a change
 
-There is no Xcode on the owner's machine, only Command Line Tools, so `xcodebuild` cannot be run
-locally. Two things can:
+Xcode is installed on the owner's machine (27.2, checked 2026-11-04), so the `Build` job's
+`xcodebuild` command from `.github/workflows/build.yml` runs locally and is the closest thing to CI.
+The release runner needs it too. Without Xcode, only Command Line Tools, two things still work:
 
 ```bash
 # Type-check the whole application. The baseline is ZERO errors.
@@ -99,6 +100,28 @@ published a checksum taken from a 404 page. Refuses to run off `main`, with a di
 
 The `Notarize` and `Update the Homebrew tap` steps show as skipped. That is expected: there is no
 paid Apple account and no `TAP_TOKEN`, so the build is self-signed and the tap is bumped by hand.
+
+**The release job runs on the owner's Mac, not on GitHub.** `release.yml` targets the
+`stege-release` label, and `bin/release.sh` starts `bin/release-runner.sh` after pushing the tag: an
+ephemeral runner that takes that one job and unregisters. GitHub's hosted macOS pools, arm64 and
+Intel alike, left jobs unassigned until they were cancelled at 15 minutes (measured 2026-11-04). So:
+
+- Release from an Apple silicon Mac with Xcode, and keep it awake until the run finishes.
+- Run it in a terminal the first time on a Mac. `codesign` refuses a self-signed identity the Mac
+  does not trust, so `bin/release-runner.sh` offers to trust `bin/stege-signing.cer`, the public
+  half of the signing certificate, for code signing only, and macOS asks for the password once.
+- It stays a workflow rather than a local script because only an Actions job can attest the
+  archive's provenance, which the tap's `Audit` job checks.
+- Never install the runner as a service. The repository is public, and any workflow in it can
+  target a repository runner. Ephemeral, plus fork pull requests waiting for the owner's approval
+  (`all_external_contributors`), is what keeps a stranger's workflow off this machine.
+- The job must leave no trace on the machine: no `brew install`, no keychain added to the search
+  list, no trust setting changed. The signing keychain is temporary and `codesign --keychain`
+  reads it directly.
+- If the tag is pushed but the runner died, run `bin/release-runner.sh` on its own to release it.
+
+Pull request CI, `Test` and `Build`, stays on GitHub-hosted runners and can still queue. A
+cancellation with zero steps run is capacity, not a failure.
 
 ### 2. Bump the tap
 
