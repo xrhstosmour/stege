@@ -14,7 +14,9 @@ permissions:
 jobs:
   release:
     name: Build and publish
-    runs-on: macos-26
+    # Not `macos-26`: the signing certificate import hung there for nearly an
+    # hour, where it took one second on `macos-15`. Measured on v0.51.24.
+    runs-on: macos-15
 
     # Secrets are lifted into the job environment because the `secrets` context
     # is not available to step-level `if` conditions, only `env` is.
