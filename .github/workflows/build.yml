@@ -20,7 +20,12 @@ concurrency:
 jobs:
   test:
     name: Test
-    runs-on: macos-26
+    # The `macos-26` pool left jobs unassigned until GitHub cancelled them after
+    # 15 minutes, with no step run. `macos-15` is what the release job builds
+    # on, so a green pull request also means the release will build. The
+    # timeout makes a stuck job fail early and say so.
+    runs-on: macos-15
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
@@ -37,7 +42,8 @@ jobs:
 
   build:
     name: Build
-    runs-on: macos-26
+    runs-on: macos-15
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
