@@ -20,11 +20,13 @@ concurrency:
 jobs:
   test:
     name: Test
-    # The `macos-26` pool left jobs unassigned until GitHub cancelled them after
-    # 15 minutes, with no step run. `macos-15` is what the release job builds
-    # on, so a green pull request also means the release will build. The
-    # timeout makes a stuck job fail early and say so.
-    runs-on: macos-15
+    # Intel, not arm64. Every arm64 image, `macos-15` and `macos-26` alike, left
+    # jobs unassigned until GitHub cancelled them after 15 minutes, annotated
+    # "Due to capacity constraints, jobs targeting macOS arm64 runners may
+    # experience longer queue times". Measured on 2026-11-04. The release job
+    # builds on the same image, so a green pull request also means the release
+    # will build. The timeout makes a stuck job fail early and say so.
+    runs-on: macos-15-intel
     timeout-minutes: 20
 
     steps:
@@ -42,7 +44,7 @@ jobs:
 
   build:
     name: Build
-    runs-on: macos-15
+    runs-on: macos-15-intel
     timeout-minutes: 20
 
     steps:
@@ -78,6 +80,9 @@ jobs:
       # Signing is off here on purpose. This job answers "does it compile", and
       # nothing it produces is distributed. The release workflow is the only
       # place a signed artifact is built.
+      #
+      # Cross-compiled for arm64 on an Intel runner, with the same settings as
+      # the release, so this proves what ships rather than an x86_64 build.
       - name: Build
         run: |
           set -o pipefail
@@ -85,8 +90,10 @@ jobs:
             -project Stege.xcodeproj \
             -scheme Stege \
             -configuration Release \
-            -destination 'platform=macOS' \
+            -destination 'generic/platform=macOS' \
             -derivedDataPath .build \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=NO \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
@@ -98,6 +105,8 @@ jobs:
           app=".build/Build/Products/Release/Stege.app"
           test -d "$app" || { echo "missing $app"; exit 1; }
           test -x "$app/Contents/MacOS/Stege" || { echo "missing executable"; exit 1; }
+          archs="$(lipo -archs "$app/Contents/MacOS/Stege")"
+          test "$archs" = "arm64" || { echo "expected arm64, got $archs"; exit 1; }
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist"
 
       # Archived with `ditto` before upload, not handed to the action directly.

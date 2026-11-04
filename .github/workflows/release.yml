@@ -14,9 +14,10 @@ permissions:
 jobs:
   release:
     name: Build and publish
-    # Not `macos-26`: the signing certificate import hung there for nearly an
-    # hour, where it took one second on `macos-15`. Measured on v0.51.24.
-    runs-on: macos-15
+    # Intel, because the arm64 pool is starved, see `build.yml`. Not `macos-26`
+    # either: the signing certificate import hung there for nearly an hour,
+    # where it took one second on `macos-15`. Measured on v0.51.24.
+    runs-on: macos-15-intel
 
     # Secrets are lifted into the job environment because the `secrets` context
     # is not available to step-level `if` conditions, only `env` is.
@@ -97,8 +98,10 @@ jobs:
             -project Stege.xcodeproj \
             -scheme Stege \
             -configuration Release \
-            -destination 'platform=macOS' \
+            -destination 'generic/platform=macOS' \
             -derivedDataPath .build \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=NO \
             MARKETING_VERSION="$VERSION" \
             ENABLE_HARDENED_RUNTIME=YES \
             "${signing[@]}" \
@@ -108,6 +111,10 @@ jobs:
         run: |
           app=".build/Build/Products/Release/Stege.app"
           test -d "$app" || { echo "missing $app"; exit 1; }
+          # Built on an Intel runner, so an x86_64 binary is one wrong setting
+          # away, and it would install for everyone and launch for no one.
+          archs="$(lipo -archs "$app/Contents/MacOS/Stege")"
+          test "$archs" = "arm64" || { echo "expected arm64, got $archs"; exit 1; }
           # `ditto` is the only archiver that preserves the bundle's signature
           # and extended attributes, plain `zip` corrupts both.
           ditto -c -k --keepParent --sequesterRsrc "$app" Stege.zip
