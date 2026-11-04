@@ -14,9 +14,17 @@ permissions:
 jobs:
   release:
     name: Build and publish
-    # Not `macos-26`: the signing certificate import hung there for nearly an
-    # hour, where it took one second on `macos-15`. Measured on v0.51.24.
-    runs-on: macos-15
+    # The owner's Mac, through `bin/release-runner.sh`, which `bin/release.sh`
+    # starts after pushing the tag. GitHub's hosted macOS pools left this job
+    # unassigned until it was cancelled, annotated "Due to capacity
+    # constraints", on arm64 and Intel alike (measured 2026-11-04). Still a
+    # workflow, not a local script, because only an Actions job can attest the
+    # archive's build provenance, which the tap's `Audit` job verifies.
+    #
+    # Everything below runs on a personal machine, so it must leave no trace:
+    # no software installed, no keychain added to the search list, no trust
+    # setting changed.
+    runs-on: stege-release
 
     # Secrets are lifted into the job environment because the `secrets` context
     # is not available to step-level `if` conditions, only `env` is.
@@ -39,13 +47,13 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
 
-      - name: Install xcbeautify
-        run: brew list xcbeautify >/dev/null 2>&1 || brew install xcbeautify
-
-      # A Developer ID certificate is optional. With one, the build is signed and
-      # notarized so macOS opens it without complaint. Without one it falls back
-      # to an ad-hoc signature, which still enables the hardened runtime but makes
-      # Gatekeeper warn on first launch.
+      # A certificate is optional. With one, the build is signed with it, and
+      # macOS keeps the Accessibility grant across upgrades because the identity
+      # does not change. Without one it falls back to an ad-hoc signature.
+      #
+      # The keychain lives in the job's temporary directory and is never added
+      # to the user's search list, so it cannot change what any other app on
+      # the machine finds. `codesign --keychain` reads it directly, see `Sign`.
       - name: Import signing certificate
         if: env.SIGNING_CERTIFICATE != ''
         run: |
@@ -57,22 +65,9 @@ jobs:
           printf '%s' "$SIGNING_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
           security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" \
             -P "$SIGNING_PASSWORD" -T /usr/bin/codesign
-          # Exported separately so it can be marked trusted below.
-          openssl pkcs12 -in "$RUNNER_TEMP/certificate.p12" -clcerts -nokeys \
-            -passin pass:"$SIGNING_PASSWORD" -legacy \
-            -out "$RUNNER_TEMP/certificate.cer" 2>/dev/null || true
+          rm -f "$RUNNER_TEMP/certificate.p12"
           security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain"
-          security list-keychain -d user -s "$keychain" login.keychain
-
-          # A self-signed certificate is not trusted by default, and `codesign`
-          # refuses an identity it cannot validate. Trusting it inside this
-          # keychain is safe: the runner is destroyed with the job, and nothing
-          # outside it ever consults this trust setting. A real Developer ID
-          # certificate chains to Apple and this is a no-op for it.
-          security add-trusted-cert -r trustRoot -p codeSign \
-            -k "$keychain" "$RUNNER_TEMP/certificate.cer" 2>/dev/null || true
-
-          rm -f "$RUNNER_TEMP/certificate.p12" "$RUNNER_TEMP/certificate.cer"
+          echo "SIGNING_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
 
       - name: Build
         # The version reaches the script as a variable rather than being pasted
@@ -82,32 +77,63 @@ jobs:
         # typed by hand.
         env:
           VERSION: ${{ steps.version.outputs.version }}
+        #
+        # Unsigned here and signed in its own step. Xcode looks for the identity
+        # in the user's keychain search list, which this job leaves alone.
         run: |
           set -o pipefail
-          if [ -n "$SIGNING_IDENTITY" ]; then
-            signing=(CODE_SIGN_IDENTITY="$SIGNING_IDENTITY"
-                     CODE_SIGN_STYLE=Manual
-                     DEVELOPMENT_TEAM="$SIGNING_TEAM")
+          # Used when the machine has it, never installed for this job.
+          if command -v xcbeautify >/dev/null 2>&1; then
+            formatter=(xcbeautify --renderer github-actions)
           else
-            signing=(CODE_SIGN_IDENTITY="-"
-                     CODE_SIGN_STYLE=Manual
-                     CODE_SIGNING_REQUIRED=NO)
+            formatter=(cat)
           fi
           xcodebuild build \
             -project Stege.xcodeproj \
             -scheme Stege \
             -configuration Release \
-            -destination 'platform=macOS' \
+            -destination 'generic/platform=macOS' \
             -derivedDataPath .build \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=NO \
             MARKETING_VERSION="$VERSION" \
-            ENABLE_HARDENED_RUNTIME=YES \
-            "${signing[@]}" \
-            | xcbeautify --renderer github-actions
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            | "${formatter[@]}"
+
+      - name: Sign
+        run: |
+          app=".build/Build/Products/Release/Stege.app"
+          test -d "$app" || { echo "missing $app"; exit 1; }
+          if [ -n "${SIGNING_KEYCHAIN:-}" ] && [ -n "$SIGNING_IDENTITY" ]; then
+            # By fingerprint, and only the committed certificate's. A different
+            # certificate in the secret would change the signing identity and
+            # silently drop every user's Accessibility grant on upgrade.
+            fingerprint="$(openssl x509 -inform DER -in bin/stege-signing.cer \
+              -noout -fingerprint -sha1 | cut -d= -f2 | tr -d :)"
+            if ! security find-identity -v -p codesigning "$SIGNING_KEYCHAIN" \
+              | grep -q "$fingerprint"; then
+              echo "error: no trusted signing identity matching bin/stege-signing.cer." \
+                "Run bin/release-runner.sh in a terminal, it offers to trust it."
+              exit 1
+            fi
+            identity=(--sign "$fingerprint" --keychain "$SIGNING_KEYCHAIN")
+          else
+            identity=(--sign -)
+          fi
+          codesign --force --options runtime --timestamp=none \
+            --entitlements Stege/Stege.entitlements \
+            "${identity[@]}" "$app"
+          codesign --verify --strict --verbose=2 "$app"
+          codesign -dvv "$app" 2>&1 | grep -E '^(Authority|Signature)='
 
       - name: Package
         run: |
           app=".build/Build/Products/Release/Stege.app"
           test -d "$app" || { echo "missing $app"; exit 1; }
+          archs="$(lipo -archs "$app/Contents/MacOS/Stege")"
+          test "$archs" = "arm64" || { echo "expected arm64, got $archs"; exit 1; }
           # `ditto` is the only archiver that preserves the bundle's signature
           # and extended attributes, plain `zip` corrupts both.
           ditto -c -k --keepParent --sequesterRsrc "$app" Stege.zip
@@ -190,3 +216,9 @@ jobs:
           git commit -am "Update \`stege\` to ${VERSION}"
           git push origin "$branch"
           gh pr create --fill --base main --head "$branch"
+
+      # Always, so a failed build does not leave the private key on the machine.
+      # `bin/release-runner.sh` deletes the job directory afterwards as well.
+      - name: Remove signing keychain
+        if: always() && env.SIGNING_KEYCHAIN != ''
+        run: security delete-keychain "$SIGNING_KEYCHAIN"
