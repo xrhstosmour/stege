@@ -514,9 +514,18 @@ not the newest one. `gh run list --branch v0.X.Y --limit 1` on its own catches
 the previous tag's finished run, which has published a checksum taken from a
 404.
 
+The release job, and every pull request check, runs on the maintainer's own
+Apple silicon Mac through `bin/local-runner.sh`, an ephemeral GitHub Actions
+runner that takes one job and unregisters. GitHub's hosted macOS runners kept
+cancelling jobs for lack of capacity. `bin/release.sh` starts the runner itself.
+A pull request's checks wait until the maintainer runs
+`bin/local-runner.sh --jobs 2`. [`AGENTS.md`](AGENTS.md) has the details and
+the rules a job must follow on a personal machine.
+
 Then bump the cask in [`homebrew-stege`](https://github.com/xrhstosmour/homebrew-stege),
-which is a separate repository and a separate pull request. Take the checksum
-from the archive the release actually serves, never from a local build:
+which is a separate repository and a separate pull request, with its `Audit`
+run by `bin/local-runner.sh --repository xrhstosmour/homebrew-stege`. Take the
+checksum from the archive the release actually serves, never from a local build:
 
 ```bash
 curl -sL -o Stege.zip \

@@ -1,12 +1,9 @@
 name: Build and test
 
-# Pull requests and `main` only. Building every branch push as well started two
-# full macOS runs per push, one for the push and one for the pull request. They
-# share a concurrency group, so on a busy runner pool each cancelled the other
-# before its `Test` job ever started, and a pull request could not go green.
+# Pull requests only. A push to `main` is always a merged pull request that has
+# already passed, and on a runner that only exists when the owner starts one, a
+# push run would sit queued forever and be the first job the next runner took.
 on:
-  push:
-    branches: [main]
   pull_request:
 
 # Least privilege: this workflow only ever reads the repository.
@@ -20,11 +17,12 @@ concurrency:
 jobs:
   test:
     name: Test
-    # The `macos-26` pool left jobs unassigned until GitHub cancelled them after
-    # 15 minutes, with no step run. `macos-15` is what the release job builds
-    # on, so a green pull request also means the release will build. The
-    # timeout makes a stuck job fail early and say so.
-    runs-on: macos-15
+    # The owner's Mac, through `bin/local-runner.sh --jobs 2`, which takes this
+    # job and `Build`. Every hosted macOS pool, arm64 and Intel alike, left
+    # jobs unassigned until GitHub cancelled them after 15 minutes, annotated
+    # "Due to capacity constraints" (measured 2026-11-04). Nothing here may
+    # install software or write outside the job directory, see `AGENTS.md`.
+    runs-on: stege-local
     timeout-minutes: 20
 
     steps:
@@ -42,7 +40,7 @@ jobs:
 
   build:
     name: Build
-    runs-on: macos-15
+    runs-on: stege-local
     timeout-minutes: 20
 
     steps:
@@ -55,49 +53,48 @@ jobs:
           xcodebuild -version
           swift --version
 
-      # Not guaranteed to be on the runner image, and the build step pipes
-      # through it, so install it rather than depend on the image.
-      - name: Install xcbeautify
-        run: brew list xcbeautify >/dev/null 2>&1 || brew install xcbeautify
-
       # Resolved separately so a dependency failure is distinguishable from a
-      # compile failure.
+      # compile failure. Into the job directory, not the user's `DerivedData`.
       - name: Resolve dependencies
         run: |
           xcodebuild -resolvePackageDependencies \
             -project Stege.xcodeproj \
-            -scheme Stege
-
-      - name: Cache SwiftPM
-        uses: actions/cache@v4
-        with:
-          path: ~/Library/Developer/Xcode/DerivedData/**/SourcePackages
-          key: swiftpm-${{ runner.os }}-${{ hashFiles('Stege.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
-          restore-keys: swiftpm-${{ runner.os }}-
+            -scheme Stege \
+            -derivedDataPath .build
 
       # Signing is off here on purpose. This job answers "does it compile", and
       # nothing it produces is distributed. The release workflow is the only
-      # place a signed artifact is built.
+      # place a signed artifact is built, with the same `ARCHS`.
       - name: Build
         run: |
           set -o pipefail
+          # Used when the machine has it, never installed for this job.
+          if command -v xcbeautify >/dev/null 2>&1; then
+            formatter=(xcbeautify --renderer github-actions)
+          else
+            formatter=(cat)
+          fi
           xcodebuild build \
             -project Stege.xcodeproj \
             -scheme Stege \
             -configuration Release \
-            -destination 'platform=macOS' \
+            -destination 'generic/platform=macOS' \
             -derivedDataPath .build \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=NO \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             ENABLE_HARDENED_RUNTIME=NO \
-            | xcbeautify --renderer github-actions
+            | "${formatter[@]}"
 
       - name: Confirm the app bundle was produced
         run: |
           app=".build/Build/Products/Release/Stege.app"
           test -d "$app" || { echo "missing $app"; exit 1; }
           test -x "$app/Contents/MacOS/Stege" || { echo "missing executable"; exit 1; }
+          archs="$(lipo -archs "$app/Contents/MacOS/Stege")"
+          test "$archs" = "arm64" || { echo "expected arm64, got $archs"; exit 1; }
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist"
 
       # Archived with `ditto` before upload, not handed to the action directly.

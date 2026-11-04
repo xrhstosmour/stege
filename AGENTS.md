@@ -71,14 +71,46 @@ Use `PreviewProvider`, never `#Preview`. Never filter compiler output by broad p
 `swift test` needs the `Testing` framework put on the search path when only Command Line Tools are
 installed. `Tests/README.md` has the invocation.
 
+## CI runs on the owner's Mac
+
+Every workflow, here and in the tap, runs on an ephemeral runner on the owner's Mac, never on
+GitHub's hosted runners. Their macOS pools, arm64 and Intel alike, left jobs unassigned until they
+were cancelled at 15 minutes, annotated "Due to capacity constraints" (measured 2026-11-04). So a
+check sits queued until someone starts a runner:
+
+| What                         | Run, from this repository                                             |
+| ---------------------------- | --------------------------------------------------------------------- |
+| A Stege pull request         | `bin/local-runner.sh --jobs 2`, takes `Test` and `Build`              |
+| A tap pull request           | `bin/local-runner.sh --repository xrhstosmour/homebrew-stege`, `Audit` |
+| A release                    | `bin/release.sh`, which starts `--label stege-release` itself          |
+
+`bin/local-runner.sh` downloads the official runner, checks its `sha256`, registers one runner per
+job with `--ephemeral`, and deletes its directory after each. Pull request checks use the
+`stege-local` label, the release `stege-release`, so a release never waits behind a queued check.
+
+- Run it from an Apple silicon Mac with Xcode, in a terminal the first time. `codesign` refuses a
+  self-signed identity the Mac does not trust, so the script offers to trust
+  `bin/stege-signing.cer`, the public half of the signing certificate, for code signing only, and
+  macOS asks for the password once.
+- Never install the runner as a service. Both repositories are public, and any workflow in them can
+  target a repository runner. Ephemeral, plus fork pull requests waiting for the owner's approval
+  (`all_external_contributors` in both), is what keeps a stranger's workflow off this machine. A
+  fork's pull request runs only after the owner approves it in the Actions tab, and only when a
+  runner is started.
+- A job must leave no trace on the machine: no `brew install`, no `brew update`, nothing written
+  to the user's `DerivedData`, no keychain added to the search list, no trust setting changed. A
+  new workflow step follows the same rule.
+- The runner takes whatever is queued for its label, oldest first. Cancel stale runs before
+  starting one, `gh run list --status queued`.
+
 ## Merge workflow
 
 - Rebase the feature branch onto `main`, push, then merge with:
   ```bash
   gh pr merge <n> --merge --delete-branch --subject 'Merge branch `<branch>`'
   ```
-- CI must be green first. Both jobs, `Test` and `Build`. If it is red, fix on the branch and push,
-  never merge around it.
+- CI must be green first. Both jobs, `Test` and `Build`, started with `bin/local-runner.sh --jobs 2`.
+  If it is red, fix on the branch and push, never merge around it.
 - Never push to `main`. Force-push is fine on a feature branch with `--force-with-lease`, never on
   `main`.
 - Keep pull requests single-topic, non-stacked and independently mergeable.
@@ -104,27 +136,17 @@ published a checksum taken from a 404 page. Refuses to run off `main`, with a di
 The `Notarize` and `Update the Homebrew tap` steps show as skipped. That is expected: there is no
 paid Apple account and no `TAP_TOKEN`, so the build is self-signed and the tap is bumped by hand.
 
-**The release job runs on the owner's Mac, not on GitHub.** `release.yml` targets the
-`stege-release` label, and `bin/release.sh` starts `bin/release-runner.sh` after pushing the tag: an
-ephemeral runner that takes that one job and unregisters. GitHub's hosted macOS pools, arm64 and
-Intel alike, left jobs unassigned until they were cancelled at 15 minutes (measured 2026-11-04). So:
+The release job runs on the owner's Mac, see "CI runs on the owner's Mac". `bin/release.sh` starts
+the runner after pushing the tag, so keep the Mac awake until the run finishes.
 
-- Release from an Apple silicon Mac with Xcode, and keep it awake until the run finishes.
-- Run it in a terminal the first time on a Mac. `codesign` refuses a self-signed identity the Mac
-  does not trust, so `bin/release-runner.sh` offers to trust `bin/stege-signing.cer`, the public
-  half of the signing certificate, for code signing only, and macOS asks for the password once.
 - It stays a workflow rather than a local script because only an Actions job can attest the
   archive's provenance, which the tap's `Audit` job checks.
-- Never install the runner as a service. The repository is public, and any workflow in it can
-  target a repository runner. Ephemeral, plus fork pull requests waiting for the owner's approval
-  (`all_external_contributors`), is what keeps a stranger's workflow off this machine.
-- The job must leave no trace on the machine: no `brew install`, no keychain added to the search
-  list, no trust setting changed. The signing keychain is temporary and `codesign --keychain`
-  reads it directly.
-- If the tag is pushed but the runner died, run `bin/release-runner.sh` on its own to release it.
-
-Pull request CI, `Test` and `Build`, stays on GitHub-hosted runners and can still queue. A
-cancellation with zero steps run is capacity, not a failure.
+- The signing keychain is temporary and `codesign --keychain` reads it directly. The `Sign` step
+  signs only by the fingerprint of `bin/stege-signing.cer`, so a different certificate in the
+  secret fails the job instead of changing the identity, which would drop every user's
+  Accessibility grant.
+- If the tag is pushed but the runner died, run `bin/local-runner.sh --label stege-release` to
+  release it.
 
 ### 2. Bump the tap
 
@@ -148,9 +170,10 @@ brew style Casks/stege.rb
 brew audit --cask --strict xrhstosmour/stege/stege   # by name, a path is refused
 ```
 
-Branch as `bump/stege-0.X.Y`, commit as ``Bump `stege` to 0.X.Y``, open the pull request, wait for
-its `Audit` checks, merge it. The tap's CI re-downloads the archive and checks the declared `sha256`
-against it, so a bump written too early fails there rather than at `brew install`.
+Branch as `bump/stege-0.X.Y`, commit as ``Bump `stege` to 0.X.Y``, open the pull request, run its
+`Audit` with `bin/local-runner.sh --repository xrhstosmour/homebrew-stege`, merge it once green. The
+tap's CI re-downloads the archive and checks the declared `sha256` and the attestation against it,
+so a bump written too early fails there rather than at `brew install`.
 
 ### 3. Install and verify
 
