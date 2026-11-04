@@ -9,8 +9,9 @@ import ApplicationServices
 /// system menu bar. Setting a window's position through Accessibility is
 /// moving it, not simulating a click.
 ///
-/// Only reacts to a window being created or taking focus, never to a move,
-/// so dragging a window up under the bar by hand is left alone. The geometry
+/// Only reacts to a window being created, taking focus, or its application
+/// becoming active, never to a move, so dragging a window up under the bar by
+/// hand is left alone until it is next brought forward. The geometry
 /// is `WindowPlacement`, which is the tested part.
 final class WindowNudger {
     static let shared = WindowNudger()
@@ -121,9 +122,19 @@ final class WindowNudger {
         let focusedResult = AXObserverAddNotification(
             observer, element, kAXFocusedWindowChangedNotification as CFString,
             nil)
-        if createdResult != .success || focusedResult != .success {
+        // Switching to an application does not change which of its windows is
+        // focused, so the notification above stays silent and a floating
+        // window left under the bar was never moved (measured on 0.51.30). It
+        // is delivered on the application, which `windowElement` resolves to
+        // its focused window.
+        let activatedResult = AXObserverAddNotification(
+            observer, element, kAXApplicationActivatedNotification as CFString,
+            nil)
+        if createdResult != .success || focusedResult != .success
+            || activatedResult != .success
+        {
             Log.spaces.debug(
-                "window notifications refused by \(application.bundleIdentifier ?? "unknown", privacy: .public), created \(createdResult.rawValue, privacy: .public), focused \(focusedResult.rawValue, privacy: .public)"
+                "window notifications refused by \(application.bundleIdentifier ?? "unknown", privacy: .public), created \(createdResult.rawValue, privacy: .public), focused \(focusedResult.rawValue, privacy: .public), activated \(activatedResult.rawValue, privacy: .public)"
             )
         }
         CFRunLoopAddSource(
@@ -252,8 +263,8 @@ final class WindowNudger {
         return false
     }
 
-    /// The notification is delivered on the application for a focus change
-    /// and on the window itself for a creation.
+    /// The notification is delivered on the application for a focus change or
+    /// an activation, and on the window itself for a creation.
     private static func windowElement(from element: AXUIElement) -> AXUIElement? {
         if string(kAXRoleAttribute, of: element) == kAXWindowRole {
             return element
