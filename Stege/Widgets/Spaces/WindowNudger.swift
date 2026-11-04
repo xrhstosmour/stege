@@ -32,7 +32,15 @@ final class WindowNudger {
     /// launch.
     func apply(_ configuration: Config) {
         watchTrust()
-        let wanted = configuration.bar.nudgeWindows && AXIsProcessTrusted()
+        let trusted = AXIsProcessTrusted()
+        let wanted = configuration.bar.nudgeWindows && trusted
+        // Before the guard, so a nudger that stays off from launch is logged
+        // too. It is the line that tells a missing Accessibility grant, which
+        // leaves the nudger off without any visible sign, from a disabled
+        // option. Runs on a configuration reload and a trust change only.
+        Log.spaces.info(
+            "window nudger \(wanted ? "on" : "off", privacy: .public), enabled \(configuration.bar.nudgeWindows, privacy: .public), accessibility trusted \(trusted, privacy: .public)"
+        )
         guard wanted != isRunning else { return }
         isRunning = wanted
         if wanted { start() } else { stop() }
@@ -99,16 +107,25 @@ final class WindowNudger {
         let callback: AXObserverCallback = { _, element, _, _ in
             WindowNudger.shared.schedule(element)
         }
-        guard AXObserverCreate(pid, callback, &created) == .success,
-            let observer = created
-        else { return }
+        let result = AXObserverCreate(pid, callback, &created)
+        guard result == .success, let observer = created else {
+            Log.spaces.debug(
+                "no window observer for \(application.bundleIdentifier ?? "unknown", privacy: .public), error \(result.rawValue, privacy: .public)"
+            )
+            return
+        }
 
         let element = AXUIElementCreateApplication(pid)
-        AXObserverAddNotification(
+        let createdResult = AXObserverAddNotification(
             observer, element, kAXWindowCreatedNotification as CFString, nil)
-        AXObserverAddNotification(
+        let focusedResult = AXObserverAddNotification(
             observer, element, kAXFocusedWindowChangedNotification as CFString,
             nil)
+        if createdResult != .success || focusedResult != .success {
+            Log.spaces.debug(
+                "window notifications refused by \(application.bundleIdentifier ?? "unknown", privacy: .public), created \(createdResult.rawValue, privacy: .public), focused \(focusedResult.rawValue, privacy: .public)"
+            )
+        }
         CFRunLoopAddSource(
             CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer),
             .defaultMode)
@@ -146,12 +163,27 @@ final class WindowNudger {
         let provider = AerospaceSpacesProvider()
 
         queue.async {
-            guard let window = Self.windowElement(from: element),
-                Self.isOrdinary(window),
-                let frame = Self.frame(of: window),
+            guard let window = Self.windowElement(from: element) else {
+                Log.spaces.debug("nudge skipped, no window in the notification")
+                return
+            }
+            guard Self.isOrdinary(window) else {
+                Log.spaces.debug("nudge skipped, not an ordinary window")
+                return
+            }
+            guard let frame = Self.frame(of: window) else {
+                Log.spaces.debug("nudge skipped, frame unreadable")
+                return
+            }
+            guard
                 WindowPlacement.nudged(
                     frame: frame, screens: screens, barHeight: barHeight) != nil
-            else { return }
+            else {
+                Log.spaces.debug(
+                    "nudge skipped, already clear of the bar at y \(frame.minY, privacy: .public)"
+                )
+                return
+            }
 
             // A tiled window is `AeroSpace`'s to place. Moving it here only
             // makes the two take turns, the window jumping on every focus
@@ -160,6 +192,7 @@ final class WindowNudger {
             // about, not the focused one, which is another window whenever
             // focus has not followed the notification.
             if Self.isTiled(window, frame: frame, provider: provider) {
+                Log.spaces.debug("nudge skipped, tiled by AeroSpace")
                 return
             }
 
@@ -171,6 +204,9 @@ final class WindowNudger {
                     frame: current, screens: screens, barHeight: barHeight)
             else { return }
 
+            Log.spaces.info(
+                "nudged a window from y \(current.minY, privacy: .public) to y \(placed.origin.y, privacy: .public)"
+            )
             if placed.size != current.size {
                 Self.set(size: placed.size, on: window)
             }
