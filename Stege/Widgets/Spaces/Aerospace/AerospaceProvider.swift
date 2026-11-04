@@ -73,17 +73,19 @@ class AerospaceSpacesProvider: SpacesProvider, SwitchableSpacesProvider {
         ])
     }
 
-    /// The layout of the focused window, `floating` or one of the tiled
-    /// layouts. Nil when `AeroSpace` is not there to ask.
-    func focusedWindowLayout() -> String? {
+    /// The layout of every window, `floating` or one of the tiled layouts,
+    /// by window number. Nil when `AeroSpace` is not there to ask, which
+    /// includes its CLI printing nothing because the server is not running.
+    func windowLayouts() -> [Int: String]? {
         guard
             let data = runAerospaceCommand(arguments: [
-                "list-windows", "--focused", "--format", "%{window-layout}",
+                "list-windows", "--all", "--format",
+                "%{window-id} %{window-layout}",
             ]),
-            let text = String(data: data, encoding: .utf8)
+            let text = String(data: data, encoding: .utf8),
+            !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else { return nil }
-        let layout = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        return layout.isEmpty ? nil : layout
+        return WindowLayout.parse(text)
     }
 
     func reloadConfiguration() {
