@@ -13,6 +13,11 @@ struct AerospaceGapsTests {
         #expect(result == value)
     }
 
+    @Test func writesABareNumberWhenNoScreenDiffersFromTheFallback() {
+        let result = AerospaceGaps.outerTopValue(entries: [], fallback: 49)
+        #expect(result == "49")
+    }
+
     @Test func escapesAnExternalNameForAeroSpaceRegularExpression() {
         let result = AerospaceGaps.outerTopValue(
             entries: [.init(monitor: "LG (27)", points: 49, isBuiltIn: false)],

@@ -64,7 +64,12 @@ enum AerospaceGaps {
     static let marker =
         "# Managed by Stege so windows start below its bar. Turn off with manage-aerospace-gaps = false."
 
+    /// A bare number when no screen differs from the fallback. A list needs at
+    /// least one `monitor` entry, and AeroSpace refuses the whole file for
+    /// `[49]`, which a laptop with only external displays got (reported
+    /// 2026-11-04, AeroSpace 0.21.3-Beta).
     static func outerTopValue(entries: [Entry], fallback: Int) -> String {
+        if entries.isEmpty { return String(fallback) }
         let items = entries.map { entry -> String in
             let key = entry.isBuiltIn ? "built-in" : quoted(escapedPattern(entry.monitor))
             return "{ monitor.\(key) = \(entry.points) }"
