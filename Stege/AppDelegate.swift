@@ -392,8 +392,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// but that is not what the content actually needs, and a full-screen
     /// mouse-accepting panel over every display's bottom edge blocked the
     /// real Dock's hover-to-reveal there. `sizingOptions = []` in
-    /// `makePanel` already stops the resize on its own, so the panel can be
-    /// sized to just the bar instead.
+    /// `makePanel` already stops the resize on its own, and
+    /// `UnconstrainedPanel` stops AppKit moving a panel this short below the
+    /// menu bar area, so the panel can be sized to just the bar instead.
     private func barPanelFrame(on screen: NSScreen) -> CGRect {
         let height = ConfigManager.shared.config.bar.resolveHeight()
         let frame = screen.frame
@@ -452,9 +453,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 backingScaleFactor: screen.backingScaleFactor))
     }
 
-    // Top aligned inside the panel, because the panel is the whole screen and
-    // the bar is a fixed height. Without this SwiftUI centres it, and the bar
-    // would be drawn halfway down the display.
+    // Top aligned inside the panel, so a bar shorter than its panel, a
+    // `height` smaller than the strip `barPanelFrame` sized it for, still
+    // sits against the top edge rather than centred.
     private func framedRootView(_ view: AnyView) -> AnyView {
         AnyView(
             view.frame(
@@ -464,7 +465,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func makePanel(
         frame: CGRect, level: Int, hostingRootView: AnyView, show: Bool = true
     ) -> NSPanel {
-        let panel = NSPanel(
+        let panel = UnconstrainedPanel(
             contentRect: frame,
             styleMask: [.nonactivatingPanel],
             backing: .buffered,
@@ -483,13 +484,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             rootView: framedRootView(hostingRootView))
         // The panel keeps the frame it is given. `NSHostingView` publishes its
         // root view's intrinsic size by default, and AppKit resizes the window
-        // to match, so the screen-sized menu bar panel shrank to the 44 points
-        // its content wanted. A window that small is then subject to
-        // `constrainFrameRect`, which pushes it clear of the menu bar area: on
-        // a notched built-in display that is 32 points, and the whole bar was
-        // drawn 32 points too low with its bottom edge cut off. Measured, not
-        // guessed: the panel reported (0, 880, 1470, 44) instead of
-        // (0, 0, 1470, 956).
+        // to match, so a panel given the whole screen shrank to the 44 points
+        // its content wanted. Measured, not guessed: the panel reported
+        // (0, 880, 1470, 44) instead of (0, 0, 1470, 956).
         hostingView.sizingOptions = []
         hostingView.wantsLayer = true
         hostingView.layer?.isOpaque = false
@@ -511,5 +508,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         alert.runModal()
         NSApplication.shared.terminate(nil)
+    }
+}
+
+/// A panel AppKit leaves where it is put.
+///
+/// `constrainFrameRect` moves a window clear of the menu bar area, 32 points
+/// on a notched built-in display. Every frame these panels get is already
+/// computed against the screen, and the bar's whole job is to sit in that
+/// area, so the constraint only ever moves them to the wrong place. The full
+/// screen panel this replaces dodged it by being too tall to move, at the cost
+/// of covering the bottom edge where the Dock reveals. Measured on 0.51.32:
+/// the 44 point bar panels sat at y 32 instead of 0.
+private final class UnconstrainedPanel: NSPanel {
+    override func constrainFrameRect(
+        _ frameRect: NSRect, to screen: NSScreen?
+    ) -> NSRect {
+        frameRect
     }
 }
