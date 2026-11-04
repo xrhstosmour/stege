@@ -12,7 +12,7 @@ Usage: bin/release.sh [patch|minor|major]
 
 Bumps the latest `vX.Y.Z` tag (patch by default), tags `main` with it,
 pushes the tag, runs its release job on this Mac through
-`bin/release-runner.sh`, and watches it.
+`bin/local-runner.sh --label stege-release`, and watches it.
 EOF
 }
 
@@ -90,13 +90,13 @@ git push origin "$new_tag"
 
 # The release job targets the `stege-release` label, which only exists while
 # this runner does, so the job waits for it rather than for GitHub's pool.
-"$repository_root/bin/release-runner.sh" &
+"$repository_root/bin/local-runner.sh" --label stege-release &
 runner_pid=$!
 sleep 15
 if ! kill -0 "$runner_pid" 2>/dev/null; then
   wait "$runner_pid" || true
   echo "error: the release runner exited before taking the job," \
-    "the tag is pushed, rerun bin/release-runner.sh to release it" >&2
+    "the tag is pushed, rerun bin/local-runner.sh --label stege-release to release it" >&2
   exit 1
 fi
 

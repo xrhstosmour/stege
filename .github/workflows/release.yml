@@ -14,8 +14,9 @@ permissions:
 jobs:
   release:
     name: Build and publish
-    # The owner's Mac, through `bin/release-runner.sh`, which `bin/release.sh`
-    # starts after pushing the tag. GitHub's hosted macOS pools left this job
+    # The owner's Mac, through `bin/local-runner.sh --label stege-release`,
+    # which `bin/release.sh` starts after pushing the tag. Its own label, so a
+    # release runner never takes a queued pull request job instead. GitHub's hosted macOS pools left this job
     # unassigned until it was cancelled, annotated "Due to capacity
     # constraints", on arm64 and Intel alike (measured 2026-11-04). Still a
     # workflow, not a local script, because only an Actions job can attest the
@@ -115,7 +116,7 @@ jobs:
             if ! security find-identity -v -p codesigning "$SIGNING_KEYCHAIN" \
               | grep -q "$fingerprint"; then
               echo "error: no trusted signing identity matching bin/stege-signing.cer." \
-                "Run bin/release-runner.sh in a terminal, it offers to trust it."
+                "Run bin/local-runner.sh in a terminal, it offers to trust it."
               exit 1
             fi
             identity=(--sign "$fingerprint" --keychain "$SIGNING_KEYCHAIN")
@@ -218,7 +219,7 @@ jobs:
           gh pr create --fill --base main --head "$branch"
 
       # Always, so a failed build does not leave the private key on the machine.
-      # `bin/release-runner.sh` deletes the job directory afterwards as well.
+      # `bin/local-runner.sh` deletes the job directory afterwards as well.
       - name: Remove signing keychain
         if: always() && env.SIGNING_KEYCHAIN != ''
         run: security delete-keychain "$SIGNING_KEYCHAIN"
