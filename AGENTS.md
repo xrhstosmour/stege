@@ -58,6 +58,9 @@ swiftc -typecheck -sdk $(xcrun --show-sdk-path --sdk macosx) \
 cd Tests && swift test
 ```
 
+To see what a running build is doing, stream its log with the command in `Stege/Utils/Log.swift`.
+Use `/usr/bin/log`, not `log`, which in zsh is a builtin that silently prints nothing.
+
 **Never accept a non-empty type-check baseline.** This has been near useless twice, and looked fine
 both times. `swiftc` cannot see the asset-catalog accessors Xcode generates, so writing
 `Color.noActive` instead of `Color("Foreground Outside")` makes a view an error type and everything

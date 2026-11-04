@@ -10,7 +10,11 @@ import os
 ///
 /// The unified log is where macOS keeps this, and it can be read back with:
 ///
-///     log stream --predicate 'subsystem == "com.xrhstosmour.stege"'
+///     /usr/bin/log stream --level debug --predicate 'subsystem == "com.xrhstosmour.stege"'
+///
+/// The full path, because in zsh `log` is a shell builtin that prints nothing
+/// and looks exactly like an application that logged nothing. `log show --last
+/// 10m --info --debug` with the same predicate reads back what already passed.
 ///
 /// Interpolated values are redacted by default, which is the right way round:
 /// window titles and network names pass through here and none of them belong
