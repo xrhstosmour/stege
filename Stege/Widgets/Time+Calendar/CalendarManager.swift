@@ -252,11 +252,30 @@ extension CalendarManager {
         !events(on: date, allowList: allowList, denyList: denyList).isEmpty
     }
 
-    /// Opens an event where it belongs: a meeting link in the browser, anything
-    /// else in Calendar, showing that event rather than just that day.
+    /// Where an event opens when it has somewhere better than Calendar: the
+    /// app behind its meeting link, or the web calendar of its account.
+    func destination(for event: EKEvent) -> EventDestination? {
+        // Google names the account by its address, on the source or on the
+        // calendar depending on how it was added.
+        let address = [event.calendar.source.title, event.calendar.title]
+            .first { $0.contains("@") }
+        return EventDestination.resolve(
+            link: meetingLink(for: event),
+            account: CalendarAccountStyle.account(for: event.calendar),
+            externalIdentifier: event.calendarItemExternalIdentifier,
+            calendarAddress: address,
+            isHandled: {
+                NSWorkspace.shared.urlForApplication(
+                    toOpen: URL(string: "\($0)://")!) != nil
+            })
+    }
+
+    /// Opens an event where it belongs: the app or web page of its service when
+    /// there is one, otherwise Calendar, showing that event rather than just
+    /// that day.
     func open(_ event: EKEvent) {
-        if let link = meetingLink(for: event) {
-            NSWorkspace.shared.open(link)
+        if let destination = destination(for: event) {
+            NSWorkspace.shared.open(destination.url)
             return
         }
         guard let identifier = event.eventIdentifier else { return }
@@ -280,22 +299,8 @@ extension CalendarManager {
     /// location, or loose in the notes, so all three are checked before giving
     /// up and opening Calendar instead.
     func meetingLink(for event: EKEvent) -> URL? {
-        if let url = event.url, url.scheme?.hasPrefix("http") == true {
-            return url
-        }
-        for text in [event.location, event.notes].compactMap({ $0 }) {
-            guard
-                let detector = try? NSDataDetector(
-                    types: NSTextCheckingResult.CheckingType.link.rawValue)
-            else { continue }
-            let range = NSRange(text.startIndex..., in: text)
-            if let match = detector.firstMatch(in: text, range: range),
-                let url = match.url, url.scheme?.hasPrefix("http") == true
-            {
-                return url
-            }
-        }
-        return nil
+        EventDestination.meetingLink(
+            url: event.url, location: event.location, notes: event.notes)
     }
 
     /// Creates a one hour event at the next whole hour on `date`, or at nine in

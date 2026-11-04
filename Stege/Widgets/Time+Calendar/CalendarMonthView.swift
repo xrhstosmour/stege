@@ -270,6 +270,8 @@ struct CalendarMonthView: View {
         EventRow(
             event: event,
             meetingLink: calendarManager.meetingLink(for: event) != nil,
+            tooltip: calendarManager.destination(for: event)?.tooltip
+                ?? "Open in Calendar",
             time: timeLabel(for: event)
         ) {
             calendarManager.open(event)
@@ -452,6 +454,7 @@ struct CalendarMonthView: View {
 private struct EventRow: View {
     let event: EKEvent
     let meetingLink: Bool
+    let tooltip: String
     let time: String
     let open: () -> Void
 
@@ -501,7 +504,7 @@ private struct EventRow: View {
         .contentShape(Rectangle())
         .onHover { isHovered = $0 }
         .onTapGesture(perform: open)
-        .help(meetingLink ? "Join in the browser" : "Open in Calendar")
+        .help(tooltip)
     }
 }
 
