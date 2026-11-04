@@ -132,7 +132,7 @@ final class BluetoothManager: NSObject, ObservableObject {
     private init(interval: TimeInterval = 30.0) {
         super.init()
         refresh()
-        registerForConnections()
+        prepareIOBluetooth { [weak self] in self?.registerForConnections() }
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) {
             [weak self] _ in
             self?.refresh()
@@ -145,6 +145,28 @@ final class BluetoothManager: NSObject, ObservableObject {
         activeInquiry?.stop()
         connectNotification?.unregister()
         disconnectNotifications.forEach { $0.unregister() }
+    }
+
+    /// Runs `completion` on the main thread once `IOBluetooth` is ready.
+    ///
+    /// The first registration creates a process-wide coordinator that blocks
+    /// until macOS has decided the Bluetooth permission, which can mean waiting
+    /// on a dialog. Done on the main thread, as the first panel's views were
+    /// built, that stopped the whole bar from appearing until it was answered.
+    /// A throwaway registration here, made and dropped on a background thread,
+    /// takes that wait, and the real one afterwards finds the coordinator
+    /// already built. It cannot be made on that thread for good: the callbacks
+    /// are delivered on the run loop of the thread that registered, and a
+    /// pool thread has none.
+    private func prepareIOBluetooth(then completion: @escaping () -> Void) {
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self else { return }
+            IOBluetoothDevice.register(
+                forConnectNotifications: self,
+                selector: #selector(self.deviceConnected(_:device:)))?
+                .unregister()
+            DispatchQueue.main.async(execute: completion)
+        }
     }
 
     private func registerForConnections() {
